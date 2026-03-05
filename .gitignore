@@ -1,0 +1,19 @@
+# Debian build artifacts
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/files
+debian/*.debhelper.log
+debian/*.substvars
+debian/weather-cli/
+debian/tmp/
+
+# Package build outputs
+*.deb
+*.buildinfo
+*.changes
+*.dsc
+*.tar.xz
+
+# Temporary files
+*~
+*.swp
