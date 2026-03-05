@@ -1,0 +1,36 @@
+name: Build Debian Package
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential devscripts debhelper dh-make
+
+      - name: Build package
+        run: |
+          dpkg-buildpackage -us -uc
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-cli-deb
+          path: ../*.deb
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ../*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
