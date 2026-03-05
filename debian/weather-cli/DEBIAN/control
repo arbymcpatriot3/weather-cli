@@ -1,0 +1,11 @@
+Package: weather-cli
+Version: 1.0.0-1
+Architecture: all
+Maintainer: Arby McPatriot <arbymcpatriot@proton.me>
+Installed-Size: 21
+Section: unknown
+Priority: optional
+Multi-Arch: foreign
+Homepage: <insert the upstream URL, if relevant>
+Description: <insert up to 60 chars description>
+ <Insert long description, indented with spaces.>

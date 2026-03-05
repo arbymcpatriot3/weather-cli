@@ -1,0 +1,6 @@
+7e069a8977bf0c053e502b7327306e33  usr/bin/weather
+8940d6014986c0239df98db02f87b8a9  usr/share/doc-base/weather-cli.weather-cli
+b80b9d92710d89593b70be97ea6dafc7  usr/share/doc/weather-cli/README.Debian
+a3f1ba37281ba4db9444b88a0eb17af0  usr/share/doc/weather-cli/changelog.Debian.gz
+c2583ebbc98097760748296dc2d6c8a1  usr/share/doc/weather-cli/copyright
+f021c7c6b2916efa03e626be100a219e  usr/share/man/man1/weather.1.gz
