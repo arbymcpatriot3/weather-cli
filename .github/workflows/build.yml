@@ -19,8 +19,16 @@ jobs:
         sudo apt install -y build-essential debhelper dpkg-dev
 
     - name: Build package
-      run: |
-        dpkg-buildpackage -us -uc -b
+      run: dpkg-buildpackage -us -uc -b
+
+    - name: Move package
+      run mv ../*.deb .
+
+    - name: Upload .deb
+      uses: actions/upload-artifact@v4
+      with:
+        name: weather-cli-deb
+        path: "*.deb"
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
