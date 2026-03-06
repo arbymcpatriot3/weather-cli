@@ -1,8 +1,16 @@
 # Weather CLI
+![GitHub downloads](https://img.shields.io/github/downloads/arbymcpatriot3/weather-cli/total)
 
 A fast terminal weather station with radar, alerts, and route planning.
 
 Built for Linux, servers, trucks, military systems, and old hardware.
+---
+
+## Install (Linux)
+
+One line install:
+curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/install.sh
+ | bash
 
 ---
 
@@ -17,14 +25,6 @@ Built for Linux, servers, trucks, military systems, and old hardware.
 - Route weather planner (great for trucking)
 - Regional weather map
 - JSON output for scripting
-
----
-
-## Install (Linux)
-
-One line install:
-curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/install.sh
- | bash
 
 ---
 
