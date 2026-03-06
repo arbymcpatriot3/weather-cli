@@ -10,19 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install build tools
         run: |
           sudo apt update
-          sudo apt install -y build-essential debhelper dpkg-dev
+          sudo apt install -y build-essential debhelper dpkg-dev jq
 
       - name: Build package
         run: dpkg-buildpackage -us -uc -b
 
-      - name: Move deb to workspace
-        run: mv ../*.deb .
+      - name: Move package into workspace
+        run: |
+          mv ../*.deb .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -30,7 +31,7 @@ jobs:
           name: weather-cli-deb
           path: "*.deb"
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: "*.deb"
