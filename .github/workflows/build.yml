@@ -10,33 +10,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Install build tools
-      run:
-        su- name: sudo apt update
-        sudo apt install -y build-essential debhelper dpkg-dev
+      - name: Install build tools
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential debhelper dpkg-dev
 
-    - name: Build package
-      run: dpkg-buildpackage -us -uc -b
+      - name: Build package
+        run: dpkg-buildpackage -us -uc -b
 
-    - name: Move deb to workspace
-      run: mv ../*.deb .
+      - name: Move deb to workspace
+        run: mv ../*.deb .
 
-    - name: Upload .deb
-      uses: actions/upload-artifact@v4
-      with:
-        name: weather-cli-deb
-        path: "*.deb"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-cli-deb
+          path: "*.deb"
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: weather-cli-deb
-        path: ../*.deb
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: ../*.deb
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.deb"
