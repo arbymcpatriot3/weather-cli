@@ -1,4 +1,4 @@
-name: Build Debian Package
+name: Build Weather CLI
 
 on:
   push:
@@ -10,28 +10,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Build Debian package
         run: |
           sudo apt update
-          sudo apt install -y build-essential debhelper dpkg-dev jq
-
-      - name: Build package
-        run: dpkg-buildpackage -us -uc -b
-
-      - name: Move package into workspace
-        run: |
+          sudo apt install -y build-essential debhelper dpkg-dev
+          dpkg-buildpackage -us -uc -b
           mv ../*.deb .
 
-      - name: Upload artifact
+      - name: Prepare cross-platform builds
+        run: |
+          cp weather weather-linux
+          cp weather weather-macos
+          cp weather weather-windows.sh
+
+          chmod +x weather-linux
+          chmod +x weather-macos
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: weather-cli-deb
-          path: "*.deb"
+          name: weather-cli
+          path: |
+            *.deb
+            weather-linux
+            weather-macos
+            weather-windows.sh
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.deb"
+          files: |
+            *.deb
+            weather-linux
+            weather-macos
+            weather-windows.sh
