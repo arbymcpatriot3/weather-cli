@@ -3,37 +3,30 @@
 set -e
 
 REPO="arbymcpatriot3/weather-cli"
+
+echo "Installing Weather CLI..."
+
 LATEST=$(curl -s https://api.github.com/repos/$REPO/releases/latest | jq -r ".tag_name")
 
-DEB="weather-cli_${LATEST#v}_all.deb"
+FILE="weather-cli_${LATEST#v}_all.deb"
 
-echo
-echo "Weather CLI Installer"
-echo "Downloading version $LATEST"
-echo
-
-URL="https://github.com/$REPO/releases/download/$LATEST/$DEB"
+URL="https://github.com/$REPO/releases/download/$LATEST/$FILE"
 
 TMP=$(mktemp -d)
 
 cd "$TMP"
 
-echo "Downloading package..."
+echo "Downloading $FILE..."
+
 curl -LO "$URL"
 
 echo "Installing..."
 
-if command -v apt >/dev/null; then
-    sudo apt install -y ./$DEB
-else
-    echo "APT not found. Installing manually."
-    sudo dpkg -i $DEB
-fi
+sudo apt install -y ./$FILE
 
 echo
 echo "Weather CLI installed!"
 echo
 echo "Run:"
-echo
 echo "weather"
-echo
+
