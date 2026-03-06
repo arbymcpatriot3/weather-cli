@@ -1,19 +1,66 @@
-# weather-cli
+# Weather CLI
 
-Simple command line weather tool.
+A fast terminal weather station with radar, alerts, and route planning.
 
-## Install
+Built for Linux, servers, trucks, military systems, and old hardware.
 
-Download the latest `.deb` from Releases.
+---
 
-Then install:
+## Features
 
-sudo apt install ./weather-cli_*.deb
+- Current weather conditions
+- 24-hour temperature chart
+- 7-day forecast
+- ASCII radar display
+- Lightning detection
+- Severe weather alerts
+- Route weather planner (great for trucking)
+- Regional weather map
+- JSON output for scripting
+
+---
+
+## Install (Linux)
+
+One line install:
+curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/install.sh
+ | bash
+
+---
 
 ## Usage
+weather
+weather watch
+weather radar
+weather map
+weather route "New York" "Chicago"
+weather json
 
-weather <city>
+---
 
-Example:
+## Example Output
+Location: Pennsville (08079)
+Now: 46.9°F | Cloudy ☁
+Wind: 8.6 mph → NE
 
-weather Philadelphia
+---
+
+## Why Weather CLI?
+
+Most weather apps are slow and heavy.
+
+Weather CLI is designed to be:
+
+- fast
+- lightweight
+- scriptable
+- usable on very old computers
+
+---
+
+## Author
+
+Arby McPatriot
+
+GitHub:
+https://github.com/arbymcpatriot3/weather-cli
