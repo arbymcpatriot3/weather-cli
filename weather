@@ -1,136 +1,372 @@
 #!/usr/bin/env bash
+# weather_1.0.0.6
 
-ZIP="08079"
-NAME="Pennsville"
-LAT=39.653
-LON=-75.516
+# Weather CLI - Improved version
+# Uses Open-Meteo (free, no API key)
 
-CACHE="/tmp/weather_cache_08079.json"
-MAX_AGE=600
-
-GREEN="\033[1;32m"
-BLUE="\033[1;34m"
-YELLOW="\033[1;33m"
-CYAN="\033[1;36m"
-MAGENTA="\033[1;35m"
-RED="\033[1;31m"
-RESET="\033[0m"
-
-API_URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true&hourly=temperature_2m&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max,sunrise,sunset&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=auto"
-
-# ----- Cache -----
-if [[ -f "$CACHE" && $(( $(date +%s) - $(stat -c %Y "$CACHE") )) -lt $MAX_AGE ]]; then
-    WEATHER=$(cat "$CACHE")
-else
-    WEATHER=$(curl -s "$API_URL")
-    echo "$WEATHER" > "$CACHE"
+# Required commands
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: 'jq' is required but not installed." >&2
+    exit 1
 fi
 
-# ----- Current -----
-TEMP=$(echo "$WEATHER" | jq -r '.current_weather.temperature')
-WIND=$(echo "$WEATHER" | jq -r '.current_weather.windspeed')
-WINDDIR=$(echo "$WEATHER" | jq -r '.current_weather.winddirection')
-CURCODE=$(echo "$WEATHER" | jq -r '.current_weather.weathercode')
+if ! command -v curl >/dev/null 2>&1; then
+    echo "Error: 'curl' is required but not installed." >&2
+    exit 1
+fi
 
-SUNRISE=$(echo "$WEATHER" | jq -r '.daily.sunrise[0]' | cut -dT -f2)
-SUNSET=$(echo "$WEATHER" | jq -r '.daily.sunset[0]' | cut -dT -f2)
+if command -v bc >/dev/null 2>&1; then
+    BC_AVAILABLE=1
+else
+    echo "Warning: 'bc' not found → hourly bars & precise wind direction disabled." >&2
+    BC_AVAILABLE=0
+fi
 
-# ----- Wind Arrow -----
-wind_arrow() {
-  deg=$1
-  case $(( (deg + 22) / 45 % 8 )) in
-    0) echo "↑ N" ;;
-    1) echo "↗ NE" ;;
-    2) echo "→ E" ;;
-    3) echo "↘ SE" ;;
-    4) echo "↓ S" ;;
-    5) echo "↙ SW" ;;
-    6) echo "← W" ;;
-    7) echo "↖ NW" ;;
-  esac
+CONFIG="$HOME/.config/weather-cli.conf"
+CACHE="/tmp/weather-cli.cache"
+CACHE_TIME=600   # 10 minutes
+
+set -euo pipefail
+# During development you can comment this out if unbound variables are annoying
+# set -u
+
+########################################
+# Terminal width detection
+########################################
+detect_width() {
+    if command -v tput >/dev/null 2>&1; then
+        WIDTH=$(tput cols 2>/dev/null || echo 80)
+    else
+        WIDTH=80
+    fi
 }
 
-# ----- Description -----
-desc() {
-  case $1 in
-    0) echo "Clear" ;;
-    1|2|3) echo "Partly Cloudy" ;;
-    45|48) echo "Fog" ;;
-    51|53|55) echo "Drizzle" ;;
-    61|63|65) echo "Rain" ;;
-    71|73|75) echo "Snow" ;;
-    80|81|82) echo "Showers" ;;
-    95) echo "Thunderstorm" ;;
-    *) echo "Unknown" ;;
-  esac
+detect_width
+
+########################################
+# Degrees → Cardinal direction
+########################################
+wind_dir() {
+    local deg="${1:-0}"
+
+    local dirs=(N NNE NE ENE E ESE SE SSE S SSW SW WSW W WNW NW NNW)
+
+    if [ "$BC_AVAILABLE" = "1" ]; then
+        # Let bc do the floating-point math and output integer only
+        local idx
+        idx=$(echo "scale=0; (($deg / 22.5) + 0.5) / 1" | bc)   # forces integer output
+        # or more explicit: idx=$(echo "scale=0; $deg / 22.5 + 0.5" | bc | cut -d. -f1)
+    else
+        # Pure integer fallback (no bc needed)
+        local idx=$(( (deg + 11) / 22 ))
+    fi
+
+    # Now idx is guaranteed integer → safe for bash arithmetic
+    local cardinal="${dirs[$((idx % 16))]}"
+
+    echo "${cardinal} (${deg}°)"
 }
 
-# ----- Moon Phase (simple lunar cycle approx) -----
-DAY_OF_YEAR=$(date +%j)
-MOON_INDEX=$(( DAY_OF_YEAR % 29 ))
+########################################
+# Weather code → description + emoji
+########################################
+weather_code() {
+    case "${1:-999}" in
+    0)                  echo "Clear sky              ☀" ;;
+    1)                  echo "Mainly clear           🌤️" ;;
+    2)                  echo "Partly cloudy          ⛅" ;;
+    3)                  echo "Overcast               ☁" ;;
+    45|48)              echo "Fog                    🌫" ;;
+    51|53|55)           echo "Drizzle                🌦" ;;
+    56|57)              echo "Freezing drizzle       🌨" ;;
+    61|63|65)           echo "Rain                   🌧" ;;
+    66|67)              echo "Freezing rain          🌧❄" ;;
+    71|73|75)           echo "Snow                   ❄" ;;
+    77)                 echo "Snow grains            ❄" ;;
+    80|81|82)           echo "Rain showers           🚿" ;;
+    85|86)              echo "Snow showers           ❄🚿" ;;
+    95|96|99)           echo "Thunderstorm           ⛈" ;;
+    *)                  echo "Unknown ($1)" ;;
+    esac
+}
 
-if (( MOON_INDEX < 2 )); then MOON="🌑 New Moon"
-elif (( MOON_INDEX < 7 )); then MOON="🌒 Waxing Crescent"
-elif (( MOON_INDEX < 9 )); then MOON="🌓 First Quarter"
-elif (( MOON_INDEX < 14 )); then MOON="🌔 Waxing Gibbous"
-elif (( MOON_INDEX < 16 )); then MOON="🌕 Full Moon"
-elif (( MOON_INDEX < 21 )); then MOON="🌖 Waning Gibbous"
-elif (( MOON_INDEX < 23 )); then MOON="🌗 Last Quarter"
-else MOON="🌘 Waning Crescent"
+########################################
+# Fetch weather (with cache)
+########################################
+fetch_weather() {
+    if [ -f "$CACHE" ]; then
+        local age
+        age=$(( $(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) ))
+        if [ "$age" -lt "$CACHE_TIME" ]; then
+            cat "$CACHE"
+            return 0
+        fi
+    fi
+
+    local url="https://api.open-meteo.com/v1/forecast"
+    url+="?latitude=$LAT&longitude=$LON"
+    url+="&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,apparent_temperature"
+    url+="&hourly=temperature_2m"                           # ← ADD THIS for hourly temps
+    url+="&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset"
+    url+="&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto"
+
+    local data
+    data=$(curl -s --fail --max-time 10 "$url" || {
+        echo "Error: Failed to fetch weather data from Open-Meteo" >&2
+        [ -f "$CACHE" ] && cat "$CACHE"  # fallback
+        exit 1
+    })
+
+    echo "$data" > "$CACHE.tmp" && mv "$CACHE.tmp" "$CACHE"
+    echo "$data"
+}
+
+########################################
+# Compact mode (good for small terminals)
+########################################
+compact_mode() {
+    local data; data=$(fetch_weather)
+
+    local temp=$(echo "$data" | jq '.current.temperature_2m')
+    local feel=$(echo "$data" | jq '.current.apparent_temperature')
+    local wind=$(echo "$data" | jq '.current.wind_speed_10m')
+    local wdir=$(echo "$data" | jq '.current.wind_direction_10m')
+    local code=$(echo "$data" | jq '.current.weather_code')
+
+    local desc; desc=$(weather_code "$code")
+    local dir;  dir=$(wind_dir "$wdir")
+
+    local high=$(echo "$data" | jq '.daily.temperature_2m_max[0]')
+    local low=$(echo "$data" | jq '.daily.temperature_2m_min[0]')
+    local rain=$(echo "$data" | jq '.daily.precipitation_probability_max[0]')
+
+    echo "----------------------------------------"
+    printf " %s\n" "$CITY"
+    echo "----------------------------------------"
+    printf "  Now:   %5.1f°F  (feels %5.1f°F)\n" "$temp" "$feel"
+    printf "  Cond:  %s\n" "$desc"
+    printf "  Wind:  %5.1f mph  %s\n" "$wind" "$dir"
+    printf "  Today: High %3.0f°   Low %3.0f°   Rain %3.0f%%\n" "$high" "$low" "$rain"
+    echo "----------------------------------------"
+}
+
+########################################
+# Full current conditions
+########################################
+display_current() {
+    local data="$1"
+
+    local temp=$(echo "$data" | jq '.current.temperature_2m')
+    local feel=$(echo "$data" | jq '.current.apparent_temperature')
+    local wind=$(echo "$data" | jq '.current.wind_speed_10m')
+    local wdir=$(echo "$data" | jq '.current.wind_direction_10m')
+    local humi=$(echo "$data" | jq '.current.relative_humidity_2m')
+    local code=$(echo "$data" | jq '.current.weather_code')
+
+    local desc; desc=$(weather_code "$code")
+    local dir;  dir=$(wind_dir "$wdir")
+
+    local sunrise=$(echo "$data" | jq -r '.daily.sunrise[0] | split("T")[1] | split(":")[0:2] | join(":")')
+    local sunset=$(echo "$data" | jq -r '.daily.sunset[0] | split("T")[1] | split(":")[0:2] | join(":")')
+
+    cat <<EOF
+Location: $CITY
+Coordinates: $LAT, $LON
+
+Current Conditions
+------------------
+Temperature     : ${temp}°F (feels like ${feel}°F)
+Condition       : $desc
+Humidity        : ${humi}%
+Wind            : ${wind} mph  $dir
+Sunrise / Sunset: $sunrise  /  $sunset
+EOF
+}
+
+########################################
+# Hourly temperature chart (next 24h)
+########################################
+display_hourly() {
+    local data="$1"
+
+    echo
+    echo "Hourly Forecast (Next 24 hours)"
+    echo "------------------------------"
+
+    # Check if hourly data even exists
+    if ! echo "$data" | jq -e '.hourly.temperature_2m // empty' >/dev/null; then
+        echo "Hourly data not available in this forecast."
+        return
+    fi
+
+    for i in {0..23}; do
+        local time=$(echo "$data" | jq -r ".hourly.time[$i]" | cut -d'T' -f2 | cut -d':' -f1-2)
+
+        local temp=$(echo "$data" | jq ".hourly.temperature_2m[$i]")
+
+        local bars=""
+        local color=""
+        local reset="\033[0m"
+
+        if [ "$BC_AVAILABLE" = "1" ]; then
+            # Compute scaled length (0–20 bars)
+            local scaled
+            scaled=$(echo "scale=0; if($temp<0) 0 else if($temp>100) 20 else ($temp/5)" | bc)
+
+            bars=$(printf '%*s' "$scaled" '' | tr ' ' '#')
+
+            # Choose color index (no escape codes yet)
+            local color_code=""
+            if [ "$(echo "$temp >= 80" | bc)" -eq 1 ]; then
+                color_code=196   # red
+            elif [ "$(echo "$temp >= 70" | bc)" -eq 1 ]; then
+                color_code=208   # orange
+            elif [ "$(echo "$temp >= 50" | bc)" -eq 1 ]; then
+                color_code=226   # yellow
+            elif [ "$(echo "$temp < 32" | bc)" -eq 1 ]; then
+                color_code=39    # cyan
+            fi
+        fi
+
+        # Print using octal escapes in the format string (this almost always works)
+        if [ -n "$color_code" ]; then
+            printf "%5s  %5.1f°F  \033[38;5;%dm%s\033[0m\n" \
+                "$time" "$temp" "$color_code" "$bars"
+        else
+            printf "%5s  %5.1f°F  %s\n" "$time" "$temp" "$bars"
+        fi
+    done
+}
+
+########################################
+# 7-day forecast
+########################################
+display_forecast() {
+    local data="$1"
+
+    echo
+    echo "7-Day Forecast"
+    echo "--------------"
+
+    for i in {0..6}; do
+        # to something like:
+        local date_raw=$(echo "$data" | jq -r ".daily.time[$i]")
+        local date=$(date -d "$date_raw" +"%a %b %d" 2>/dev/null || echo "${date_raw:5:5}")
+        local high=$(echo "$data" | jq ".daily.temperature_2m_max[$i]")
+        local low=$(echo "$data" | jq ".daily.temperature_2m_min[$i]")
+        local rain=$(echo "$data" | jq ".daily.precipitation_probability_max[$i]")
+        local wcode=$(echo "$data" | jq ".daily.weather_code[$i]")
+        local desc; desc=$(weather_code "$wcode")
+
+        printf "%s  %s\n" "$date" "$desc"
+        printf "     High %3.0f°   Low %3.0f°   Rain %3.0f%%\n" "$high" "$low" "$rain"
+        echo
+    done
+}
+
+########################################
+# Simple one-liner mode
+########################################
+simple_mode() {
+    local data; data=$(fetch_weather)
+    local temp=$(echo "$data" | jq '.current.temperature_2m')
+    local code=$(echo "$data" | jq '.current.weather_code')
+    local desc; desc=$(weather_code "$code" | cut -d' ' -f1-2)
+    printf "%s  %.1f°F  %s\n" "$CITY" "$temp" "$desc"
+}
+
+########################################
+# Help
+########################################
+show_help() {
+    cat <<EOF
+
+Weather CLI
+-----------
+
+Usage:  weather [command]
+
+Commands:
+  (none)         Full weather report
+  simple         One-line summary
+  compact        Compact view (good for small screens)
+  json           Raw JSON output
+  help           This help message
+
+Config is stored in: $CONFIG
+Cache: $CACHE (refreshes every $CACHE_TIME seconds)
+
+EOF
+}
+
+########################################
+# First-time setup
+########################################
+if [ ! -f "$CONFIG" ]; then
+    echo "First run — let's set your location."
+    echo
+    read -rp "Enter city name or ZIP code: " LOCATION
+
+    geo=$(curl -s --fail "https://geocoding-api.open-meteo.com/v1/search?name=$LOCATION&count=1&language=en" || {
+        echo "Error: Could not find location." >&2
+        exit 1
+    })
+
+    if [ "$(echo "$geo" | jq '.results | length')" -eq 0 ]; then
+        echo "Error: Location not found." >&2
+        exit 1
+    fi
+
+    LAT=$(echo "$geo" | jq -r '.results[0].latitude')
+    LON=$(echo "$geo" | jq -r '.results[0].longitude')
+    CITY=$(echo "$geo" | jq -r '.results[0].name')
+
+    mkdir -p "$(dirname "$CONFIG")"
+    cat > "$CONFIG" <<EOF
+LAT=$LAT
+LON=$LON
+CITY="$CITY"
+EOF
+
+    echo "Saved: $CITY ($LAT, $LON)"
+    echo
 fi
 
-# ----- Severe Weather Detection -----
-ALERT=""
-if [[ "$CURCODE" == "95" ]]; then
-  ALERT="${RED}⚠ SEVERE WEATHER: Thunderstorm detected!${RESET}"
-fi
+# Load config
+source "$CONFIG"
 
-clear
-echo
-echo -e "${GREEN}Location:${RESET}    $NAME ($ZIP)"
-echo -e "${YELLOW}Now:${RESET}         ${TEMP}°F  |  $(desc $CURCODE)"
-echo -e "Wind:        ${WIND} mph  $(wind_arrow $WINDDIR)"
-echo -e "${MAGENTA}Sunrise:${RESET}     $SUNRISE"
-echo -e "${MAGENTA}Sunset:${RESET}      $SUNSET"
-echo -e "Moon:        $MOON"
-[[ -n "$ALERT" ]] && echo -e "$ALERT"
+########################################
+# Main command router
+########################################
+case "${1:-}" in
+    ""|full)
+        data=$(fetch_weather)
+        display_current "$data"
+        display_hourly "$data"
+        display_forecast "$data"
+        ;;
 
-# ----- Hourly Graph -----
-echo
-echo -e "${CYAN}Hourly Temperature (Next 24h):${RESET}"
+    simple)
+        simple_mode
+        ;;
 
-HOURS=$(echo "$WEATHER" | jq -r '.hourly.time[0:24][]?')
-TEMPS=$(echo "$WEATHER" | jq -r '.hourly.temperature_2m[0:24][]?')
+    compact)
+        compact_mode
+        ;;
 
-if [[ -n "$TEMPS" ]]; then
-  paste <(echo "$HOURS") <(echo "$TEMPS") | while read H T; do
-    HOUR=$(date -d "$H" +"%H:%M")
-    BAR_LEN=$(printf "%.0f" "$(echo "$T / 2" | bc -l)")
-    BAR=$(printf "%-${BAR_LEN}s" "#" )
-    printf "%s | %5.1f°F | %s\n" "$HOUR" "$T" "$BAR"
-  done
-else
-  echo "Hourly data unavailable."
-fi
+    json)
+        fetch_weather
+        ;;
 
-# ----- 7 Day Forecast -----
-echo
-echo -e "${CYAN}7-Day Forecast:${RESET}"
-echo "--------------------------------------------------------------------"
+    help|-h|--help)
+        show_help
+        ;;
 
-for i in {0..6}; do
-    DATE=$(echo "$WEATHER" | jq -r ".daily.time[$i]")
-    HIGH=$(echo "$WEATHER" | jq -r ".daily.temperature_2m_max[$i]")
-    LOW=$(echo "$WEATHER" | jq -r ".daily.temperature_2m_min[$i]")
-    CODE=$(echo "$WEATHER" | jq -r ".daily.weathercode[$i]")
-    POP=$(echo "$WEATHER" | jq -r ".daily.precipitation_probability_max[$i]")
+    *)
+        echo "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac
 
-    DAY=$(date -d "$DATE" +"%a")
-
-    printf "%-10s High: %-5s°F  Low: %-5s°F  Rain: %-3s%%  %s\n" \
-           "$DAY" "$HIGH" "$LOW" "$POP" "$(desc $CODE)"
-done
-
-echo
-echo -e "${BLUE}Updated:${RESET} $(date '+%Y-%m-%d %H:%M:%S')"
-echo
+exit 0
