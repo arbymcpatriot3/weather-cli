@@ -186,7 +186,7 @@ def display_hourly(hourly: dict, width: int, time_format: str = "12h",
         if time_format == "24h":
             time_str = dt.strftime("%H:%M")
         else:
-            time_str = dt.strftime("%-I:%M %p").rjust(8)
+            time_str = (f"{str(int(dt.strftime('%I')))}:{dt.strftime('%M')} {dt.strftime('%p')}").rjust(8)
 
         # Temperature bar (20 chars wide)
         bar_len = int(20 * (temp - min_t) / t_range)
@@ -251,7 +251,7 @@ def display_rain_timeline(hourly: dict, width: int, time_format: str = "12h"):
         if time_format == "24h":
             time_str = dt.strftime("%H:%M")
         else:
-            time_str = dt.strftime("%-I:%M %p").rjust(8)
+            time_str = (f"{str(int(dt.strftime('%I')))}:{dt.strftime('%M')} {dt.strftime('%p')}").rjust(8)
 
         bar_len = max(1, int(rain / 5)) if rain > 0 else 0
         bar     = "▒" * bar_len
