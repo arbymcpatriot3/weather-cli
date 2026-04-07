@@ -19,6 +19,8 @@ _CB_VOICE_ALERTS = {
     "tornado_watch":   "Twister weather on deck — keep your ears on and find low ground",
     "hurricane":       "Big blow coming through — get off the road and tie her down",
     "heat_advisory":   "Scorcher out there — check your tires and drink some water",
+    "bridge_freeze":   "Watch those bridge decks driver — they freeze before the road does",
+    "mudslide":        "Got some heavy rain that might be moving dirt around good buddy — watch for debris on the road",
     "hazard_reported": "Got a community report ahead — eyes up and slow your roll",
     "hos_warning":     "You're burning daylight on your clock good buddy — start looking for a spot",
     "parking_ahead":   "Got a truck stop in your runway — might be worth a look",
