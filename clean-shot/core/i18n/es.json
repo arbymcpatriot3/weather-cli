@@ -1,0 +1,27 @@
+{
+  "location.highway_near_mm":   "{highway} dirección {direction} cerca del MM{mm}",
+  "location.highway_near_city": "{highway} dirección {direction} cerca de {city}, {state}",
+  "location.near_city":         "Cerca de {city}, {state}",
+  "location.coordinates":       "({lat}, {lon})",
+  "location.stale":             "(ubicación desactualizada)",
+
+  "direction.N":  "norte",
+  "direction.S":  "sur",
+  "direction.E":  "este",
+  "direction.W":  "oeste",
+  "direction.NE": "noreste",
+  "direction.NW": "noroeste",
+  "direction.SE": "sureste",
+  "direction.SW": "suroeste",
+
+  "gps.driving":        "Conduciendo",
+  "gps.parked":         "Estacionado",
+  "gps.no_fix":         "Sin señal GPS",
+  "gps.using_last":     "Usando última ubicación conocida",
+  "gps.poll_driving":   "Actualizando cada 60s (en ruta)",
+  "gps.poll_parked":    "Actualizando cada 10 min (estacionado)",
+
+  "hazard.confirmed":   "Ubicación confirmada",
+  "hazard.too_far":     "Demasiado lejos para confirmar el reporte ({dist:.1f} millas)",
+  "hazard.no_position": "No se puede confirmar — sin señal GPS"
+}

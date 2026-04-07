@@ -1,0 +1,27 @@
+{
+  "location.highway_near_mm":   "{highway} {direction} near MM{mm}",
+  "location.highway_near_city": "{highway} {direction} near {city}, {state}",
+  "location.near_city":         "Near {city}, {state}",
+  "location.coordinates":       "({lat}, {lon})",
+  "location.stale":             "(location may be outdated)",
+
+  "direction.N":  "Northbound",
+  "direction.S":  "Southbound",
+  "direction.E":  "Eastbound",
+  "direction.W":  "Westbound",
+  "direction.NE": "Northeast",
+  "direction.NW": "Northwest",
+  "direction.SE": "Southeast",
+  "direction.SW": "Southwest",
+
+  "gps.driving":        "Driving",
+  "gps.parked":         "Parked",
+  "gps.no_fix":         "No GPS fix",
+  "gps.using_last":     "Using last known location",
+  "gps.poll_driving":   "Polling every 60s (driving)",
+  "gps.poll_parked":    "Polling every 10 min (parked)",
+
+  "hazard.confirmed":   "Location confirmed",
+  "hazard.too_far":     "Too far from reported location to confirm ({dist:.1f} mi away)",
+  "hazard.no_position": "Cannot confirm — no GPS position available"
+}

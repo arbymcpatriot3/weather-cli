@@ -36,6 +36,13 @@ _DEFAULTS = {
     # Referral stats (local cache — source of truth is server)
     "referral_count":    0,
     "referral_tier":     "road_scout", # road_scout → captain → commander → legend → elite → ambassador
+    # GPS / location
+    "language":          "en",         # en | es (auto-detected on first run)
+    "last_gps_lat":      None,
+    "last_gps_lon":      None,
+    "last_gps_time":     None,
+    "last_gps_source":   None,         # "gps" | "ip" | "config"
+    "is_driving":        False,
 }
 
 
