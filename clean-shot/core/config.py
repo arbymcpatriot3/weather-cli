@@ -36,6 +36,11 @@ _DEFAULTS = {
     # Referral stats (local cache — source of truth is server)
     "referral_count":    0,
     "referral_tier":     "road_scout", # road_scout → captain → commander → legend → elite → ambassador
+    # TTS
+    "tts_repeat_suppress_min": 30,     # minutes before repeating same alert
+    "quiet_hours_start": None,         # "22:00" or None to disable
+    "quiet_hours_end":   None,         # "06:00" or None to disable
+    "tts_speed_aware":   True,         # WARNING/INFO wait until parked
     # GPS / location
     "language":          "en",         # en | es (auto-detected on first run)
     "last_gps_lat":      None,

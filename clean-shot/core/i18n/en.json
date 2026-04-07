@@ -23,5 +23,26 @@
 
   "hazard.confirmed":   "Location confirmed",
   "hazard.too_far":     "Too far from reported location to confirm ({dist:.1f} mi away)",
-  "hazard.no_position": "Cannot confirm — no GPS position available"
+  "hazard.no_position": "Cannot confirm — no GPS position available",
+
+  "tts.black_ice":      "Smokey's reporting black ice ahead good buddy — back it down",
+  "tts.bridge_freeze":  "Watch those bridge decks driver — they freeze before the road does",
+  "tts.fog":            "We got a ground-hugger ahead — slow your roll and keep it on the white line",
+  "tts.flood":          "Water on the road ahead breaker — don't drown that rig",
+  "tts.diesel_gel":     "Breaker breaker — temps are dropping, your diesel might be gelling up",
+  "tts.high_wind":      "Got some hammer lane wind at your door — watch that trailer",
+  "tts.mudslide":       "Got some heavy rain that might be moving dirt around good buddy — watch for debris on the road",
+  "tts.heavy_snow":     "Snow's coming down hard out there — might be time to find a chicken coop",
+  "tts.ice_storm":      "It's a skating rink out there good buddy — park it if you can",
+  "tts.thunderstorm":   "Got some steel rain moving in — eye out for lightning and hydroplaning",
+  "tts.tornado_watch":  "Twister weather on deck — keep your ears on and find low ground",
+  "tts.hurricane":      "Big blow coming through — get off the road and tie her down",
+  "tts.heat_advisory":  "Scorcher out there — check your tires and drink some water",
+  "tts.hazard_reported":"Got a community report ahead — eyes up and slow your roll",
+  "tts.hos_warning":    "You're burning daylight on your clock good buddy — start looking for a spot",
+  "tts.parking_ahead":  "Got a truck stop in your runway — might be worth a look",
+
+  "tts.quiet_hours":    "Quiet hours active — alerts paused until {end}",
+  "tts.queue_flushed":  "{count} queued alert spoken",
+  "tts.wake_phrase":    "Hey Clean Shot"
 }

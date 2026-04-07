@@ -23,5 +23,26 @@
 
   "hazard.confirmed":   "Ubicación confirmada",
   "hazard.too_far":     "Demasiado lejos para confirmar el reporte ({dist:.1f} millas)",
-  "hazard.no_position": "No se puede confirmar — sin señal GPS"
+  "hazard.no_position": "No se puede confirmar — sin señal GPS",
+
+  "tts.black_ice":      "Atención conductor — hielo negro en la carretera, reduzca la velocidad ya",
+  "tts.bridge_freeze":  "Cuidado con los puentes — se congelan antes que la carretera",
+  "tts.fog":            "Niebla densa adelante — reduzca velocidad y encienda las luces bajas",
+  "tts.flood":          "Agua en la carretera adelante — no cruce zonas inundadas",
+  "tts.diesel_gel":     "Atención — temperatura muy baja, revise el combustible diésel ahora",
+  "tts.high_wind":      "Vientos fuertes en ruta — cuidado con el viento lateral, agarre el volante",
+  "tts.mudslide":       "Lluvia intensa — posibles derrumbes en zonas montañosas, ojo con los escombros",
+  "tts.heavy_snow":     "Nevada intensa — considere buscar un lugar seguro para detenerse",
+  "tts.ice_storm":      "Tormenta de hielo — carretera muy peligrosa, detenga el vehículo si puede",
+  "tts.thunderstorm":   "Tormenta eléctrica en camino — cuidado con hidroplaneo y rayos",
+  "tts.tornado_watch":  "Alerta de tornado — manténgase informado y busque zona baja",
+  "tts.hurricane":      "Huracán aproximándose — salga de la carretera y asegure el vehículo",
+  "tts.heat_advisory":  "Calor extremo — revise sus neumáticos y manténgase hidratado",
+  "tts.hazard_reported":"Reporte de peligro adelante — ojos abiertos y reduzca velocidad",
+  "tts.hos_warning":    "Su tiempo de manejo está por agotarse — busque un lugar para detenerse",
+  "tts.parking_ahead":  "Hay estacionamiento para camiones adelante — podría ser una buena parada",
+
+  "tts.quiet_hours":    "Modo silencioso activo — alertas pausadas hasta las {end}",
+  "tts.queue_flushed":  "{count} alerta en cola reproducida",
+  "tts.wake_phrase":    "Hey Clean Shot"
 }
