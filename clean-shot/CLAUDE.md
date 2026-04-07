@@ -213,6 +213,43 @@ Prompts for: hazard parsing, pattern detection, weekly digest.
 Offline keyword fallback always available (no API key needed).
 Claude API path stubbed.
 
+### `core/hazards.py` ✅ COMPLETE — 31 tests
+Community hazard reports: submit, store, filter, cluster, and speak.
+Tier: solo_pro+ (`has_feature(config, "community_hazards")`).
+
+**Data budget:** < 200 bytes per report (enforced in `submit_hazard()`).
+**Local store:** `/tmp/clean-shot-cache/hazards_community.json` (atomic writes).
+**Backend sync:** Phase 2 stub (`_sync_to_backend()`).
+
+Key constants: `CLUSTER_MIN_REPORTS=2`, `CLUSTER_RADIUS_MI=10.0`,
+`CLUSTER_WINDOW_MIN=60`, `MAX_HAZARD_AGE_H=4`.
+
+**HazardReport dict keys:** `t, lat, lon, ts, sev, dir, src, clr, note`
+
+Key functions:
+- `submit_hazard(lat, lon, hazard_type, description, config)` → bool
+  Parses description offline → stores report locally → queues backend sync
+- `get_nearby_hazards(lat, lon, radius_miles, config)` → list
+  Filters by distance + age + cleared; sorted closest first
+- `expire_old_hazards(reports)` → list  (in-memory, no disk write)
+- `cluster_reports(reports)` → list of cluster dicts
+  Groups same-type within CLUSTER_RADIUS_MI + CLUSTER_WINDOW_MIN.
+  Emits worst severity. Requires >= CLUSTER_MIN_REPORTS.
+- `get_active_hazards(lat, lon, config)` → list
+  Nearby + clustered, subscription-gated, sorted by distance
+- `parse_hazard_text(text, config)` → dict  (delegates to claude/parser.py)
+- `hazard_to_alert_type(hazard_type)` → TTS alert type string
+- `severity_to_tts(sev_str)` → "CRITICAL" | "WARNING" | "INFO"
+- `speak_nearby_hazards(hazards, config)` → int (routes to tts.speak_alert)
+- `display_hazards(hazards, config)` → ASCII, max 5 shown
+- `clear_local_store()` → erase all local reports (testing + factory reset)
+
+**Integration wiring:**
+- `haversine()` from core.gps (no duplicate math)
+- `parse_hazard_report()` from claude.parser (offline always available)
+- `has_feature()` from core.subscription (community_hazards = solo_pro+)
+- TTS via `from core.tts import speak_alert` (lazy import inside function)
+
 ### `core/subscription.py`
 `has_feature(config, feature_name)` → bool. Feature→tier mapping.
 Referral count ≥ 10 upgrades free tier to solo_pro automatically.
@@ -233,7 +270,7 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 
 ---
 
-## Test Inventory — 102 Tests / 5 Suites
+## Test Inventory — 133 Tests / 5 Suites
 
 | Suite | File | Tests | Status |
 |---|---|---|---|
@@ -241,7 +278,7 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 | GPS | tests/test_gps.py | 30 | ✅ |
 | TTS | tests/test_tts.py | 40 | ✅ |
 | Referral | tests/test_referral.py | 4 | ✅ |
-| Hazards | tests/test_hazards.py | 3 | ✅ |
+| Hazards | tests/test_hazards.py | 31 | ✅ |
 
 Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py`
 
@@ -253,7 +290,7 @@ Build one module at a time. Always ask before starting the next one.
 
 | # | Module | Key Requirement |
 |---|---|---|
-| 1 | `core/hazards.py` | Community reports + GPS clustering + Claude parser |
+| 1 | `core/hazards.py` | ✅ COMPLETE — 31 tests |
 | 2 | `core/dot511.py` | DOT/511 feeds all 50 states |
 | 3 | `core/parking.py` | Smart runway — miles until forced stop |
 | 4 | `core/hos.py` | FMCSA 11/14/70-hour rules, advisory only |
@@ -318,7 +355,7 @@ clean-shot/
 │   ├── subscription.py        ✅ tier gating
 │   ├── referral.py            ✅ tier/discount math (backend stub)
 │   ├── compress.py            stub — data minimization
-│   ├── hazards.py             stub — community reports
+│   ├── hazards.py             ✅ COMPLETE — community reports + clustering, 31 tests
 │   ├── dot511.py              stub — DOT/511 feeds
 │   ├── parking.py             stub — smart runway
 │   ├── hos.py                 stub — HOS guardian
@@ -394,4 +431,4 @@ Rules:
 
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-06 — modules through core/tts.py complete.*
+*Last updated: 2026-04-07 — modules through core/hazards.py complete. 133 tests passing.*
