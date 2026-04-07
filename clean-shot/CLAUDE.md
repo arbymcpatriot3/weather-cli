@@ -250,6 +250,44 @@ Key functions:
 - `has_feature()` from core.subscription (community_hazards = solo_pro+)
 - TTS via `from core.tts import speak_alert` (lazy import inside function)
 
+### `core/dot511.py` ✅ COMPLETE — 41 tests
+DOT/511 road condition feeds. Tier: solo_pro+ (`has_feature(config, "dot511")`).
+
+**Primary source:** NWS `api.weather.gov/alerts/active?point={lat},{lon}` — free,
+no key, all 50 states. Covers: winter weather, chains, fog, flooding, high wind,
+ice, blizzards, avalanche, dust storms, special weather statements.
+
+**State feeds framework:** `STATE_FEEDS` dict — all 51 slots (50 + DC), all None
+until confirmed-free public feeds become available. `_fetch_state_feed()` is the
+integration point. Add URL to STATE_FEEDS dict when a state publishes open data.
+
+**Incident dict keys:** `type, severity, highway, direction, description, source,
+expires, truck_only`
+
+**Incident types:** `weather_advisory | chains_required | closure | construction |
+bridge_restriction | weigh_station | incident`
+
+Key helpers (all pure, offline-testable):
+- `_has_chain_requirement(text)` → bool — detects chain/traction keywords
+- `_extract_highway(text)` → "I-70" | "US-40" | None — regex with normalization
+- `_extract_direction(text)` → "northbound" | ... | "unknown"
+- `_nws_event_to_type(event_name)` → incident type string
+- `_nws_severity(nws_sev, urgency)` → "low"|"medium"|"high"|"critical"
+- `_lat_lon_to_state(lat, lon)` → state code or None (bounding box, ±30-50mi)
+- `_iso_to_unix(iso_str)` → int | None
+- `_truncate_desc(text, 100)` → <= 100 chars at word boundary
+
+Key public functions:
+- `parse_nws_features(features)` → incident list
+- `filter_truck_relevant(incidents, config)` → filtered list
+- `fetch_dot511(lat, lon, config)` → NWS + state feed, cached 15min
+- `get_active_incidents(lat, lon, config)` → gated + sorted critical-first
+- `speak_dot511_alerts(incidents, config)` → int (routes to tts.speak_alert)
+- `display_dot511(incidents, config)` → ASCII, max 8 shown
+
+**Cache:** `dot511_cache_path(lat, lon)`, 15-min TTL (DOT data slow-changing).
+Stale fallback on network loss — never crashes.
+
 ### `core/subscription.py`
 `has_feature(config, feature_name)` → bool. Feature→tier mapping.
 Referral count ≥ 10 upgrades free tier to solo_pro automatically.
@@ -270,7 +308,7 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 
 ---
 
-## Test Inventory — 133 Tests / 5 Suites
+## Test Inventory — 174 Tests / 6 Suites
 
 | Suite | File | Tests | Status |
 |---|---|---|---|
@@ -279,8 +317,9 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 | TTS | tests/test_tts.py | 40 | ✅ |
 | Referral | tests/test_referral.py | 4 | ✅ |
 | Hazards | tests/test_hazards.py | 31 | ✅ |
+| DOT/511 | tests/test_dot511.py | 41 | ✅ |
 
-Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py`
+Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py`
 
 ---
 
@@ -291,7 +330,7 @@ Build one module at a time. Always ask before starting the next one.
 | # | Module | Key Requirement |
 |---|---|---|
 | 1 | `core/hazards.py` | ✅ COMPLETE — 31 tests |
-| 2 | `core/dot511.py` | DOT/511 feeds all 50 states |
+| 2 | `core/dot511.py` | ✅ COMPLETE — 41 tests |
 | 3 | `core/parking.py` | Smart runway — miles until forced stop |
 | 4 | `core/hos.py` | FMCSA 11/14/70-hour rules, advisory only |
 | 5 | `core/feedback.py` | Driver report submission + upvote/dismiss |
@@ -356,7 +395,7 @@ clean-shot/
 │   ├── referral.py            ✅ tier/discount math (backend stub)
 │   ├── compress.py            stub — data minimization
 │   ├── hazards.py             ✅ COMPLETE — community reports + clustering, 31 tests
-│   ├── dot511.py              stub — DOT/511 feeds
+│   ├── dot511.py              ✅ COMPLETE — NWS backbone + 50-state framework, 41 tests
 │   ├── parking.py             stub — smart runway
 │   ├── hos.py                 stub — HOS guardian
 │   ├── health.py              stub — driver wellness
@@ -431,4 +470,4 @@ Rules:
 
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-07 — modules through core/hazards.py complete. 133 tests passing.*
+*Last updated: 2026-04-07 — modules through core/dot511.py complete. 174 tests passing.*
