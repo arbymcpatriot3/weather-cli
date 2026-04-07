@@ -1,0 +1,8 @@
+requests>=2.28
+colorama>=0.4.6
+
+# Optional — installed per platform:
+# pyttsx3>=2.90       (Linux TTS — pip install pyttsx3)
+# pywin32>=306        (Windows TTS — pip install pywin32)
+# winrt-Windows.Devices.Geolocation  (Windows GPS)
+# gpsd-py3>=0.3.0     (Linux GPS via gpsd — pip install gpsd-py3)
