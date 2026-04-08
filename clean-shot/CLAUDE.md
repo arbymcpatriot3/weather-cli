@@ -6,6 +6,7 @@
 **Tagline:** Built for the road, not the boardroom.
 **Mission:** Truckers first. Everything else follows.
 **Version:** 3.0.0 (rewrite from weather-cli v2.0.0)
+**Website:** cleanshothq.com (coming soon)
 **Repo:** https://github.com/arbymcpatriot3/weather-cli (branch: main)
 **Root:** `clean-shot/` inside the repo
 
@@ -373,10 +374,59 @@ Build one module at a time. Always ask before starting the next one.
 | 4 | `core/hos.py` | ✅ COMPLETE — 49 tests |
 | 5 | `core/feedback.py` | Driver report submission + upvote/dismiss |
 | 6 | `core/savings.py` | Time + money saved tracker + shareable ASCII cards |
-| 7 | `core/referral.py` | Viral engine (stub → full; backend integration) |
-| 8 | `display/glance.py` | 2-second glance mode, max 6 lines, no scroll |
-| 9 | `platforms/windows/main.py` | Windows-specific startup + SAPI init |
-| 10 | `platforms/ios/main.py` | iOS-specific startup + CoreLocation init |
+| 7 | `display/glance.py` | 2-second glance mode, max 6 lines, no scroll |
+| 8 | `platforms/windows/main.py` | Windows terminal wrapper |
+| 9 | `platforms/ios/main.py` | iOS iSH wrapper |
+| 10 | cleanshothq.com | Coming soon landing page |
+
+---
+
+## SESSION 3 — Build Priorities
+
+Start here next session. Build in this order. One module at a time, read CLAUDE.md first.
+
+### 1. `core/feedback.py` — Driver Report Submission
+- Submit feedback on road conditions, stops, hazards
+- Upvote / dismiss other drivers' reports
+- Claude AI parsing integration (`claude/parser.py`)
+- Offline queue → backend sync stub (Phase 2)
+- Subscription gated: solo_pro+
+- Target: ~35 tests
+
+### 2. `core/savings.py` — Time & Money Saved Tracker
+- Calculate time saved vs. stopping for bad weather
+- Calculate fuel/cost savings from route decisions
+- Milestone celebrations (first save, 10th save, 100 hours saved, etc.)
+- Shareable ASCII stats card (single-page, tweetable)
+- Persisted in config dict under `savings_*` keys
+- Target: ~25 tests
+
+### 3. `display/glance.py` — 2-Second Glance Mode
+- Max 6 lines, no scroll — driver glance only
+- Ultra-compact for phones (36 chars)
+- Shows: condition + temp, wind alert if any, HOS remaining, next stop distance
+- `cleanshot glance` command
+- Target: ~20 tests
+
+### 4. `platforms/windows/main.py` — Windows Terminal Wrapper
+- Windows CMD / PowerShell entry point
+- SAPI TTS init check
+- WinRT GPS availability check
+- Pre-flight dep check (colorama, requests)
+- Mirrors linux/main.py structure
+
+### 5. `platforms/ios/main.py` — iOS iSH Wrapper
+- iOS iSH shell entry point
+- CoreLocation availability check
+- AVSpeechSynthesizer TTS init check
+- Mirrors linux/main.py structure
+
+### 6. cleanshothq.com — Coming Soon Landing Page
+- Simple static HTML/CSS — no framework
+- Mobile-first, trucker-friendly design
+- Email capture for early access
+- Feature highlights: HOS, Parking Runway, TTS, Offline-first
+- "Built for the road, not the boardroom" hero
 
 ---
 
@@ -531,4 +581,4 @@ desktop terminals.
 
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-08 — Fully responsive display system complete (4 modes, all 8 display modules). Termux /tmp fix applied. 277 tests passing.*
+*Last updated: 2026-04-08 — Session 2 complete. display_alerts.py (5 levels + flash + ack), hos.py (FMCSA advisory), parking.py (runway + stops), fully responsive display system (4 modes, all modules), Android/Termux confirmed working. 277 tests passing. Session 3 priorities written above.*
