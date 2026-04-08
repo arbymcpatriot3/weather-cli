@@ -308,7 +308,7 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 
 ---
 
-## Test Inventory — 174 Tests / 6 Suites
+## Test Inventory — 213 Tests / 8 Suites
 
 | Suite | File | Tests | Status |
 |---|---|---|---|
@@ -318,8 +318,10 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 | Referral | tests/test_referral.py | 4 | ✅ |
 | Hazards | tests/test_hazards.py | 31 | ✅ |
 | DOT/511 | tests/test_dot511.py | 41 | ✅ |
+| Parking | tests/test_parking.py | 39 | ✅ |
+| Display Alerts | tests/test_display_alerts.py | 25 | ✅ |  
 
-Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py`
+Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py && python3 tests/test_parking.py && python3 tests/test_display_alerts.py`
 
 ---
 

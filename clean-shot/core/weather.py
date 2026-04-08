@@ -22,6 +22,43 @@ from display.full import (
 )
 from display.route import display_route_header, display_route_stop
 
+# ── Road intelligence modules (lazy imports — graceful if not yet present) ────
+try:
+    from core.alerts import get_road_alerts, has_critical
+    _ALERTS_OK = True
+except ImportError:
+    _ALERTS_OK = False
+
+try:
+    from core.dot511 import get_active_incidents, display_dot511
+    _DOT511_OK = True
+except ImportError:
+    _DOT511_OK = False
+
+try:
+    from core.hazards import get_active_hazards, display_hazards
+    _HAZARDS_OK = True
+except ImportError:
+    _HAZARDS_OK = False
+
+try:
+    from core.parking import (
+        compute_runway, find_recommended_stop,
+        display_parking_status, announce_runway,
+    )
+    _PARKING_OK = True
+except ImportError:
+    _PARKING_OK = False
+
+try:
+    from display.display_alerts import (
+        check_and_display, display_critical_alerts,
+        display_urgent_parking,
+    )
+    _DISP_ALERTS_OK = True
+except ImportError:
+    _DISP_ALERTS_OK = False
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -108,6 +145,7 @@ def cmd_full(args, config, width):
     display_hourly(parsed["hourly"], width, parsed["time_format"], alert_mph)
     display_forecast(parsed["forecast"], width)
     display_rain_timeline(parsed["hourly"], width, parsed["time_format"])
+    _display_road_section(lat, lon, parsed, config, width)
 
 
 def cmd_simple(args, config, width):
@@ -164,6 +202,7 @@ def cmd_watch(args, config, width):
                 display_hourly(parsed["hourly"], width,
                                parsed["time_format"], alert_mph)
                 display_forecast(parsed["forecast"], width)
+                _display_road_section(lat, lon, parsed, config, width)
             else:
                 print("⚠  Failed to fetch update. Retrying in 15 min...")
             print(f"\n  Last updated: {datetime.now().strftime('%H:%M:%S')} "
@@ -256,8 +295,8 @@ Blue Collar Nation LLC
 Usage:  cleanshot [command] [options]
 
 Commands:
-  (none)            Full weather report (default)
-  simple            One-line summary
+  (none)            Full weather + road intelligence report (default)
+  simple            One-line weather summary
   compact           80-column compact view
   watch             Auto-refresh every 15 minutes
   json              Raw JSON output (for scripting)
@@ -266,6 +305,10 @@ Commands:
   alerts            Active weather alerts only
   settings          View/change settings
   help              This help screen
+
+Road Intelligence (Solo Pro+):
+  Included in default view — black ice, fog, flood, diesel gel,
+  wind, DOT/511 advisories, community hazards, parking runway.
 
 Options:
   --location PLACE  Override location (city, ZIP, "City ST", lat,lon)
@@ -292,6 +335,91 @@ Data sources:
 Config:  ~/.config/clean-shot.conf
 Cache:   /tmp/clean-shot-cache/ (refreshes every 10 min)
 """)
+
+
+# ── Road intelligence display ─────────────────────────────────────────────────
+
+def _display_road_section(lat, lon, parsed, config, width):
+    """
+    Display the full road intelligence section after the weather display.
+    Order: critical banners → road alerts → DOT/511 → hazards → parking.
+    Gracefully skips any section whose module failed to import.
+    """
+    road_alerts = []
+    incidents   = []
+    hazards     = []
+    runway      = None
+    nearest     = None
+
+    # 1. Offline road detectors — free tier, always run
+    if _ALERTS_OK and parsed:
+        road_alerts = get_road_alerts(lat, lon, parsed, config) or []
+
+    # 2. Solo Pro+ live feeds (network, cached)
+    if lat is not None and lon is not None:
+        if _DOT511_OK:
+            incidents = get_active_incidents(lat, lon, config) or []
+        if _HAZARDS_OK:
+            hazards = get_active_hazards(lat, lon, config) or []
+
+    # 3. Parking runway (uses embedded db — works offline)
+    if _PARKING_OK:
+        runway  = compute_runway(config)
+        nearest = find_recommended_stop(lat, lon, config)
+        # Announce threshold via TTS if crossed
+        announce_runway(config)
+
+    # 4. Critical alert banners — show first in the road section
+    any_critical = (
+        (road_alerts and has_critical(road_alerts) if _ALERTS_OK else False)
+        or any(i.get("severity") == "critical" for i in incidents)
+        or any((h.get("sev") or h.get("severity")) in ("critical",) for h in hazards)
+        or (runway and runway.get("level") in ("critical", "urgent"))
+    )
+
+    if any_critical and _DISP_ALERTS_OK:
+        print()
+        check_and_display(
+            alerts=road_alerts,
+            incidents=incidents,
+            hazards=hazards,
+            runway=runway,
+            nearest_stop=nearest,
+            config=config,
+        )
+
+    # 5. Road alerts section (offline detectors)
+    if road_alerts:
+        print()
+        print("─" * min(width, 50))
+        print("  Road Conditions  (offline detectors)")
+        print("─" * min(width, 50))
+        for a in road_alerts:
+            sev   = a.get("severity", "INFO")
+            atype = a.get("type", "").replace("_", " ").title()
+            msg   = a.get("message", "")
+            icon  = {"CRITICAL": "⛔", "WARNING": "⚠️", "INFO": "ℹ️"}.get(sev, "•")
+            print(f"  {icon} [{sev}] {atype}")
+            if msg:
+                print(f"      {msg}")
+    elif _ALERTS_OK:
+        print()
+        print("  ✓ No road hazards detected for current conditions.")
+
+    # 6. DOT/511 advisories (solo_pro+, shown only when there are results)
+    if incidents and _DOT511_OK:
+        print()
+        display_dot511(incidents, config)
+
+    # 7. Community hazards (solo_pro+)
+    if hazards and _HAZARDS_OK:
+        print()
+        display_hazards(hazards, config)
+
+    # 8. Parking runway (solo_pro+)
+    if _PARKING_OK:
+        print()
+        display_parking_status(lat, lon, config)
 
 
 # ── Argument parser ───────────────────────────────────────────────────────────
