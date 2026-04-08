@@ -8,10 +8,11 @@
 #   Single hazard       < 200 bytes
 
 import hashlib
+import tempfile
 from pathlib import Path
 from datetime import datetime
 
-CACHE_DIR         = Path("/tmp") / "clean-shot-cache"
+CACHE_DIR         = Path(tempfile.gettempdir()) / "clean-shot-cache"
 CACHE_TIME        = 600    # 10 min — weather data
 ALERT_CACHE_TIME  = 300    # 5 min  — NOAA alerts refresh faster
 HAZARD_CACHE_TIME = 120    # 2 min  — community hazard reports

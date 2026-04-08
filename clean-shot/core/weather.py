@@ -343,7 +343,7 @@ Data sources:
   • ipapi.co (IP geolocation, auto-detect only)
 
 Config:  ~/.config/clean-shot.conf
-Cache:   /tmp/clean-shot-cache/ (refreshes every 10 min)
+Cache:   {tempdir}/clean-shot-cache/ (refreshes every 10 min)
 """)
 
 

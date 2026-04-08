@@ -23,6 +23,7 @@
 #   MAX_HAZARD_AGE_H    = 4     expire reports older than this
 
 import json
+import tempfile
 import time
 from pathlib import Path
 
@@ -37,8 +38,8 @@ CLUSTER_RADIUS_MI   = 10.0    # geo radius to consider "same area"
 CLUSTER_WINDOW_MIN  = 60      # time window for clustering (minutes)
 MAX_HAZARD_AGE_H    = 4       # expire reports older than 4 hours
 
-# Local flat-file store in /tmp (survives app restarts, not reboots — intentional)
-HAZARD_STORE_PATH = Path("/tmp") / "clean-shot-cache" / "hazards_community.json"
+# Local flat-file store in the platform temp dir (survives app restarts, not reboots — intentional)
+HAZARD_STORE_PATH = Path(tempfile.gettempdir()) / "clean-shot-cache" / "hazards_community.json"
 
 # Map hazard report types → TTS alert types in claude/prompts.py _CB_VOICE_ALERTS
 _HAZARD_TO_ALERT = {
