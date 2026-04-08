@@ -333,7 +333,7 @@ Build one module at a time. Always ask before starting the next one.
 |---|---|---|
 | 1 | `core/hazards.py` | ✅ COMPLETE — 31 tests |
 | 2 | `core/dot511.py` | ✅ COMPLETE — 41 tests |
-| 3 | `core/parking.py` | Smart runway — miles until forced stop |
+| 3 | `core/parking.py` | ✅ COMPLETE — 39 tests |
 | 4 | `core/hos.py` | FMCSA 11/14/70-hour rules, advisory only |
 | 5 | `core/feedback.py` | Driver report submission + upvote/dismiss |
 | 6 | `core/savings.py` | Time + money saved tracker + shareable ASCII cards |
@@ -398,7 +398,7 @@ clean-shot/
 │   ├── compress.py            stub — data minimization
 │   ├── hazards.py             ✅ COMPLETE — community reports + clustering, 31 tests
 │   ├── dot511.py              ✅ COMPLETE — NWS backbone + 50-state framework, 41 tests
-│   ├── parking.py             stub — smart runway
+│   ├── parking.py             ✅ COMPLETE — runway + stops, 39 tests
 │   ├── hos.py                 stub — HOS guardian
 │   ├── health.py              stub — driver wellness
 │   ├── feedback.py            stub — driver reports
@@ -411,6 +411,7 @@ clean-shot/
 ├── display/
 │   ├── full.py                ✅ migrated — current/hourly/forecast/alerts
 │   ├── route.py               ✅ migrated — route header + stop display
+│   ├── display_alerts.py      ✅ COMPLETE — critical banners + beep, 25 tests
 │   ├── glance.py              stub — 2-second glance mode
 │   ├── dashboard.py           stub — fleet view
 │   └── themes.py              stub — nighthawk/highvis/minimal/cb
@@ -472,4 +473,4 @@ Rules:
 
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-07 — modules through core/dot511.py complete. 174 tests passing.*
+*Last updated: 2026-04-07 — modules through display/display_alerts.py complete. 213 tests passing.*
