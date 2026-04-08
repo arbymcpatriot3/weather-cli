@@ -288,6 +288,38 @@ Key public functions:
 **Cache:** `dot511_cache_path(lat, lon)`, 15-min TTL (DOT data slow-changing).
 Stale fallback on network loss — never crashes.
 
+### `core/hos.py` ✅ COMPLETE — 49 tests
+FMCSA Hours of Service guardian. Tier: solo_pro+ (`has_feature(config, "hos_guardian")`).
+**Advisory only — not an ELD replacement.** Driver responsible for FMCSA compliance.
+
+**FMCSA rules implemented:**
+11-hour driving limit, 14-hour on-duty wall clock, 30-min break after 8h driving,
+60h/7-day or 70h/8-day weekly limit, 10-hour reset.
+
+**State stored in config dict** (prefixed `hos_`). Persisted by `save_config()`.
+Key fields: `hos_session_start_ts`, `hos_drive_elapsed_min`, `hos_drive_start_ts`,
+`hos_break_drive_min`, `hos_is_driving`, `hos_is_on_duty`, `hos_7day_duty_min`, `hos_cycle`.
+Writes `hos_drive_remaining_min` → parking.py reads this for runway calc.
+
+**Time mockable via `hos._time_fn`** — test-safe, fully offline.
+
+Key functions:
+- `get_hos_status(config)` → full status dict; writes `hos_drive_remaining_min` side effect
+- `start_drive(config)` / `stop_drive(config)` — accumulate drive segments
+- `start_duty(config)` / `end_duty(config)` — manage 14h wall clock window
+- `take_break(config)` — reset break counter (>= 30 min off duty)
+- `reset_hos(config)` — full 10h reset; clears all windows
+- `update_elapsed(config)` — refresh parking feed without state change (watch loop)
+- `needs_break(config)` → bool; `minutes_until_break_required(config)` → float
+- `add_duty_to_weekly(config, min)`, `reset_weekly(config)`, `get_weekly_remaining(config)`
+- `check_hos_thresholds(config)` → list of crossed thresholds (pure, no side effects)
+- `announce_hos(config)` → int — speaks newly-crossed thresholds via TTS (once per trip)
+- `reset_announcements()` — clear per-trip TTS tracking
+- `format_hos_str(status)` → compact one-line summary string
+- `display_hos_status(config)` — full ASCII status block
+
+`_urgency_level(minutes)`: >60=normal, 31-60=warning, 16-30=urgent, <=15=critical
+
 ### `core/subscription.py`
 `has_feature(config, feature_name)` → bool. Feature→tier mapping.
 Referral count ≥ 10 upgrades free tier to solo_pro automatically.
@@ -308,7 +340,7 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 
 ---
 
-## Test Inventory — 213 Tests / 8 Suites
+## Test Inventory — 262 Tests / 9 Suites
 
 | Suite | File | Tests | Status |
 |---|---|---|---|
@@ -319,9 +351,10 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 | Hazards | tests/test_hazards.py | 31 | ✅ |
 | DOT/511 | tests/test_dot511.py | 41 | ✅ |
 | Parking | tests/test_parking.py | 39 | ✅ |
-| Display Alerts | tests/test_display_alerts.py | 25 | ✅ |  
+| Display Alerts | tests/test_display_alerts.py | 25 | ✅ |
+| HOS Guardian | tests/test_hos.py | 49 | ✅ |
 
-Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py && python3 tests/test_parking.py && python3 tests/test_display_alerts.py`
+Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py && python3 tests/test_parking.py && python3 tests/test_display_alerts.py && python3 tests/test_hos.py`
 
 ---
 
@@ -334,7 +367,7 @@ Build one module at a time. Always ask before starting the next one.
 | 1 | `core/hazards.py` | ✅ COMPLETE — 31 tests |
 | 2 | `core/dot511.py` | ✅ COMPLETE — 41 tests |
 | 3 | `core/parking.py` | ✅ COMPLETE — 39 tests |
-| 4 | `core/hos.py` | FMCSA 11/14/70-hour rules, advisory only |
+| 4 | `core/hos.py` | ✅ COMPLETE — 49 tests |
 | 5 | `core/feedback.py` | Driver report submission + upvote/dismiss |
 | 6 | `core/savings.py` | Time + money saved tracker + shareable ASCII cards |
 | 7 | `core/referral.py` | Viral engine (stub → full; backend integration) |
@@ -399,7 +432,7 @@ clean-shot/
 │   ├── hazards.py             ✅ COMPLETE — community reports + clustering, 31 tests
 │   ├── dot511.py              ✅ COMPLETE — NWS backbone + 50-state framework, 41 tests
 │   ├── parking.py             ✅ COMPLETE — runway + stops, 39 tests
-│   ├── hos.py                 stub — HOS guardian
+│   ├── hos.py                 ✅ COMPLETE — FMCSA rules + advisory display, 49 tests
 │   ├── health.py              stub — driver wellness
 │   ├── feedback.py            stub — driver reports
 │   ├── voice.py               stub — Hey Clean Shot (Phase 2)
@@ -473,4 +506,4 @@ Rules:
 
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-07 — modules through display/display_alerts.py complete. 213 tests passing.*
+*Last updated: 2026-04-07 — modules through core/hos.py complete. 262 tests passing.*
