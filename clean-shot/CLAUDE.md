@@ -332,15 +332,18 @@ Full tier/discount math. `get_tier(count)`, `calc_discount_pct(count)`,
 `display_referral_card(config)` → ASCII stats card.
 
 ### `platforms/linux/main.py`
-Entry point. Adds clean-shot/ to sys.path, calls `core.weather.main()`.
-Run: `python platforms/linux/main.py`
+Unified Linux entry point. Pre-flight dependency check, sys.path setup,
+error handling with `CLEANSHOT_DEBUG=1` traceback mode.
+Passes all CLI args through to `core.weather.main()`.
+Run: `python3 platforms/linux/main.py`
+Full unified view (no args): weather + alerts + DOT/511 + hazards + parking + HOS.
 
 ### `platforms/linux/install.sh`
 Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` launcher.
 
 ---
 
-## Test Inventory — 262 Tests / 9 Suites
+## Test Inventory — 277 Tests / 9 Suites
 
 | Suite | File | Tests | Status |
 |---|---|---|---|
@@ -351,7 +354,7 @@ Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` lau
 | Hazards | tests/test_hazards.py | 31 | ✅ |
 | DOT/511 | tests/test_dot511.py | 41 | ✅ |
 | Parking | tests/test_parking.py | 39 | ✅ |
-| Display Alerts | tests/test_display_alerts.py | 25 | ✅ |
+| Display Alerts | tests/test_display_alerts.py | 40 | ✅ |
 | HOS Guardian | tests/test_hos.py | 49 | ✅ |
 
 Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py && python3 tests/test_parking.py && python3 tests/test_display_alerts.py && python3 tests/test_hos.py`
@@ -444,7 +447,7 @@ clean-shot/
 ├── display/
 │   ├── full.py                ✅ migrated — current/hourly/forecast/alerts
 │   ├── route.py               ✅ migrated — route header + stop display
-│   ├── display_alerts.py      ✅ COMPLETE — critical banners + beep, 25 tests
+│   ├── display_alerts.py      ✅ COMPLETE — 5 levels + flash + ack + HOS, 40 tests
 │   ├── glance.py              stub — 2-second glance mode
 │   ├── dashboard.py           stub — fleet view
 │   └── themes.py              stub — nighthawk/highvis/minimal/cb
@@ -506,4 +509,4 @@ Rules:
 
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-07 — modules through core/hos.py complete. 262 tests passing.*
+*Last updated: 2026-04-08 — display_alerts enhanced (5 levels + flash + ack + HOS). All modules wired into unified view via platforms/linux/main.py. 277 tests passing.*

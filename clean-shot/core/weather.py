@@ -53,11 +53,20 @@ except ImportError:
 try:
     from display.display_alerts import (
         check_and_display, display_critical_alerts,
-        display_urgent_parking,
+        display_urgent_parking, display_hos_critical,
     )
     _DISP_ALERTS_OK = True
 except ImportError:
     _DISP_ALERTS_OK = False
+
+try:
+    from core.hos import (
+        get_hos_status, display_hos_status,
+        announce_hos, update_elapsed,
+    )
+    _HOS_OK = True
+except ImportError:
+    _HOS_OK = False
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -308,7 +317,8 @@ Commands:
 
 Road Intelligence (Solo Pro+):
   Included in default view — black ice, fog, flood, diesel gel,
-  wind, DOT/511 advisories, community hazards, parking runway.
+  wind, DOT/511 advisories, community hazards, parking runway,
+  HOS Guardian (advisory only — not an ELD).
 
 Options:
   --location PLACE  Override location (city, ZIP, "City ST", lat,lon)
@@ -342,7 +352,7 @@ Cache:   /tmp/clean-shot-cache/ (refreshes every 10 min)
 def _display_road_section(lat, lon, parsed, config, width):
     """
     Display the full road intelligence section after the weather display.
-    Order: critical banners → road alerts → DOT/511 → hazards → parking.
+    Order: critical banners → road alerts → DOT/511 → hazards → parking → HOS.
     Gracefully skips any section whose module failed to import.
     """
     road_alerts = []
@@ -366,12 +376,21 @@ def _display_road_section(lat, lon, parsed, config, width):
     if _PARKING_OK:
         runway  = compute_runway(config)
         nearest = find_recommended_stop(lat, lon, config)
-        # Announce threshold via TTS if crossed
         announce_runway(config)
 
-    # 4. Critical alert banners — show first in the road section
+    # 4. HOS — refresh parking feed before critical check
+    if _HOS_OK:
+        update_elapsed(config)
+        announce_hos(config)
+
+    # 5. Critical alert banners — show first (highest urgency)
+    hos_urgent = (
+        _HOS_OK
+        and get_hos_status(config).get("level") in ("critical", "urgent")
+    )
     any_critical = (
-        (road_alerts and has_critical(road_alerts) if _ALERTS_OK else False)
+        hos_urgent
+        or (road_alerts and has_critical(road_alerts) if _ALERTS_OK else False)
         or any(i.get("severity") == "critical" for i in incidents)
         or any((h.get("sev") or h.get("severity")) in ("critical",) for h in hazards)
         or (runway and runway.get("level") in ("critical", "urgent"))
@@ -386,9 +405,10 @@ def _display_road_section(lat, lon, parsed, config, width):
             runway=runway,
             nearest_stop=nearest,
             config=config,
+            include_hos=_HOS_OK,
         )
 
-    # 5. Road alerts section (offline detectors)
+    # 6. Road alerts section (offline detectors)
     if road_alerts:
         print()
         print("─" * min(width, 50))
@@ -406,20 +426,25 @@ def _display_road_section(lat, lon, parsed, config, width):
         print()
         print("  ✓ No road hazards detected for current conditions.")
 
-    # 6. DOT/511 advisories (solo_pro+, shown only when there are results)
+    # 7. DOT/511 advisories (solo_pro+)
     if incidents and _DOT511_OK:
         print()
         display_dot511(incidents, config)
 
-    # 7. Community hazards (solo_pro+)
+    # 8. Community hazards (solo_pro+)
     if hazards and _HAZARDS_OK:
         print()
         display_hazards(hazards, config)
 
-    # 8. Parking runway (solo_pro+)
+    # 9. Parking runway (solo_pro+)
     if _PARKING_OK:
         print()
         display_parking_status(lat, lon, config)
+
+    # 10. HOS status (solo_pro+)
+    if _HOS_OK:
+        print()
+        display_hos_status(config)
 
 
 # ── Argument parser ───────────────────────────────────────────────────────────
