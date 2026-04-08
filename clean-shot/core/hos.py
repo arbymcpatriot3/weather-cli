@@ -38,6 +38,7 @@
 #   core/weather.py  calls display_hos_status() in the full/watch display loop
 #   display/glance.py (future) reads status dict for compact HOS bar
 
+import shutil
 import time
 
 from core.subscription import has_feature
@@ -419,36 +420,63 @@ def reset_announcements() -> None:
 
 # ── Display ───────────────────────────────────────────────────────────────────
 
-def format_hos_str(status: dict) -> str:
+def _w(config=None) -> int:
+    """Effective display width for HOS module."""
+    override = (config or {}).get("display_width_override")
+    if override and isinstance(override, int) and 20 <= override <= 300:
+        return override
+    return max(36, shutil.get_terminal_size(fallback=(80, 24)).columns)
+
+
+def _mode(w: int) -> str:
+    if w < 40: return "ultra_compact"
+    if w < 60: return "compact"
+    if w < 80: return "standard"
+    return "full"
+
+
+def format_hos_str(status: dict, config: dict = None) -> str:
     """
-    Build a compact one-line HOS summary string.
-    e.g.  "HOS  Drive: 6h 30m  Duty: 9h 15m  Effective: 6h 30m  [ADVISORY ONLY]"
+    Build a width-aware HOS summary string.
+    Full:    "HOS  Drive: 6h 30m  Duty: 9h 15m  Effective: 6h 30m  [ADVISORY ONLY]"
+    Compact: "HOS Drv:6h30m Dty:9h15m Eff:6h30m"
+    Ultra:   "HOS 6h30m"
     """
     def _fmt(minutes: int) -> str:
         h = int(minutes) // 60
         m = int(minutes) % 60
         return f"{h}h {m:02d}m"
 
+    w    = _w(config)
+    mode = _mode(w)
+
     drive_str = _fmt(status["drive_remaining_min"])
     duty_str  = _fmt(status["duty_remaining_min"])
     eff_str   = _fmt(status["effective_remaining_min"])
-    brk_flag  = "  ⚠ BREAK REQUIRED" if status["needs_break"] else ""
+    brk_flag  = " ⚠BRK" if status["needs_break"] else ""
 
+    if mode == "ultra_compact":
+        return f"HOS {eff_str}{brk_flag}"
+    if mode == "compact":
+        return f"HOS Drv:{drive_str} Dty:{duty_str} Eff:{eff_str}{brk_flag}"
     return (
         f"HOS  Drive: {drive_str}  Duty: {duty_str}  "
-        f"Effective: {eff_str}{brk_flag}  [ADVISORY ONLY]"
+        f"Effective: {eff_str}{'  ⚠ BREAK REQUIRED' if status['needs_break'] else ''}  [ADVISORY ONLY]"
     )
 
 
 def display_hos_status(config: dict) -> None:
     """
-    Print a full HOS status block to stdout.
+    Width-responsive HOS status block.
     Gated: solo_pro+ only. Prints an upgrade prompt for free tier.
     """
     if not has_feature(config, "hos_guardian"):
         print("  HOS Guardian: Solo Pro+ feature — upgrade to enable")
         return
 
+    w      = _w(config)
+    mode   = _mode(w)
+    sep    = "─" * w
     status = get_hos_status(config)
 
     def _fmt(minutes: int) -> str:
@@ -464,34 +492,60 @@ def display_hos_status(config: dict) -> None:
     }.get(status["level"], "•")
 
     print()
-    print(f"  {level_icon}  HOS STATUS  (Advisory Only — Not an ELD)")
-    print(f"  {'─' * 44}")
-    print(f"  Drive remaining   : {_fmt(status['drive_remaining_min'])} of 11h")
-    print(f"  Duty window left  : {_fmt(status['duty_remaining_min'])} of 14h")
-    print(f"  Effective limit   : {_fmt(status['effective_remaining_min'])}")
 
-    if status["needs_break"]:
-        print(f"  ⚠  BREAK REQUIRED — {status['break_overdue_min']:.0f} min overdue")
+    if mode == "ultra_compact":
+        brk = " BRK!" if status["needs_break"] else ""
+        eff = _fmt(status["effective_remaining_min"])
+        print(f"{level_icon}HOS {eff}{brk}"[:w])
+        if status["violation_imminent"]:
+            print("⛔PULL OVER NOW"[:w])
+        elif status["violation_risk"]:
+            print("⚠ FIND PARKING"[:w])
+        return
+
+    print(sep)
+
+    if mode == "compact":
+        print(f"  {level_icon} HOS (Advisory)")
+        print(f"  Drv: {_fmt(status['drive_remaining_min'])}  Dty: {_fmt(status['duty_remaining_min'])}")
+        print(f"  Effective: {_fmt(status['effective_remaining_min'])}")
+        if status["needs_break"]:
+            print(f"  ⚠ BREAK REQUIRED ({status['break_overdue_min']:.0f}min overdue)")
+        if status["violation_imminent"]:
+            print("  ⛔ PULL OVER — LIMIT IMMINENT")
+        elif status["violation_risk"]:
+            print("  ⚠ FIND PARKING NOW")
     else:
-        bfm = minutes_until_break_required(config)
-        print(f"  Next break req'd in: {_fmt(int(bfm))} of driving")
+        print(f"  {level_icon}  HOS STATUS  (Advisory Only — Not an ELD)")
+        print(f"  {'─' * min(44, w - 2)}")
+        print(f"  Drive remaining   : {_fmt(status['drive_remaining_min'])} of 11h")
+        print(f"  Duty window left  : {_fmt(status['duty_remaining_min'])} of 14h")
+        print(f"  Effective limit   : {_fmt(status['effective_remaining_min'])}")
 
-    wr    = status["weekly_remaining_min"]
-    cycle = config.get("hos_cycle", "70_8")
-    wlbl  = "70h/8-day" if cycle == "70_8" else "60h/7-day"
-    print(f"  Weekly ({wlbl}): {_fmt(int(wr))} remaining")
+        if status["needs_break"]:
+            print(f"  ⚠  BREAK REQUIRED — {status['break_overdue_min']:.0f} min overdue")
+        else:
+            bfm = minutes_until_break_required(config)
+            print(f"  Next break req'd in: {_fmt(int(bfm))} of driving")
 
-    if status["is_driving"]:
-        state_str = "Driving"
-    elif status["is_on_duty"]:
-        state_str = "On Duty (Not Driving)"
-    else:
-        state_str = "Off Duty"
-    print(f"  Status            : {state_str}")
+        wr    = status["weekly_remaining_min"]
+        cycle = config.get("hos_cycle", "70_8")
+        wlbl  = "70h/8-day" if cycle == "70_8" else "60h/7-day"
+        print(f"  Weekly ({wlbl}): {_fmt(int(wr))} remaining")
 
-    if status["violation_imminent"]:
-        print()
-        print("  ⛔ PULL OVER — HOS LIMIT IMMINENT")
-    elif status["violation_risk"]:
-        print()
-        print("  ⚠  START LOOKING FOR PARKING — 30 MIN OR LESS")
+        if status["is_driving"]:
+            state_str = "Driving"
+        elif status["is_on_duty"]:
+            state_str = "On Duty (Not Driving)"
+        else:
+            state_str = "Off Duty"
+        print(f"  Status            : {state_str}")
+
+        if status["violation_imminent"]:
+            print()
+            print("  ⛔ PULL OVER — HOS LIMIT IMMINENT")
+        elif status["violation_risk"]:
+            print()
+            print("  ⚠  START LOOKING FOR PARKING — 30 MIN OR LESS")
+
+    print(sep)

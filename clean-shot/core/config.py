@@ -17,8 +17,9 @@ _DEFAULTS = {
     "longitude":         None,
     "city":              None,
     # Display
-    "time_format":       "12h",
-    "units":             "imperial",
+    "time_format":           "12h",
+    "units":                 "imperial",
+    "display_width_override": None,   # int or None — force a width (36–300)
     # Vehicle
     "vehicle_height_ft": None,
     "vehicle_type":      "semi",      # semi | box | flatbed | tanker | rv

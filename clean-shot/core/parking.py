@@ -27,6 +27,7 @@
 # Data budget: Overpass response typically 5–15 KB for 50-mi radius. Under 50 KB.
 
 import json
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -481,8 +482,29 @@ def announce_runway(config: dict) -> bool:
 
 # ── Display ───────────────────────────────────────────────────────────────────
 
-def display_stop(stop: dict) -> None:
-    """ASCII display of a single truck stop."""
+def _w(config=None) -> int:
+    """Effective display width for parking module."""
+    override = (config or {}).get("display_width_override")
+    if override and isinstance(override, int) and 20 <= override <= 300:
+        return override
+    return max(36, shutil.get_terminal_size(fallback=(80, 24)).columns)
+
+
+def _mode(w: int) -> str:
+    if w < 40: return "ultra_compact"
+    if w < 60: return "compact"
+    if w < 80: return "standard"
+    return "full"
+
+
+def display_stop(stop: dict, config: dict = None) -> None:
+    """Width-responsive ASCII display of a single truck stop."""
+    if config is None:
+        config = {}
+
+    w    = _w(config)
+    mode = _mode(w)
+
     name      = stop.get("name", "Unknown Stop")
     chain     = stop.get("chain", "other").upper()
     dist      = stop.get("distance_mi", "?")
@@ -493,66 +515,98 @@ def display_stop(stop: dict) -> None:
     rating    = stop.get("rating")
     state     = stop.get("state", "")
 
-    dist_str    = f"{dist:.1f} mi" if isinstance(dist, (int, float)) else str(dist)
-    hw_str      = f" [{hw} Exit {exit_num}]" if hw and exit_num else (f" [{hw}]" if hw else "")
-    state_str   = f" {state}" if state else ""
-    spaces_str  = f" — {spaces} spaces" if spaces is not None else ""
-    rating_str  = f" ★{rating:.1f}" if rating is not None else ""
-
+    dist_str  = f"{dist:.1f}mi" if isinstance(dist, (int, float)) else str(dist)
     amenity_icons = {
         "fuel": "⛽", "showers": "🚿", "food": "🍔",
         "wifi": "📶", "cat_scale": "⚖️", "laundry": "👕",
     }
-    icons = " ".join(amenity_icons.get(a, a) for a in amenities)
+    icons = "".join(amenity_icons.get(a, "") for a in amenities)
 
-    print(f"  {name}{state_str}{hw_str}{spaces_str}{rating_str}")
-    print(f"    {dist_str} away  [{chain}]  {icons}")
+    if mode == "ultra_compact":
+        # Single line: dist NAME [chain]
+        nm   = name[:12]
+        line = f"{dist_str} {nm} [{chain[:2]}]"
+        print(line[:w])
+    elif mode == "compact":
+        hw_s = f" {hw}" if hw else ""
+        print(f"  {dist_str} {name[:20]}{hw_s} [{chain}]")
+        if icons:
+            print(f"    {icons}")
+    else:
+        hw_str    = f" [{hw} Exit {exit_num}]" if hw and exit_num else (f" [{hw}]" if hw else "")
+        state_str = f" {state}" if state else ""
+        spaces_s  = f" — {spaces} spaces" if spaces is not None else ""
+        rating_s  = f" ★{rating:.1f}" if rating is not None else ""
+        print(f"  {name}{state_str}{hw_str}{spaces_s}{rating_s}")
+        print(f"    {dist_str} away  [{chain}]  {icons}")
 
 
 def display_parking_status(lat: float, lon: float, config: dict) -> None:
     """
-    Full runway status + corridor stops display.
+    Width-responsive runway status + corridor stops display.
     Shows urgency banner, runway distance/time, and top 5 stops in corridor.
     """
     if not has_feature(config, "smart_parking"):
-        print("⚡ Smart Parking requires Solo Pro — upgrade at cleanshot.app")
+        print("⚡ Smart Parking: Solo Pro+ required")
         return
 
+    w      = _w(config)
+    mode   = _mode(w)
+    sep    = "─" * w
     runway = compute_runway(config)
     level  = runway["level"]
 
-    print("─" * 50)
+    print(sep)
 
-    # Urgency header
-    if level == "critical":
-        print("  ⛔ YOU MUST STOP SOON — HOS EXPIRING")
-    elif level == "urgent":
-        print("  🟠 FIND PARKING — Under 1 hour remaining")
-    elif level == "warning":
-        print("  🟡 Start Looking — Under 2 hours remaining")
+    if mode == "ultra_compact":
+        icons = {"critical": "⛔", "urgent": "🟠", "warning": "🟡", "ok": "🟢"}
+        print(f"{icons.get(level,'•')} {format_runway_str(runway)}"[:w])
+    elif mode == "compact":
+        if level == "critical":
+            print("  ⛔ STOP SOON — HOS EXPIRING")
+        elif level == "urgent":
+            print("  🟠 FIND PARKING — <1h left")
+        elif level == "warning":
+            print("  🟡 Start Looking — <2h left")
+        else:
+            print("  🟢 Parking Runway")
+        print(f"  {format_runway_str(runway)}")
     else:
-        print("  🟢 Parking Runway")
-
-    print(f"  Runway: {format_runway_str(runway)}")
+        if level == "critical":
+            print("  ⛔ YOU MUST STOP SOON — HOS EXPIRING")
+        elif level == "urgent":
+            print("  🟠 FIND PARKING — Under 1 hour remaining")
+        elif level == "warning":
+            print("  🟡 Start Looking — Under 2 hours remaining")
+        else:
+            print("  🟢 Parking Runway")
+        print(f"  Runway: {format_runway_str(runway)}")
 
     if lat is None or lon is None:
-        print("  (No position — connect GPS for stop list)")
-        print("─" * 50)
+        if mode != "ultra_compact":
+            print("  (No position — connect GPS for stop list)")
+        print(sep)
         return
 
     stops = get_stops_in_corridor(lat, lon, config)
 
     if not stops:
-        print("  No truck stops found in your remaining runway.")
-        print("  → Check community hazards for detour info.")
+        if mode != "ultra_compact":
+            print("  No truck stops found in your remaining runway.")
     else:
-        print(f"  {len(stops)} stop{'s' if len(stops) != 1 else ''} in corridor:")
-        print()
-        for stop in stops[:5]:
-            display_stop(stop)
-            print()
+        if mode == "ultra_compact":
+            for stop in stops[:3]:
+                display_stop(stop, config)
+        else:
+            print(f"  {len(stops)} stop{'s' if len(stops) != 1 else ''} in corridor:")
+            if mode != "compact":
+                print()
+            for stop in stops[:5]:
+                display_stop(stop, config)
+                if mode != "compact":
+                    print()
 
     if len(stops) > 5:
-        print(f"  … and {len(stops) - 5} more stops in range")
+        print(f"+{len(stops)-5}" if mode == "ultra_compact" else f"  … and {len(stops) - 5} more stops in range")
 
-    print("─" * 50)
+    print(sep)

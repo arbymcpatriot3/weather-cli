@@ -23,6 +23,7 @@
 #   MAX_HAZARD_AGE_H    = 4     expire reports older than this
 
 import json
+import shutil
 import tempfile
 import time
 from pathlib import Path
@@ -360,21 +361,47 @@ def speak_nearby_hazards(hazards: list, config: dict) -> int:
     return spoken
 
 
+def _w(config=None) -> int:
+    """Effective display width for hazards module."""
+    override = (config or {}).get("display_width_override")
+    if override and isinstance(override, int) and 20 <= override <= 300:
+        return override
+    return max(36, shutil.get_terminal_size(fallback=(80, 24)).columns)
+
+
+def _mode(w: int) -> str:
+    if w < 40: return "ultra_compact"
+    if w < 60: return "compact"
+    if w < 80: return "standard"
+    return "full"
+
+
 def display_hazards(hazards: list, config: dict = None) -> None:
     """
-    ASCII display of nearby/active hazards.
+    Width-responsive ASCII display of nearby/active hazards.
     Maximum 5 shown — driver glance, not a report.
     """
     if config is None:
         config = {}
 
+    w    = _w(config)
+    mode = _mode(w)
+    sep  = "─" * w
+
     if not hazards:
-        print("No active community hazards nearby.")
+        if mode != "ultra_compact":
+            print("No active community hazards nearby.")
         return
 
-    print("─" * 45)
-    print("  Community Hazards")
-    print("─" * 45)
+    _sev_icon = {"CRITICAL": "⛔", "HIGH": "🟠", "WARNING": "⚠️",
+                 "MEDIUM": "🟡", "LOW": "⚪", "INFO": "ℹ️"}
+
+    print(sep)
+    if mode == "ultra_compact":
+        print("⚠ Hazards")
+    else:
+        print("  Community Hazards")
+    print(sep)
 
     for h in hazards[:5]:
         htype     = (h.get("t") or h.get("hazard_type", "other")).replace("_", " ").title()
@@ -384,16 +411,28 @@ def display_hazards(hazards: list, config: dict = None) -> None:
         note      = h.get("note", "")
         direction = h.get("dir", "")
 
-        dist_str  = f"{dist_mi:.1f} mi" if isinstance(dist_mi, (int, float)) else str(dist_mi)
-        count_str = f" ({count} drivers)" if count > 1 else ""
-        dir_str   = f" [{direction}]" if direction and direction not in ("unknown", "") else ""
-        note_str  = f"\n    {note}" if note else ""
+        icon      = _sev_icon.get(sev, "•")
+        dist_str  = f"{dist_mi:.1f}mi" if isinstance(dist_mi, (int, float)) else str(dist_mi)
 
-        print(f"  [{sev}] {htype}{count_str} — {dist_str}{dir_str}{note_str}")
+        if mode == "ultra_compact":
+            # Single line: icon TYPE dist [dir] (Nrpts)
+            dir_s = f" {direction[:2].upper()}" if direction and direction not in ("unknown","") else ""
+            cnt_s = f" {count}rpt" if count > 1 else ""
+            line  = f"{icon}{htype[:10]} {dist_str}{dir_s}{cnt_s}"
+            print(line[:w])
+        elif mode == "compact":
+            dir_s = f" [{direction}]" if direction and direction not in ("unknown","") else ""
+            cnt_s = f" ({count})" if count > 1 else ""
+            print(f"  {icon} {htype}{cnt_s} — {dist_str}{dir_s}")
+        else:
+            count_str = f" ({count} drivers)" if count > 1 else ""
+            dir_str   = f" [{direction}]" if direction and direction not in ("unknown", "") else ""
+            note_str  = f"\n    {note}" if note else ""
+            print(f"  [{sev}] {htype}{count_str} — {dist_str}{dir_str}{note_str}")
 
     if len(hazards) > 5:
-        print(f"  ... and {len(hazards) - 5} more")
-    print("─" * 45)
+        print(f"+{len(hazards) - 5} more" if mode == "ultra_compact" else f"  … and {len(hazards) - 5} more")
+    print(sep)
 
 
 # ── Backend sync stub (Phase 2) ────────────────────────────────────────────────

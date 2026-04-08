@@ -411,9 +411,9 @@ def _display_road_section(lat, lon, parsed, config, width):
     # 6. Road alerts section (offline detectors)
     if road_alerts:
         print()
-        print("─" * min(width, 50))
+        print("─" * width)
         print("  Road Conditions  (offline detectors)")
-        print("─" * min(width, 50))
+        print("─" * width)
         for a in road_alerts:
             sev   = a.get("severity", "INFO")
             atype = a.get("type", "").replace("_", " ").title()
@@ -470,7 +470,7 @@ def build_parser():
 def main():
     parser = build_parser()
     args   = parser.parse_args()
-    width  = min(get_width(), 80)
+    width  = get_width()
 
     if args.version:
         print(f"clean-shot v{VERSION}")

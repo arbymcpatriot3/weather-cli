@@ -89,11 +89,11 @@ def severity_icon(severity: str) -> str:
 def _box(lines: list, severity: str = "CRITICAL", width: int = 0) -> str:
     """
     Build an ASCII box around the given lines.
-    Width defaults to terminal width capped at 78.
+    Width defaults to actual terminal width (uncapped — supports 36-char phones).
     Returns the complete box as a single string (newlines included).
     """
     import re as _re
-    term_w = min(shutil.get_terminal_size(fallback=(80, 24)).columns, 80)
+    term_w = max(36, shutil.get_terminal_size(fallback=(80, 24)).columns)
     w      = width or term_w
     inner  = w - 4   # 2 border chars + 2 spaces padding
 
@@ -270,23 +270,43 @@ def beep_count(severity: str) -> int:
 def flash_banner(message: str, severity: str = "CRITICAL") -> str:
     """
     Build a single-line alert banner string (no box).
-    Used for inline warnings inside a larger display.
+    Truncated to fit current terminal width.
     """
     icon  = severity_icon(severity)
     color = severity_color(severity)
     reset = Style.RESET_ALL if _COLORAMA else ""
-    return f"{color}{icon}  {severity.upper()} — {message}{reset}"
+    w     = max(36, shutil.get_terminal_size(fallback=(80, 24)).columns)
+    text  = f"{icon}  {severity.upper()} — {message}"
+    # Truncate to fit, leaving room for ANSI codes (which have no printable width)
+    if len(text) > w:
+        text = text[:w - 1] + "…"
+    return f"{color}{text}{reset}"
 
 
 def build_critical_box(title: str, body: str = "",
                        severity: str = "CRITICAL") -> str:
     """
-    Build a full-width critical alert box.
-    title: short alert label  (e.g. "BLACK ICE AHEAD")
-    body:  detail line        (e.g. "Smokey's reporting black ice — back it down")
+    Build a width-responsive critical alert box.
+    Ultra-compact mode (< 40 cols): single line, no box borders.
+    Standard/full: full-width ╔═╗ box.
     """
-    icon   = severity_icon(severity)
-    lines  = [f"{icon}  {severity.upper()} — {title}"]
+    w    = max(36, shutil.get_terminal_size(fallback=(80, 24)).columns)
+    icon = severity_icon(severity)
+
+    if w < 40:
+        # Ultra-compact: single line, truncated to fit
+        color = severity_color(severity)
+        reset = Style.RESET_ALL if _COLORAMA else ""
+        # Abbreviate severity to save space
+        sev_short = {"EMERGENCY": "EMRG", "CRITICAL": "CRIT",
+                     "WARNING": "WARN", "INFO": "INFO", "LOW": "LOW"}.get(
+                     severity.upper(), severity.upper()[:4])
+        text = f"{icon}{sev_short} {title}"
+        if len(text) > w:
+            text = text[:w - 1] + "…"
+        return f"{color}{text}{reset}"
+
+    lines = [f"{icon}  {severity.upper()} — {title}"]
     if body:
         lines.append(f"   {body}")
     return _box(lines, severity)

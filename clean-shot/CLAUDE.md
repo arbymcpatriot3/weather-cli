@@ -507,6 +507,28 @@ Rules:
 
 ---
 
+## Responsive Display System
+
+All display modules are fully width-responsive (no hardcoded 80/50 column
+widths). Every module reads `config["display_width_override"]` (int 20–300) or
+falls back to `shutil.get_terminal_size()`. Minimum enforced: 36 columns.
+
+4 display modes, all via local `_w(config)` / `_mode(w)` helpers:
+- **ultra_compact** (`w < 40`): single-line per item, truncated to `w`
+- **compact** (`w 40–60`): abbreviated, 1–2 lines per item
+- **standard** (`w 60–80`): labeled rows, no descriptions
+- **full** (`w 80+`): full detail, descriptions, notes
+
+Files updated: `display/full.py`, `display/display_alerts.py`,
+`core/hazards.py`, `core/dot511.py`, `core/parking.py`, `core/hos.py`,
+`core/config.py` (added `display_width_override`), `core/weather.py`
+(removed `min(..., 80)` cap on width).
+
+Works on Android (Bold Blu K50, 36-char Termux), small tablets, and wide
+desktop terminals.
+
+---
+
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-08 — display_alerts enhanced (5 levels + flash + ack + HOS). All modules wired into unified view via platforms/linux/main.py. 277 tests passing.*
+*Last updated: 2026-04-08 — Fully responsive display system complete (4 modes, all 8 display modules). Termux /tmp fix applied. 277 tests passing.*

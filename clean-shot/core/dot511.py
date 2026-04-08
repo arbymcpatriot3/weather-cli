@@ -30,6 +30,7 @@
 
 import json
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -558,23 +559,46 @@ def speak_dot511_alerts(incidents: list, config: dict) -> int:
     return spoken
 
 
+def _w(config=None) -> int:
+    """Effective display width for dot511 module."""
+    override = (config or {}).get("display_width_override")
+    if override and isinstance(override, int) and 20 <= override <= 300:
+        return override
+    return max(36, shutil.get_terminal_size(fallback=(80, 24)).columns)
+
+
+def _mode(w: int) -> str:
+    if w < 40: return "ultra_compact"
+    if w < 60: return "compact"
+    if w < 80: return "standard"
+    return "full"
+
+
 def display_dot511(incidents: list, config: dict = None) -> None:
     """
-    ASCII display of active DOT/511 incidents.
+    Width-responsive ASCII display of active DOT/511 incidents.
     Maximum 8 shown — covers a day's route without wall-of-text.
     """
     if config is None:
         config = {}
 
+    w    = _w(config)
+    mode = _mode(w)
+    sep  = "─" * w
+
     if not incidents:
-        print("No active DOT/511 advisories for this area.")
+        if mode != "ultra_compact":
+            print("No active DOT/511 advisories for this area.")
         return
 
     _sev_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "⚪"}
 
-    print("─" * 50)
-    print("  DOT / 511 Advisories")
-    print("─" * 50)
+    print(sep)
+    if mode == "ultra_compact":
+        print("⚠ DOT/511")
+    else:
+        print("  DOT / 511 Advisories")
+    print(sep)
 
     for inc in incidents[:8]:
         itype  = inc.get("type", "").replace("_", " ").title()
@@ -587,23 +611,41 @@ def display_dot511(incidents: list, config: dict = None) -> None:
         expires = inc.get("expires")
 
         icon     = _sev_icon.get(sev, "⚪")
-        hw_str   = f" [{hw}]" if hw else ""
-        dir_str  = f" {dirn}" if dirn and dirn != "unknown" else ""
-        truck_str = " (CMV)" if truck else ""
-        src_str  = f" — {src.upper()}" if src else ""
 
         exp_str = ""
         if expires:
             mins_left = int((expires - time.time()) / 60)
             if 0 < mins_left < 120:
-                exp_str = f" (expires {mins_left}min)"
+                exp_str = f" {mins_left}m"
             elif mins_left <= 0:
-                exp_str = " (expired)"
+                exp_str = " EXP"
 
-        print(f"  {icon} {itype}{hw_str}{dir_str}{truck_str}{src_str}{exp_str}")
-        if desc:
-            print(f"     {desc}")
+        if mode == "ultra_compact":
+            hw_s  = f" {hw}" if hw else ""
+            dir_s = f" {dirn[:2].upper()}" if dirn and dirn not in ("unknown", "") else ""
+            line  = f"{icon}{itype[:10]}{hw_s}{dir_s}{exp_str}"
+            print(line[:w])
+        elif mode == "compact":
+            hw_str    = f" [{hw}]" if hw else ""
+            dir_str   = f" {dirn[:2].upper()}" if dirn and dirn not in ("unknown", "") else ""
+            truck_str = " CMV" if truck else ""
+            print(f"  {icon} {itype}{hw_str}{dir_str}{truck_str}{exp_str}")
+        else:
+            hw_str    = f" [{hw}]" if hw else ""
+            dir_str   = f" {dirn}" if dirn and dirn != "unknown" else ""
+            truck_str = " (CMV)" if truck else ""
+            src_str   = f" — {src.upper()}" if src else ""
+            exp_full  = ""
+            if expires:
+                mins_left = int((expires - time.time()) / 60)
+                if 0 < mins_left < 120:
+                    exp_full = f" (expires {mins_left}min)"
+                elif mins_left <= 0:
+                    exp_full = " (expired)"
+            print(f"  {icon} {itype}{hw_str}{dir_str}{truck_str}{src_str}{exp_full}")
+            if desc:
+                print(f"     {desc[:w - 5]}")
 
     if len(incidents) > 8:
-        print(f"  … and {len(incidents) - 8} more")
-    print("─" * 50)
+        print(f"+{len(incidents) - 8}" if mode == "ultra_compact" else f"  … and {len(incidents) - 8} more")
+    print(sep)
