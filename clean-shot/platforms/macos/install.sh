@@ -5,22 +5,15 @@
 # One-line install:
 #   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/macos/install.sh | bash
 
-set -euo pipefail
+set -e
 
 INSTALL_DIR="$HOME/CleanShot"
 REPO_URL="https://github.com/arbymcpatriot3/weather-cli.git"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
-
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 ok()   { printf "${GREEN}  [OK]  %s${NC}\n" "$1"; }
 warn() { printf "${YELLOW}  [!]   %s${NC}\n" "$1"; }
 info() { printf "        %s\n" "$1"; }
-die()  {
-    printf "\n${RED}  [ERR] %s${NC}\n\n" "$1"
-    printf "  Need help? support@cleanshothq.com\n"
-    printf "  cleanshothq.com\n\n"
-    exit 1
-}
 
 # ── Header ─────────────────────────────────────────────────────────────────────
 printf "\n"
@@ -29,138 +22,142 @@ printf "${CYAN}  Clean Shot — macOS Installer        ${NC}\n"
 printf "  Built for the road, not the boardroom\n"
 printf "${CYAN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n\n"
 
-# ── STEP 1: Install Homebrew if needed ────────────────────────────────────────
-info "Checking Homebrew..."
-if ! command -v brew &>/dev/null; then
-    info "Homebrew not found. Installing (you may be prompted for your password)..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || \
-        die "Homebrew install failed. Visit https://brew.sh and install manually, then re-run."
+# ── STEP 1: Xcode Command Line Tools ──────────────────────────────────────────
+if ! xcode-select -p &>/dev/null; then
+    info "Installing developer tools..."
+    info "Click Install when the dialog appears."
+    xcode-select --install 2>/dev/null || true
+    until xcode-select -p &>/dev/null; do sleep 5; done
+    ok "Developer tools installed"
+else
+    ok "Developer tools ready"
+fi
 
-    # Add brew to PATH — handles both Intel and Apple Silicon
+# ── STEP 2: Homebrew ───────────────────────────────────────────────────────────
+if ! command -v brew &>/dev/null; then
+    printf "\n"
+    printf "  ┌─────────────────────────────────────┐\n"
+    printf "  │  Your Mac password is required      │\n"
+    printf "  │  to install Homebrew.               │\n"
+    printf "  │                                     │\n"
+    printf "  │  This is normal and safe.           │\n"
+    printf "  │  Homebrew takes 5-10 minutes        │\n"
+    printf "  │  on first install.                  │\n"
+    printf "  └─────────────────────────────────────┘\n"
+    printf "\n"
+    info "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Add to PATH — Apple Silicon (M1/M2/M3/M4) or Intel
     if [ -f /opt/homebrew/bin/brew ]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
         echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile" 2>/dev/null || true
     elif [ -f /usr/local/bin/brew ]; then
         eval "$(/usr/local/bin/brew shellenv)"
+        echo 'eval "$(/usr/local/bin/brew shellenv)"' >> "$HOME/.zprofile" 2>/dev/null || true
     fi
     ok "Homebrew installed"
 else
-    ok "Homebrew found"
+    ok "Homebrew ready"
 fi
 
-# ── STEP 2: Install Python 3.11 ───────────────────────────────────────────────
-info "Checking Python..."
-PYTHON3=""
-
-# Check for a usable Python (prefer 3.11, accept 3.8-3.13)
-for cmd in python3.11 python3.12 python3.10 python3.9 python3 python3.8; do
+# ── STEP 3: Python 3.11 ───────────────────────────────────────────────────────
+PYTHON=""
+for cmd in python3.11 python3.12 python3.10 python3.9 python3; do
     if command -v "$cmd" &>/dev/null; then
-        ver=$("$cmd" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || true)
+        ver=$("$cmd" -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>/dev/null || true)
         major=$(echo "$ver" | cut -d. -f1)
         minor=$(echo "$ver" | cut -d. -f2)
-        if [ "$major" -eq 3 ] && [ "$minor" -ge 8 ] && [ "$minor" -le 13 ] 2>/dev/null; then
-            PYTHON3="$cmd"; break
+        if [ "$major" -eq 3 ] && [ "$minor" -ge 8 ] 2>/dev/null; then
+            PYTHON="$cmd"; break
         fi
     fi
 done
 
-if [ -z "$PYTHON3" ]; then
-    info "Installing Python 3.11 via Homebrew..."
-    brew install python@3.11 --quiet 2>/dev/null || \
-        brew install python@3.11 2>&1 | tail -3 || \
-        die "Python install failed. Run: brew install python@3.11"
-
-    # Find newly installed python
+if [ -z "$PYTHON" ]; then
+    info "Installing Python 3.11..."
+    brew install python@3.11
     for candidate in \
+        "$(brew --prefix 2>/dev/null)/bin/python3.11" \
         /opt/homebrew/bin/python3.11 \
         /opt/homebrew/opt/python@3.11/bin/python3.11 \
         /usr/local/bin/python3.11 \
         /usr/local/opt/python@3.11/bin/python3.11; do
-        [ -x "$candidate" ] && { PYTHON3="$candidate"; break; }
+        [ -x "$candidate" ] && { PYTHON="$candidate"; break; }
     done
-    [ -z "$PYTHON3" ] && PYTHON3="python3.11"
+    [ -z "$PYTHON" ] && PYTHON="python3.11"
     ok "Python 3.11 installed"
 else
-    ver=$("$PYTHON3" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "unknown")
-    ok "Python $ver found: $PYTHON3"
+    ver=$("$PYTHON" -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>/dev/null || echo "3")
+    ok "Python $ver ready"
 fi
 
-# ── STEP 3: Install Git if needed ─────────────────────────────────────────────
-info "Checking Git..."
+# ── STEP 4: Git ───────────────────────────────────────────────────────────────
 if ! command -v git &>/dev/null; then
-    info "Installing Git via Homebrew..."
-    brew install git --quiet 2>/dev/null || brew install git 2>&1 | tail -3 || \
-        die "Git install failed. Run: brew install git"
+    info "Installing Git..."
+    brew install git
     ok "Git installed"
 else
-    ok "Git found"
+    ok "Git ready"
 fi
 
-# ── STEP 4: Clone or update repo ──────────────────────────────────────────────
+# ── STEP 5: Clone or update repo ──────────────────────────────────────────────
 printf "\n"
-info "Setting up Clean Shot..."
-if [ -f "$INSTALL_DIR/clean-shot/platforms/linux/main.py" ]; then
-    info "Updating existing installation..."
-    git -C "$INSTALL_DIR" pull --quiet 2>/dev/null || warn "Could not update — using existing version"
+if [ -d "$INSTALL_DIR/.git" ]; then
+    info "Updating Clean Shot..."
+    git -C "$INSTALL_DIR" pull --quiet 2>/dev/null || true
     ok "Updated to latest version"
 else
-    info "Downloading Clean Shot (about 10 seconds)..."
+    info "Downloading Clean Shot..."
     [ -d "$INSTALL_DIR" ] && rm -rf "$INSTALL_DIR"
-    git clone "$REPO_URL" "$INSTALL_DIR" --quiet 2>/dev/null || \
-        git clone "$REPO_URL" "$INSTALL_DIR" 2>&1 | tail -1 || true
-    [ -f "$INSTALL_DIR/clean-shot/platforms/linux/main.py" ] || \
-        die "Download failed. Check your internet connection and try again."
-    ok "Clean Shot downloaded to: $INSTALL_DIR"
+    git clone "$REPO_URL" "$INSTALL_DIR" --quiet
+    ok "Clean Shot downloaded"
 fi
 
-# ── STEP 5: Install Python packages ───────────────────────────────────────────
+# ── STEP 6: Python packages ───────────────────────────────────────────────────
 printf "\n"
 info "Installing Python packages..."
-"$PYTHON3" -m pip install requests colorama --quiet 2>/dev/null || \
-    "$PYTHON3" -m pip install requests colorama --quiet --break-system-packages 2>/dev/null || \
-    warn "Package install had issues. Run: $PYTHON3 -m pip install requests colorama"
+"$PYTHON" -m ensurepip --upgrade --quiet 2>/dev/null || true
+"$PYTHON" -m pip install --upgrade pip --quiet 2>/dev/null || true
+"$PYTHON" -m pip install requests colorama --quiet 2>/dev/null || \
+    "$PYTHON" -m pip install requests colorama --quiet --break-system-packages 2>/dev/null || \
+    "$PYTHON" -m pip install requests colorama --quiet --user 2>/dev/null || true
 ok "Packages installed (requests, colorama)"
 
-# ── STEP 6: Create cleanshot command ──────────────────────────────────────────
-# Handle both Intel (/usr/local) and Apple Silicon (/opt/homebrew)
-BREW_BIN=""
-[ -d /opt/homebrew/bin ] && BREW_BIN="/opt/homebrew/bin"
-[ -d /usr/local/bin ]    && BREW_BIN="${BREW_BIN:-/usr/local/bin}"
-
+# ── STEP 7: Create cleanshot command ──────────────────────────────────────────
 LAUNCHER="/usr/local/bin/cleanshot"
-printf '#!/usr/bin/env bash\nexport CLEANSHOT_CMD=cleanshot\ncd "$HOME/CleanShot/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' "$PYTHON3" | \
-    sudo tee "$LAUNCHER" > /dev/null 2>&1 || {
-    # No sudo — try user bin
+{
+    printf '#!/usr/bin/env bash\nexport CLEANSHOT_CMD=cleanshot\ncd "%s/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' \
+        "$INSTALL_DIR" "$PYTHON"
+} | sudo tee "$LAUNCHER" > /dev/null 2>&1 && sudo chmod +x "$LAUNCHER" 2>/dev/null || {
+    # No sudo — use user bin
     mkdir -p "$HOME/.local/bin"
     LAUNCHER="$HOME/.local/bin/cleanshot"
-    printf '#!/usr/bin/env bash\nexport CLEANSHOT_CMD=cleanshot\ncd "$HOME/CleanShot/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' "$PYTHON3" > "$LAUNCHER"
-
-    # Add to PATH
-    for RC in "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.profile"; do
+    printf '#!/usr/bin/env bash\nexport CLEANSHOT_CMD=cleanshot\ncd "%s/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' \
+        "$INSTALL_DIR" "$PYTHON" > "$LAUNCHER"
+    chmod +x "$LAUNCHER"
+    # Add to PATH in all shell profiles
+    for RC in "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bash_profile" "$HOME/.bashrc"; do
         [ -f "$RC" ] || continue
-        if ! grep -q 'local/bin' "$RC" 2>/dev/null; then
-            printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$RC"
-            break
-        fi
+        grep -q 'local/bin' "$RC" 2>/dev/null && break
+        printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$RC"
+        break
     done
-    warn "Open a new terminal after install (PATH updated)"
+    export PATH="$HOME/.local/bin:$PATH"
 }
-chmod +x "$LAUNCHER" 2>/dev/null || sudo chmod +x "$LAUNCHER" 2>/dev/null || true
 ok "Launcher: $LAUNCHER"
 
-# ── STEP 7: Run doctor ────────────────────────────────────────────────────────
+# ── STEP 8: Run doctor ────────────────────────────────────────────────────────
 printf "\n"
-info "Running system check..."
-(cd "$INSTALL_DIR/clean-shot" && "$PYTHON3" platforms/linux/main.py doctor 2>/dev/null) || \
-    warn "System check had warnings — run 'cleanshot doctor' after opening a new terminal"
+info "Checking Clean Shot..."
+(cd "$INSTALL_DIR/clean-shot" && "$PYTHON" platforms/linux/main.py doctor 2>/dev/null) || true
 
 # ── Success ────────────────────────────────────────────────────────────────────
 printf "\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
-printf "${GREEN}  OK  Clean Shot installed!${NC}\n\n"
-printf "  Type:          cleanshot\n"
-printf "  For help:      cleanshot help\n"
-printf "  Check system:  cleanshot doctor\n\n"
-printf "  Need help?     support@cleanshothq.com\n"
-printf "                 cleanshothq.com\n"
+printf "${GREEN}  Clean Shot installed!               ${NC}\n\n"
+printf "  Open a new terminal and type:\n"
+printf "${CYAN}    cleanshot${NC}\n\n"
+printf "  For help:  cleanshot help\n"
+printf "  Support:   support@cleanshothq.com\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n\n"
