@@ -12,6 +12,23 @@ import json
 from datetime import datetime
 
 from core.config  import get_config, save_config, first_run_setup, show_settings, VERSION
+
+
+def _cmd() -> str:
+    """
+    Return the command name that matches how the user invoked Clean Shot.
+    - 'cleanshot'        → installed via install.sh
+    - 'python3 main.py'  → running directly from repo
+    """
+    argv0 = sys.argv[0] if sys.argv else ""
+    base  = os.path.basename(argv0)
+    if base in ("cleanshot", "weather"):
+        return base
+    if base == "main.py":
+        return "python3 main.py"
+    if base == "weather.py":
+        return "python3 weather.py"
+    return "python3 main.py"
 from core.api     import fetch_weather, fetch_alerts, geocode_location, get_auto_location
 from core.parse   import parse_current, parse_forecast, parse_hourly
 from display.full import (
@@ -108,7 +125,7 @@ def resolve_location(args, config):
         save_config(config)
         return lat, lon, city
 
-    print("✗ No location configured. Run: cleanshot settings location")
+    print(f"✗ No location configured. Run: {_cmd()} settings location")
     sys.exit(1)
 
 
@@ -225,7 +242,7 @@ def cmd_watch(args, config, width):
 def cmd_route(args, config, width):
     """Show weather along a route with 5 evenly-spaced stops."""
     if not args.route or len(args.route) < 2:
-        print('Usage: cleanshot route "Start City" "End City"')
+        print(f'Usage: {_cmd()} route "Start City" "End City"')
         sys.exit(1)
 
     start_str, end_str = args.route[0], args.route[1]
@@ -297,17 +314,18 @@ def cmd_map(args, config, width):
 
 
 def cmd_help():
+    c = _cmd()
     print(f"""
 Clean Shot v{VERSION}  —  Built for the road, not the boardroom.
-Blue Collar Nation LLC
+Blue Collar Nation LLC  |  cleanshothq.com
 {'─'*55}
 
-Usage:  cleanshot [command] [options]
+Usage:  {c} [command] [options]
 
 Commands:
   (none)            Full weather + road intelligence report (default)
   simple            One-line weather summary
-  compact           80-column compact view
+  compact           Compact view
   watch             Auto-refresh every 15 minutes
   json              Raw JSON output (for scripting)
   route A B         Weather along route from A to B (5 stops)
@@ -326,17 +344,17 @@ Options:
   --fresh           Force fresh API data (skip cache)
 
 Examples:
-  cleanshot
-  cleanshot simple
-  cleanshot compact
-  cleanshot --location "Memphis TN"
-  cleanshot --location "38101"
-  cleanshot route "Memphis TN" "Chicago IL"
-  cleanshot watch
-  cleanshot alerts
-  cleanshot settings 24h
-  cleanshot settings height 13.5
-  cleanshot settings wind 35
+  {c}
+  {c} simple
+  {c} compact
+  {c} --location "Memphis TN"
+  {c} --location "38101"
+  {c} route "Memphis TN" "Chicago IL"
+  {c} watch
+  {c} alerts
+  {c} settings 24h
+  {c} settings height 13.5
+  {c} settings wind 35
 
 Data sources:
   • Open-Meteo (weather, no API key required)
@@ -346,7 +364,6 @@ Data sources:
 Config:  ~/.config/clean-shot.conf
 Cache:   {tempfile.gettempdir()}/clean-shot-cache/ (refreshes every 10 min)
 """)
-
 
 # ── Road intelligence display ─────────────────────────────────────────────────
 
@@ -452,7 +469,7 @@ def _display_road_section(lat, lon, parsed, config, width):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        prog="cleanshot",
+        prog=_cmd(),
         description="Clean Shot — Weather for truckers",
         add_help=False,
     )
@@ -520,7 +537,7 @@ def main():
             args.route = [extra[0], extra[1]]
             cmd_route(args, config, width)
         else:
-            print('Usage: cleanshot route "Start City" "End City"')
+            print(f'Usage: {_cmd()} route "Start City" "End City"')
             sys.exit(1)
 
     elif cmd == "map":
@@ -541,7 +558,7 @@ def main():
             cmd_full(args, config, width)
         else:
             print(f"✗ Unknown command: '{original_cmd}'")
-            print("  Run 'cleanshot help' for usage.")
+            print(f"  Run '{_cmd()} help' for usage.")
             sys.exit(1)
 
 
