@@ -3,6 +3,7 @@
 # Migrated from weather.py v2.0.0 — updated imports and branding.
 # Platform entry points (platforms/*/main.py) call main() here.
 
+import tempfile
 import argparse
 import sys
 import os
@@ -343,7 +344,7 @@ Data sources:
   • ipapi.co (IP geolocation, auto-detect only)
 
 Config:  ~/.config/clean-shot.conf
-Cache:   {tempdir}/clean-shot-cache/ (refreshes every 10 min)
+Cache:   {tempfile.gettempdir()}/clean-shot-cache/ (refreshes every 10 min)
 """)
 
 
