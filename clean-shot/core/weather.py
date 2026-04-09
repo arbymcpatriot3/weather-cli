@@ -321,6 +321,119 @@ def cmd_map(args, config, width):
     display_regional(results, width)
 
 
+def cmd_doctor(config: dict) -> None:
+    """
+    cleanshot doctor — system health check.
+    Prints status of Python, deps, cache, config, GPS, TTS, and network.
+    """
+    import platform as _platform
+    from pathlib import Path
+    from core.config import CONFIG_PATH
+
+    ok_  = "✅"
+    bad_ = "❌"
+    wrn_ = "⚠️ "
+
+    w = get_width()
+    sep = "─" * min(w, 50)
+
+    print()
+    print(f"  Clean Shot v{VERSION} — Doctor")
+    print(f"  {sep}")
+
+    # Python version
+    pv = sys.version_info
+    py_path = sys.executable
+    if pv >= (3, 8):
+        print(f"  {ok_} Python {pv.major}.{pv.minor}.{pv.micro}  {py_path}")
+    else:
+        print(f"  {bad_} Python {pv.major}.{pv.minor} — need 3.8+  {py_path}")
+
+    # Platform
+    plat = _platform.system()
+    is_termux = "com.termux" in os.environ.get("PREFIX", "")
+    plat_str  = "Android/Termux" if is_termux else f"{plat} {_platform.release()}"
+    print(f"  {ok_} Platform — {plat_str}")
+
+    # requests
+    try:
+        import requests as _req
+        print(f"  {ok_} requests installed")
+    except ImportError:
+        print(f"  {bad_} requests missing — run: pip install requests")
+        _req = None
+
+    # colorama
+    try:
+        import colorama  # noqa: F401
+        print(f"  {ok_} colorama installed")
+    except ImportError:
+        print(f"  {wrn_} colorama missing — colors disabled  (pip install colorama)")
+
+    # Cache dir writable
+    cache_dir = Path(tempfile.gettempdir()) / "clean-shot-cache"
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        _test = cache_dir / ".doctor"
+        _test.write_text("ok")
+        _test.unlink()
+        print(f"  {ok_} Cache dir writable — {cache_dir}")
+    except Exception as e:
+        print(f"  {bad_} Cache dir not writable — {cache_dir}: {e}")
+
+    # Config file
+    if CONFIG_PATH.exists():
+        try:
+            with CONFIG_PATH.open() as _f:
+                json.load(_f)
+            loc = config.get("city") or "no location set"
+            print(f"  {ok_} Config valid — {loc}  ({CONFIG_PATH})")
+        except Exception as e:
+            print(f"  {bad_} Config corrupt — {e}")
+    else:
+        print(f"  {wrn_} No config yet — will create on first run")
+
+    # GPS module
+    try:
+        from core.gps import get_position  # noqa: F401
+        print(f"  {ok_} GPS module available")
+    except ImportError as e:
+        print(f"  {bad_} GPS module error — {e}")
+
+    # TTS
+    try:
+        from core.tts import _detect_platform_name
+        tts_plat = _detect_platform_name()
+        print(f"  {ok_} TTS available — {tts_plat}")
+    except Exception as e:
+        print(f"  {bad_} TTS error — {e}")
+
+    # Network
+    if _req is not None:
+        try:
+            r = _req.get("https://api.weather.gov", timeout=5)
+            if r.status_code < 500:
+                print(f"  {ok_} Network — NWS reachable (HTTP {r.status_code})")
+            else:
+                print(f"  {wrn_} Network — NWS returned HTTP {r.status_code}")
+        except Exception as e:
+            print(f"  {bad_} Network — {e}")
+    else:
+        print(f"  {bad_} Network — skipped (requests not installed)")
+
+    # Location
+    lat = config.get("latitude")
+    lon = config.get("longitude")
+    if lat and lon:
+        city = config.get("city", "unknown")
+        print(f"  {ok_} Location — {city} ({lat:.4f}, {lon:.4f})")
+    else:
+        print(f"  {wrn_} No location set — run: {_cmd()} settings location")
+
+    print(f"  {sep}")
+    print()
+
+
 def cmd_help():
     c = _cmd()
     print(f"""
@@ -340,6 +453,7 @@ Commands:
   map               Regional weather overview
   alerts            Active weather alerts only
   settings          View/change settings
+  doctor            System health check
   help              This help screen
 
 Road Intelligence (Solo Pro+):
@@ -553,6 +667,9 @@ def main():
 
     elif cmd == "settings":
         show_settings(config, [cmd] + (args.extra or []))
+
+    elif cmd == "doctor":
+        cmd_doctor(config)
 
     elif cmd in ("version", "-v", "--version"):
         print(f"clean-shot v{VERSION}")

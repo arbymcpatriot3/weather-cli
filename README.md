@@ -40,27 +40,41 @@ Set a fixed width override: `cleanshot settings width 38`
 
 ---
 
-## Quick Start
+## Install
 
-### Linux / Android (Termux)
-
+### Linux
 ```bash
 curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/linux/install.sh | bash
 ```
 
-Then run:
-
+### Android / Termux
 ```bash
-cleanshot
+curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/android/install_termux.sh | bash
 ```
 
-### Manual
+### Windows (PowerShell)
+```powershell
+iwr https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/windows/install.ps1 | iex
+```
+
+### iOS / iSH
+```sh
+wget -qO- https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/ios/install_ish.sh | sh
+```
+
+After install on any platform: `cleanshot doctor` to verify everything is working.
+
+### No installer? Run directly from the repo
 
 ```bash
+# Linux / macOS / Termux
 git clone https://github.com/arbymcpatriot3/weather-cli.git
 cd weather-cli/clean-shot
 pip install -r requirements.txt
-python3 platforms/linux/main.py
+python3 platforms/linux/main.py         # Linux
+python3 platforms/android/main.py       # Android/Termux
+python3 platforms/ios/main.py           # iOS iSH
+python platforms\windows\main.py        # Windows CMD
 ```
 
 ---
@@ -80,6 +94,7 @@ cleanshot settings wind 35       Set wind alert threshold (mph)
 cleanshot settings tts on        Enable text-to-speech alerts
 cleanshot settings 24h           Switch to 24-hour time
 cleanshot settings location      Change default location
+cleanshot doctor                 System health check
 cleanshot help                   Full command reference
 ```
 
