@@ -86,6 +86,7 @@ ok "Dependencies installed"
 # ── Create launcher ───────────────────────────────────────────────────────────
 cat > "$BIN_DIR/cleanshot" << EOF
 #!/usr/bin/env bash
+export CLEANSHOT_CMD=cleanshot
 exec python3 "$INSTALL_DIR/platforms/linux/main.py" "\$@"
 EOF
 chmod +x "$BIN_DIR/cleanshot"

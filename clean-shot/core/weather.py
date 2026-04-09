@@ -17,18 +17,26 @@ from core.config  import get_config, save_config, first_run_setup, show_settings
 def _cmd() -> str:
     """
     Return the command name that matches how the user invoked Clean Shot.
-    - 'cleanshot'        → installed via install.sh
-    - 'python3 main.py'  → running directly from repo
+
+    Priority:
+      1. CLEANSHOT_CMD env var — set by all launcher scripts so 'cleanshot'
+         shows up even though sys.argv[0] is still main.py
+      2. sys.argv[0] basename detection — fallback for direct invocation
+         Uses 'python' on Windows, 'python3' everywhere else.
     """
+    env = os.environ.get("CLEANSHOT_CMD", "").strip()
+    if env:
+        return env
+
     argv0 = sys.argv[0] if sys.argv else ""
     base  = os.path.basename(argv0)
+    py    = "python" if sys.platform == "win32" else "python3"
+
     if base in ("cleanshot", "weather"):
         return base
-    if base == "main.py":
-        return "python3 main.py"
-    if base == "weather.py":
-        return "python3 weather.py"
-    return "python3 main.py"
+    if base in ("main.py", "weather.py"):
+        return f"{py} {base}"
+    return f"{py} main.py"
 from core.api     import fetch_weather, fetch_alerts, geocode_location, get_auto_location
 from core.parse   import parse_current, parse_forecast, parse_hourly
 from display.full import (
