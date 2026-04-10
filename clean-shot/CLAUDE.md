@@ -340,7 +340,39 @@ Run: `python3 platforms/linux/main.py`
 Full unified view (no args): weather + alerts + DOT/511 + hazards + parking + HOS.
 
 ### `platforms/linux/install.sh`
-Downloads all package files, installs deps, creates `~/.local/bin/cleanshot` launcher.
+Fully hands-free. Auto-installs: Python 3+, pip, git, espeak-ng (TTS),
+pyttsx3, requests, colorama. Creates launcher at `/usr/local/bin/cleanshot`
+(falls back to `~/.local/bin`). Runs doctor at end. Zero manual steps.
+
+### `platforms/macos/install.sh` ✅ REWRITTEN — hands-free
+Fully hands-free. Steps: Xcode CLT (with wait loop) → Homebrew (friendly
+password/time message) → Python 3.11 via brew → Git → git clone/pull →
+pip packages → launcher at `/usr/local/bin/cleanshot`. Detects Apple Silicon
+vs Intel for PATH (.zprofile). Zero manual steps.
+
+### `platforms/windows/install.ps1` ✅ REWRITTEN — hands-free
+Fully hands-free. Auto-installs Python 3.11 + Git via winget. pip packages:
+requests, colorama, pywin32. Creates cleanshot.bat + PowerShell function.
+Zero manual steps.
+
+### `platforms/android/install_termux.sh` ✅ REWRITTEN — hands-free
+Fully hands-free inside Termux. pkg install python git termux-api → pip
+requests colorama → git clone → launcher at ~/bin/cleanshot → PATH fixed in
+.bashrc. Zero manual steps after pasting the one line.
+
+### `platforms/ios/install_ish.sh` ✅ REWRITTEN — hands-free
+Fully hands-free inside iSH. apk install python3 py3-pip git curl → pip
+requests colorama → git clone → launcher → profile sourced at end so
+`cleanshot` works immediately without `. ~/.profile`. Zero manual steps.
+
+---
+
+## Python Version Compatibility
+
+**Minimum supported: Python 3.8.** Tested on Python 3.9 (macOS system Python).
+
+`core/gps.py`, `core/dot511.py`, `core/parking.py` use `from __future__ import annotations`
+so `X | None` type hints work on Python 3.9. All other modules are 3.8+ compatible.
 
 ---
 
@@ -581,4 +613,4 @@ desktop terminals.
 
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-08 — Session 2 complete. display_alerts.py (5 levels + flash + ack), hos.py (FMCSA advisory), parking.py (runway + stops), fully responsive display system (4 modes, all modules), Android/Termux confirmed working. 277 tests passing. Session 3 priorities written above.*
+*Last updated: 2026-04-09 — All 5 installers rewritten to be fully hands-free (zero manual steps). Python 3.9 compatibility fixed in gps.py, dot511.py, parking.py (from __future__ import annotations). 277/277 tests passing. Session 3 priorities: feedback.py → savings.py → glance.py → windows/main.py → ios/main.py → cleanshothq.com.*

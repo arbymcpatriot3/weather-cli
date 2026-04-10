@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 # core/dot511.py — Clean Shot: DOT/511 road condition feeds
 # Tier: Solo Pro+ (dot511 feature)
 #

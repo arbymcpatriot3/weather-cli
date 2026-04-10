@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 # core/gps.py — Clean Shot: GPS dispatcher + smart polling + location intelligence
 #
 # Responsibilities:

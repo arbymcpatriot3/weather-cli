@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 # core/parking.py — Clean Shot: smart parking runway
 # Tier: Solo Pro+ (smart_parking feature)
 #
