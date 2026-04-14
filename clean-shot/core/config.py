@@ -45,9 +45,17 @@ _DEFAULTS = {
     "quiet_hours_end":   None,         # "06:00" or None to disable
     "tts_speed_aware":   True,         # WARNING/INFO wait until parked
     "tts_voice_quality": "enhanced",   # standard (espeak) | enhanced (festival) | premium (piper)
-    "tts_voice_name":    "en_US-lessac-medium",  # piper voice model name
+    "tts_voice_name":    "en_US-ryan-high",  # piper voice model name (ryan-high approved)
     "tts_rate":          150,          # words per minute (80–300)
     "tts_volume":        0.9,          # 0.0 – 1.0
+    # Alert tones
+    "tts_tone_enabled":  True,         # play distinctive tone before each spoken alert
+    "tts_tone_volume":   0.8,          # tone volume 0.0–1.0 (config: 1-10 maps to 0.0-1.0)
+    "tts_repeat_timeout": 10,          # seconds before auto-continue on repeat prompt
+    # macOS voice preference
+    "tts_macos_voice":   "Samantha",   # macOS say -v <voice>: Samantha | Alex
+    # Last 3 spoken messages (for Hey Clean Shot, repeat)
+    "tts_last_messages": [],
     # GPS / location
     "language":          "en",         # en | es (auto-detected on first run)
     "last_gps_lat":      None,
@@ -237,9 +245,13 @@ def show_settings(config: dict, args: list):
     print(f"Wind alert    : {config.get('wind_alert_mph', 40)} mph")
     print(f"TTS           : {'on' if config.get('tts_enabled') else 'off'}")
     print(f"TTS quality   : {config.get('tts_voice_quality', 'enhanced')}  (standard/enhanced/premium)")
-    print(f"TTS voice     : {config.get('tts_voice_name', 'en_US-lessac-medium')}  (piper model)")
+    print(f"TTS voice     : {config.get('tts_voice_name', 'en_US-ryan-high')}  (piper model)")
     print(f"TTS rate      : {config.get('tts_rate', 150)} WPM")
     print(f"TTS volume    : {config.get('tts_volume', 0.9)}")
+    print(f"Alert tones   : {'on' if config.get('tts_tone_enabled', True) else 'off'}")
+    tone_vol = int(config.get('tts_tone_volume', 0.8) * 10)
+    print(f"Tone volume   : {tone_vol}/10")
+    print(f"Repeat timeout: {config.get('tts_repeat_timeout', 10)}s")
     print(f"Subscription  : {config.get('subscription_tier', 'free')}")
     ref_count = config.get("referral_count", 0)
     ref_tier  = config.get("referral_tier", "road_scout")
@@ -255,8 +267,13 @@ def show_settings(config: dict, args: list):
     print("  cleanshot settings tts-rate 150             Words per minute (80-300)")
     print("  cleanshot settings tts-volume 0.9           Volume (0.0-1.0)")
     print("  cleanshot settings voice list               Show piper voices")
-    print("  cleanshot settings voice en_US-ryan-medium  Set piper voice")
+    print("  cleanshot settings voice ryan               Set voice (shorthand)")
+    print("  cleanshot settings voice en_US-ryan-high    Set voice (full name)")
+    print("  cleanshot settings tone on|off              Enable/disable alert tones")
+    print("  cleanshot settings tone-volume 8            Tone volume 1-10")
+    print("  cleanshot settings repeat-timeout 15        Auto-continue delay (seconds)")
     print("  cleanshot voices download                   Download default voice")
+    print("  cleanshot fix-voice                         Restore natural voice")
     print("  cleanshot settings location                 Change default location")
     print("  cleanshot settings vehicle semi|box|flatbed|tanker|rv")
     print()
@@ -335,6 +352,35 @@ def show_settings(config: dict, args: list):
         else:
             print(f"Unknown vehicle type. Options: {', '.join(sorted(valid))}")
 
+    elif key == "tone" and len(args) >= 3:
+        config["tts_tone_enabled"] = args[2].lower() in ("on", "yes", "true", "1")
+        save_config(config)
+        print(f"✓ Alert tones {'enabled' if config['tts_tone_enabled'] else 'disabled'}")
+
+    elif key == "tone-volume" and len(args) >= 3:
+        try:
+            v = int(args[2])
+            if 1 <= v <= 10:
+                config["tts_tone_volume"] = round(v / 10, 1)
+                save_config(config)
+                print(f"✓ Tone volume set to {v}/10")
+            else:
+                print("Tone volume must be 1–10")
+        except ValueError:
+            print("Invalid value. Example: cleanshot settings tone-volume 8")
+
+    elif key == "repeat-timeout" and len(args) >= 3:
+        try:
+            t_val = int(args[2])
+            if 5 <= t_val <= 120:
+                config["tts_repeat_timeout"] = t_val
+                save_config(config)
+                print(f"✓ Repeat timeout set to {t_val}s")
+            else:
+                print("Timeout must be 5–120 seconds")
+        except ValueError:
+            print("Invalid value. Example: cleanshot settings repeat-timeout 15")
+
     elif key == "voice" and len(args) >= 3:
         sub = args[2].lower()
         if sub == "list":
@@ -344,18 +390,19 @@ def show_settings(config: dict, args: list):
             except ImportError:
                 print("Voice listing only available on Linux.")
         else:
-            # Set voice by name
+            # Resolve short alias (ryan → en_US-ryan-high)
             try:
-                from platforms.linux.tts_linux import PIPER_VOICES, _voice_is_installed
-                if sub in PIPER_VOICES:
-                    config["tts_voice_name"] = sub
+                from platforms.linux.tts_linux import PIPER_VOICES, _voice_is_installed, resolve_voice_alias
+                full_name = resolve_voice_alias(sub)
+                if full_name in PIPER_VOICES:
+                    config["tts_voice_name"] = full_name
                     save_config(config)
-                    if _voice_is_installed(sub):
-                        print(f"✓ Voice set to {sub}")
+                    if _voice_is_installed(full_name):
+                        print(f"✓ Voice set to {full_name}")
                     else:
-                        print(f"✓ Voice set to {sub}")
+                        print(f"✓ Voice set to {full_name}")
                         print(f"  (model not downloaded yet)")
-                        print(f"  Run: cleanshot voices download {sub}")
+                        print(f"  Run: cleanshot voices download {full_name}")
                 else:
                     print(f"Unknown voice: {sub}")
                     print("  Run: cleanshot voices  to see available voices")

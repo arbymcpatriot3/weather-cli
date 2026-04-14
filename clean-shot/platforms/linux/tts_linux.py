@@ -29,15 +29,27 @@ PIPER_HF_BASE   = "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0"
 
 PIPER_VOICES = {
     # name                    : (hf_path,                                  stars, description)
-    "en_US-lessac-medium"     : ("en/en_US/lessac/medium",                 5, "Natural male — recommended"),
+    "en_US-ryan-high"         : ("en/en_US/ryan/high",                     5, "Natural male — APPROVED ✓ clearest voice"),
     "en_US-ryan-medium"       : ("en/en_US/ryan/medium",                   5, "Natural male — clear & deep"),
+    "en_US-lessac-medium"     : ("en/en_US/lessac/medium",                 5, "Natural male — backup"),
     "en_US-amy-medium"        : ("en/en_US/amy/medium",                    5, "Natural female"),
     "en_US-joe-medium"        : ("en/en_US/joe/medium",                    4, "Casual male"),
     "en_US-danny-low"         : ("en/en_US/danny/low",                     3, "Compact — fast download (~5MB)"),
     "en_US-kathleen-low"      : ("en/en_US/kathleen/low",                  3, "Compact female"),
 }
 
-DEFAULT_VOICE = "en_US-lessac-medium"
+# Short name aliases for `cleanshot settings voice ryan`
+VOICE_ALIASES = {
+    "ryan":    "en_US-ryan-high",
+    "lessac":  "en_US-lessac-medium",
+    "amy":     "en_US-amy-medium",
+    "joe":     "en_US-joe-medium",
+    "danny":   "en_US-danny-low",
+    "kathleen": "en_US-kathleen-low",
+}
+
+DEFAULT_VOICE  = "en_US-ryan-high"
+BACKUP_VOICE   = "en_US-lessac-medium"   # tried if default not installed
 
 
 # ── Voice path helpers ────────────────────────────────────────────────────────
@@ -177,10 +189,12 @@ def _speak_piper(text: str, config: dict) -> bool:
 
     voice_name = _active_voice(config)
 
-    # Fall back to default if configured voice isn't installed
+    # Fall back through voice priority chain if configured voice not installed
     if not _voice_is_installed(voice_name):
-        if voice_name != DEFAULT_VOICE and _voice_is_installed(DEFAULT_VOICE):
+        if _voice_is_installed(DEFAULT_VOICE):
             voice_name = DEFAULT_VOICE
+        elif _voice_is_installed(BACKUP_VOICE):
+            voice_name = BACKUP_VOICE
         else:
             return False
 
@@ -224,12 +238,23 @@ def _speak_festival(text: str) -> bool:
 
 # ── Engine: pyttsx3 ───────────────────────────────────────────────────────────
 
+_degraded_warned = False   # show degraded-voice warning at most once per session
+
+
 def _speak_pyttsx3(text: str, rate: int = 150, volume: float = 0.9) -> bool:
     """
-    Speak via pyttsx3 (espeak backend) with tuned settings.
-    Voice en+m3 sounds noticeably more natural than espeak default.
-    Rate 150 WPM feels unhurried vs the 200 WPM default.
+    Speak via pyttsx3 (espeak backend) — FALLBACK ONLY.
+    Voice en+m3 is more natural than the espeak default, but still robotic.
+    Always shows a one-time "quality degraded" warning so the driver knows
+    to run `cleanshot fix-voice`.
     """
+    global _degraded_warned
+    if not _degraded_warned:
+        _degraded_warned = True
+        print(
+            "\n  ⚠️  Voice quality degraded — using espeak fallback"
+            "\n     Run: cleanshot fix-voice    to restore natural voice\n"
+        )
     try:
         import pyttsx3
         engine = pyttsx3.init()
@@ -285,10 +310,18 @@ def speak_linux(text: str, config: dict = None) -> bool:
 
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
+def resolve_voice_alias(name: str) -> str:
+    """
+    Convert a short voice alias ('ryan') to a full voice name ('en_US-ryan-high').
+    Returns the original name unchanged if not an alias.
+    """
+    return VOICE_ALIASES.get(name.lower(), name)
+
+
 def get_engine_info(config: dict = None) -> dict:
     """
     Return info about the best available TTS engine.
-    Used by cmd_test_tts() to show engine name and star rating.
+    Used by cmd_test_tts() and doctor to show engine name and star rating.
     """
     if config is None:
         config = {}
@@ -302,17 +335,22 @@ def get_engine_info(config: dict = None) -> dict:
     except ImportError:
         piper_available = False
 
-    piper_installed = _voice_is_installed(voice_name) or _voice_is_installed(DEFAULT_VOICE)
-
-    if piper_available and piper_installed:
-        active = voice_name if _voice_is_installed(voice_name) else DEFAULT_VOICE
-        stars  = PIPER_VOICES.get(active, (None, 5, ""))[1]
-        return {
-            "engine":     "piper-tts (neural)",
-            "voice":      active,
-            "stars":      stars,
-            "star_str":   "⭐" * stars,
-        }
+    # Determine which piper voice is actually active
+    if piper_available:
+        active = None
+        for candidate in (voice_name, DEFAULT_VOICE, BACKUP_VOICE):
+            if _voice_is_installed(candidate):
+                active = candidate
+                break
+        if active:
+            stars = PIPER_VOICES.get(active, (None, 5, ""))[1]
+            return {
+                "engine":   "piper-tts (neural)",
+                "voice":    active,
+                "stars":    stars,
+                "star_str": "⭐" * stars,
+                "degraded": False,
+            }
 
     if shutil.which("festival"):
         return {
@@ -320,6 +358,7 @@ def get_engine_info(config: dict = None) -> dict:
             "voice":    None,
             "stars":    3,
             "star_str": "⭐⭐⭐",
+            "degraded": True,
         }
 
     try:
@@ -329,6 +368,7 @@ def get_engine_info(config: dict = None) -> dict:
             "voice":    None,
             "stars":    2,
             "star_str": "⭐⭐",
+            "degraded": True,
         }
     except ImportError:
         pass
@@ -338,4 +378,71 @@ def get_engine_info(config: dict = None) -> dict:
         "voice":    None,
         "stars":    0,
         "star_str": "",
+        "degraded": True,
     }
+
+
+def fix_voice(show_progress: bool = True) -> bool:
+    """
+    Attempt to restore natural piper-tts voice quality.
+    1. Install piper-tts via pip if missing
+    2. Download ryan-high voice model
+    3. Fall back to lessac-medium if ryan-high fails
+    Returns True if piper voice is available after the call.
+    """
+    import subprocess as _sp
+
+    def _msg(s: str):
+        if show_progress:
+            print(s)
+
+    _msg("\n  🔊 FIXING VOICE QUALITY...\n")
+
+    # ── Install piper-tts ─────────────────────────────────────────────────────
+    piper_ok = False
+    try:
+        from piper import PiperVoice  # noqa: F401
+        piper_ok = True
+        _msg("  piper-tts          already installed ✅")
+    except ImportError:
+        _msg("  Installing piper-tts...            ", )
+        for pip_args in (
+            ["pip3", "install", "piper-tts", "--break-system-packages", "--quiet"],
+            ["pip3", "install", "piper-tts", "--quiet"],
+            ["pip",  "install", "piper-tts", "--break-system-packages", "--quiet"],
+        ):
+            try:
+                _sp.run(pip_args, check=True, timeout=120,
+                        stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+                from piper import PiperVoice  # noqa: F401
+                piper_ok = True
+                _msg("  piper-tts                          ✅")
+                break
+            except Exception:
+                continue
+        if not piper_ok:
+            _msg("  piper-tts          install failed  ❌")
+            _msg("     Fix: pip3 install piper-tts --break-system-packages")
+            return False
+
+    # ── Download voice model ──────────────────────────────────────────────────
+    for voice_name in (DEFAULT_VOICE, BACKUP_VOICE):
+        if _voice_is_installed(voice_name):
+            _msg(f"  {voice_name}   already downloaded ✅")
+            _msg(f"\n  Voice quality restored!")
+            _msg(f"  Clean Shot is using: Piper TTS — {voice_name}")
+            _msg(f"  Natural human voice ✅")
+            _msg(f"\n  Test it: cleanshot test-tts\n")
+            return True
+
+        _msg(f"  Downloading {voice_name}...")
+        if download_voice(voice_name, show_progress=show_progress):
+            _msg(f"\n  Voice quality restored!")
+            _msg(f"  Clean Shot is using: Piper TTS — {voice_name}")
+            _msg(f"  Natural human voice ✅")
+            _msg(f"\n  Test it: cleanshot test-tts\n")
+            return True
+
+    _msg("  Voice model download failed  ❌")
+    _msg("     Fix: cleanshot voices download")
+    return False

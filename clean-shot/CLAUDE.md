@@ -378,13 +378,14 @@ so `X | None` type hints work on Python 3.9. All other modules are 3.8+ compatib
 
 ---
 
-## Test Inventory — 277 Tests / 9 Suites
+## Test Inventory — 357 Tests / 10 Suites
 
 | Suite | File | Tests | Status |
 |---|---|---|---|
 | Alerts | tests/test_alerts.py | 32 | ✅ |
 | GPS | tests/test_gps.py | 30 | ✅ |
 | TTS | tests/test_tts.py | 40 | ✅ |
+| Tones + Voice + Repeat | tests/test_tones.py | 80 | ✅ |
 | Referral | tests/test_referral.py | 4 | ✅ |
 | Hazards | tests/test_hazards.py | 31 | ✅ |
 | DOT/511 | tests/test_dot511.py | 41 | ✅ |
@@ -392,7 +393,7 @@ so `X | None` type hints work on Python 3.9. All other modules are 3.8+ compatib
 | Display Alerts | tests/test_display_alerts.py | 40 | ✅ |
 | HOS Guardian | tests/test_hos.py | 49 | ✅ |
 
-Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py && python3 tests/test_parking.py && python3 tests/test_display_alerts.py && python3 tests/test_hos.py`
+Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_tones.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py && python3 tests/test_parking.py && python3 tests/test_display_alerts.py && python3 tests/test_hos.py`
 
 ---
 
@@ -461,6 +462,41 @@ Start here next session. Build in this order. One module at a time, read CLAUDE.
 - Email capture for early access
 - Feature highlights: HOS, Parking Runway, TTS, Offline-first
 - "Built for the road, not the boardroom" hero
+
+---
+
+## Voice Quality Standard — Non-Negotiable
+
+Clean Shot uses natural human-sounding voices on all platforms.
+**Robotic voices are never acceptable.** A trucker who hears a robotic voice turns TTS off.
+A trucker who turns TTS off misses the black ice warning. Voice quality is safety.
+
+| Platform | Approved Voice | Stars | Notes |
+|---|---|---|---|
+| Linux | Piper TTS — en_US-ryan-high | ⭐⭐⭐⭐⭐ | APPROVED ✓ |
+| Linux fallback | Piper TTS — en_US-lessac-medium | ⭐⭐⭐⭐⭐ | If ryan unavailable |
+| Linux fallback 2 | festival | ⭐⭐⭐ | If Piper not installed |
+| Linux fallback 3 | pyttsx3/espeak en+m3 | ⭐⭐ | EMERGENCY ONLY — shows warning |
+| Windows | SAPI — David or Mark | ⭐⭐⭐⭐ | Never use "Microsoft Sam" |
+| macOS | say -v Samantha (or Alex) | ⭐⭐⭐⭐ | Never use bare `say` without -v |
+| Android | termux-tts-speak -r 0.85 | ⭐⭐⭐ | Device Google TTS |
+| iOS | AVSpeechSynthesizer en-US | ⭐⭐⭐⭐ | Natural system voice |
+
+**When espeak/fallback is used:** always show:
+`⚠️ Voice quality degraded — Run: cleanshot fix-voice`
+
+**`cleanshot fix-voice`** auto-installs piper-tts + ryan-high model on Linux.
+
+**Alert tones:** Distinct per-severity WAV tones play before every spoken alert.
+Generated locally in pure Python. Stored in `~/.local/share/cleanshot/tones/`.
+| Severity | Tone | Duration |
+|---|---|---|
+| INFO | Soft ascending C5→E5 | 0.3s |
+| WARNING | Ascending A4→C5→E5 | 0.5s |
+| CRITICAL | Descending A5→F5→D5 "BONG-BONG-BONG" | 0.8s |
+| EMERGENCY | Rapid 880Hz pulse ×8 | 1.0s |
+
+**Never regress to robotic voices. Never ship without a voice quality check in doctor.**
 
 ---
 
@@ -721,3 +757,6 @@ Start here next session. Build in this order. One module at a time, read CLAUDE.
 *Last updated: 2026-04-13 — Session 4 complete. Doctor rewritten, first_run redesigned, 5 installers all launch-immediately, error messages humanized, version files created, public README updated. 277/277 tests passing.*
 
 *Session 4 (continued) — Piper TTS integration: full neural voice on Linux. Cascade: piper→festival→pyttsx3. `cleanshot voices download`, `cleanshot voices download <name>`, `cleanshot settings voice <name>`. `test-tts` shows engine+voice+stars. Linux installer auto-installs piper-tts + en_US-lessac-medium model. 277/277 tests passing.*
+
+*Session 4 (continued) — ryan-high approved + Alert Tone System + Repeat Prompt:*
+*Default voice changed to en_US-ryan-high (approved, clearest quality). Alert tones: 4-severity WAV system (INFO chime / WARNING ascending / CRITICAL descending BONG / EMERGENCY rapid pulse), pure Python, no downloads. Repeat prompt (R to repeat / Enter / auto-timeout). Last-3-messages ring buffer for Hey Clean Shot repeat. EMERGENCY as 4th severity. Degraded voice warning when espeak is used. `cleanshot fix-voice` command. Doctor now has VOICE section. Windows SAPI prefers David/Mark. macOS say prefers Samantha. iOS AVSpeech prefers natural voices. `cleanshot settings tone on/off`, `tone-volume`, `repeat-timeout`, `voice ryan` (short alias). 357/357 tests passing (80 new tone/voice/repeat tests).*

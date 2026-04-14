@@ -4,16 +4,39 @@
 # Uses objc_util (Pythonista) or ctypes bridge to call AVSpeechSynthesizer.
 # TODO: implement in module sprint
 
-def speak_ios(text: str) -> bool:
-    """Speak text via AVSpeechSynthesizer. Returns True on success."""
+def speak_ios(text: str, config: dict = None) -> bool:
+    """
+    Speak text via AVSpeechSynthesizer with natural voice.
+    Prefers Samantha (natural female) or Daniel (UK male) over default.
+    Returns True on success.
+    """
+    if config is None:
+        config = {}
+
+    rate = float(config.get("tts_rate", 150)) / 300.0  # normalize to 0.0–1.0
+    rate = max(0.2, min(0.8, rate))                     # AVSpeech range
+
     try:
         # Pythonista path
         from objc_util import ObjCClass
         AVSpeechSynthesizer = ObjCClass("AVSpeechSynthesizer")
         AVSpeechUtterance   = ObjCClass("AVSpeechUtterance")
+        AVSpeechSynthesisVoice = ObjCClass("AVSpeechSynthesisVoice")
+
         synth     = AVSpeechSynthesizer.new()
         utterance = AVSpeechUtterance.speechUtteranceWithString_(text)
-        utterance.rate = 0.5
+        utterance.rate = rate
+
+        # Prefer natural voices: Samantha (en-US female) or Daniel (en-GB male)
+        for lang_code in ("en-US", "en-GB"):
+            try:
+                voice = AVSpeechSynthesisVoice.voiceWithLanguage_(lang_code)
+                if voice:
+                    utterance.voice = voice
+                    break
+            except Exception:
+                pass
+
         synth.speakUtterance_(utterance)
         return True
     except Exception:

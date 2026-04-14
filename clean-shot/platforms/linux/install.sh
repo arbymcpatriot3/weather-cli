@@ -193,18 +193,19 @@ info "Installing piper-tts (neural voice engine)..."
 if "$PYTHON" -c "from piper import PiperVoice" 2>/dev/null; then
     ok "piper-tts installed"
 
-    # Download default voice model: en_US-lessac-medium (~60MB)
+    # Download approved voice model: en_US-ryan-high (~65MB)
+    # ryan-high is the approved Clean Shot voice — most natural sounding
     PIPER_DIR="$HOME/.local/share/piper"
-    VOICE_NAME="en_US-lessac-medium"
+    VOICE_NAME="en_US-ryan-high"
     VOICE_ONNX="$PIPER_DIR/$VOICE_NAME.onnx"
     VOICE_JSON="$PIPER_DIR/$VOICE_NAME.onnx.json"
-    HF_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium"
+    HF_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/high"
 
     if [ -f "$VOICE_ONNX" ] && [ -f "$VOICE_JSON" ]; then
         ok "Voice model already installed: $VOICE_NAME"
     else
         mkdir -p "$PIPER_DIR"
-        info "Downloading voice model: $VOICE_NAME (~60MB)..."
+        info "Downloading voice model: $VOICE_NAME (~65MB)..."
         info "This is a one-time download — truckers deserve a natural voice."
 
         DOWNLOAD_OK=true
@@ -231,6 +232,28 @@ else
     warn "Install manually: pip3 install piper-tts --break-system-packages"
     warn "Download voice:   cleanshot voices download"
 fi
+
+# ── STEP 7b: Install alsa-utils (aplay for tone playback) + generate tones ───
+printf "\n"
+info "Setting up alert tones..."
+case "$PKG_MGR" in
+    apt-get|apt) $SUDO_CMD "$PKG_MGR" install -y alsa-utils -q 2>/dev/null || true ;;
+    dnf|yum)     $SUDO_CMD "$PKG_MGR" install -y alsa-utils -q 2>/dev/null || true ;;
+    pacman)      $SUDO_CMD pacman -S --noconfirm alsa-utils 2>/dev/null || true ;;
+    zypper)      $SUDO_CMD zypper install -y alsa-utils 2>/dev/null || true ;;
+esac
+
+# Pre-generate tones now so they're ready on first alert
+"$PYTHON" -c "
+import sys
+sys.path.insert(0, '$INSTALL_DIR/clean-shot')
+try:
+    from platforms.linux.tts_tones import ensure_tones
+    ok = ensure_tones()
+    print('  [OK]  Alert tones generated' if ok else '  [!]  Tone generation failed (non-critical)')
+except Exception as e:
+    print('  [!]  Tone generation skipped:', e)
+" 2>/dev/null || true
 
 # ── STEP 8: Create cleanshot command ──────────────────────────────────────────
 SYSTEM_BIN="/usr/local/bin/cleanshot"

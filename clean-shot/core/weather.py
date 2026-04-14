@@ -550,6 +550,53 @@ def cmd_doctor(config: dict) -> None:
         _fail(f"Parking runway: {e}")
     print()
 
+    # ── VOICE ─────────────────────────────────────────────────────────────────
+    import platform as _plat
+    print("  VOICE:")
+    _plat_name = _plat.system().lower()
+    is_termux  = "com.termux" in os.environ.get("PREFIX", "")
+
+    if is_termux:
+        _ok("Engine: termux-tts-speak  ⭐⭐⭐")
+    elif _plat_name == "linux":
+        try:
+            from platforms.linux.tts_linux import get_engine_info
+            _vinfo = get_engine_info(config)
+            if _vinfo["engine"]:
+                if _vinfo.get("degraded", False):
+                    _fail(
+                        f"Engine: {_vinfo['engine']}  {_vinfo['star_str']}",
+                        "cleanshot fix-voice"
+                    )
+                else:
+                    _ok(f"Engine: {_vinfo['engine']}  {_vinfo['star_str']}")
+                if _vinfo.get("voice"):
+                    _ok(f"Voice: {_vinfo['voice']}")
+            else:
+                _fail("No TTS engine installed", "cleanshot fix-voice")
+        except Exception:
+            _fail("Could not detect voice engine", "cleanshot fix-voice")
+    elif _plat_name == "windows":
+        _ok("Engine: Windows SAPI  ⭐⭐⭐⭐")
+    elif _plat_name == "darwin":
+        _voice = config.get("tts_macos_voice", "Samantha")
+        _ok(f"Engine: macOS say -v {_voice}  ⭐⭐⭐⭐")
+    else:
+        _ok("Engine: terminal fallback")
+
+    # Tone check
+    try:
+        from platforms.linux.tts_tones import tones_exist, TONE_DIR
+        if _plat_name == "linux":
+            if tones_exist():
+                _ok(f"Alert tones: generated  ({TONE_DIR})")
+            else:
+                _info("Alert tones: not yet generated (will auto-generate on first alert)")
+    except Exception:
+        pass
+
+    print()
+
     # ── SUBSCRIPTION ───────────────────────────────────────────────────────────
     print("  SUBSCRIPTION:")
     tier = config.get("subscription_tier", "free")
@@ -633,24 +680,13 @@ Cache:   {tempfile.gettempdir()}/clean-shot-cache/ (refreshes every 10 min)
 
 def cmd_test_tts(config: dict) -> None:
     """
-    cleanshot test-tts — verify voice alerts are working.
-    Forces a real TTS dispatch and reports the engine, voice, and star rating.
+    cleanshot test-tts — full voice system demo.
+    Plays INFO → WARNING → CRITICAL tones + messages, then shows repeat prompt.
     """
     import platform as _plat
 
-    test_msg = (
-        "Clean Shot text to speech is working. "
-        "Roads are clean and green good buddy."
-    )
-
     w   = min(get_width() - 2, 39)
     sep = "━" * w
-
-    print()
-    print(f"  {sep}")
-    print("  🔊 TTS Test — Clean Shot v" + VERSION)
-    print(f"  {sep}")
-    print()
 
     plat      = _plat.system().lower()
     is_termux = "com.termux" in os.environ.get("PREFIX", "")
@@ -659,6 +695,7 @@ def cmd_test_tts(config: dict) -> None:
     engine_name = None
     voice_label = None
     star_str    = ""
+    degraded    = False
 
     if is_termux:
         engine_name = "termux-tts-speak"
@@ -670,35 +707,30 @@ def cmd_test_tts(config: dict) -> None:
             engine_name = info["engine"]
             voice_label = info["voice"]
             star_str    = info["star_str"]
+            degraded    = info.get("degraded", False)
         except Exception:
-            try:
-                import pyttsx3  # noqa: F401
-                engine_name = "pyttsx3 (espeak en+m3)"
-                star_str    = "⭐⭐"
-            except ImportError:
-                engine_name = None
+            engine_name = None
     elif plat == "windows":
         engine_name = "Windows SAPI"
         star_str    = "⭐⭐⭐⭐"
     elif plat == "darwin":
-        engine_name = "macOS say"
-        star_str    = "⭐⭐⭐"
+        voice = config.get("tts_macos_voice", "Samantha")
+        engine_name = f"macOS say -v {voice}"
+        star_str    = "⭐⭐⭐⭐"
     else:
         engine_name = "terminal fallback"
         star_str    = ""
 
+    print()
+    print(f"  {sep}")
+    print("  🔊 TTS Test — Clean Shot v" + VERSION)
+    print(f"  {sep}")
+    print()
+
     if engine_name is None:
         print("  ❌ No TTS engine — voice alerts disabled")
         print()
-        print("  Quick fix:")
-        print("    sudo apt-get install -y espeak-ng libespeak-ng1")
-        print("    pip3 install pyttsx3 --break-system-packages")
-        print()
-        print("  For best quality (neural voice):")
-        print("    pip3 install piper-tts --break-system-packages")
-        print("    cleanshot voices download")
-        print()
-        print("  Or disable TTS:  cleanshot settings tts off")
+        print("  Fix it now:  cleanshot fix-voice")
         print(f"  {sep}")
         print()
         return
@@ -709,29 +741,126 @@ def cmd_test_tts(config: dict) -> None:
     if star_str:
         print(f"  Quality: {star_str}")
     print()
-    print(f"  Saying: \"{test_msg}\"")
-    print()
 
-    # Force TTS on for this test
     test_config = dict(config)
-    test_config["tts_enabled"] = True
+    test_config["tts_enabled"]     = True
+    test_config["tts_tone_enabled"] = True
 
     from core.tts import speak
-    result = speak(test_msg, test_config)
 
+    # ── INFO demo ─────────────────────────────────────────────────────────────
+    print("  Testing INFO tone + message...")
+    _play_tone_for_test("INFO", test_config)
+    time.sleep(0.2)
+    speak(
+        "Info message test. Weigh station closed at mile marker 203.",
+        test_config,
+    )
+    time.sleep(0.5)
+
+    # ── WARNING demo ──────────────────────────────────────────────────────────
+    print("  Testing WARNING tone + message...")
+    _play_tone_for_test("WARNING", test_config)
+    time.sleep(0.2)
+    speak(
+        "Warning message test. "
+        "Construction zone ahead on Interstate 76. "
+        "Single lane traffic.",
+        test_config,
+    )
+    time.sleep(0.5)
+
+    # ── CRITICAL demo ─────────────────────────────────────────────────────────
+    print("  Testing CRITICAL tone + message...")
+    _play_tone_for_test("CRITICAL", test_config)
+    time.sleep(0.2)
+    speak(
+        "Critical alert test. "
+        "Black ice reported ahead on Interstate 76 "
+        "near mile marker 142. "
+        "Back it down good buddy.",
+        test_config,
+    )
+    time.sleep(0.3)
+
+    # ── Result ────────────────────────────────────────────────────────────────
     print()
-    if result:
-        print(f"  ✅ TTS working — {engine_name}")
-        if not voice_label or "piper" not in engine_name:
-            print()
-            print("  Want a more natural voice?")
-            print("    pip3 install piper-tts --break-system-packages")
-            print("    cleanshot voices download")
+    print(f"  {sep}")
+    if voice_label:
+        print(f"  ✅ Voice: {voice_label} (Piper TTS)")
     else:
-        print("  ❌ TTS dispatch failed")
-        print("     support@cleanshothq.com")
+        print(f"  ✅ Voice: {engine_name}")
+    tones_ok = _tones_available()
+    print(f"  {'✅' if tones_ok else '❌'} Tones: {'generated and working' if tones_ok else 'not available'}")
+    print(f"  🔁 Press R to test repeat →  cleanshot test-tts")
     print(f"  {sep}")
     print()
+
+    if degraded:
+        print("  ⚠️  Voice quality degraded — robotic voice detected")
+        print("     Run: cleanshot fix-voice    to restore natural voice")
+        print()
+
+
+def _play_tone_for_test(severity: str, config: dict) -> None:
+    """Play a tone during test-tts — suppresses all errors."""
+    try:
+        import platform as _plat
+        if _plat.system().lower() == "linux":
+            from platforms.linux.tts_tones import play_tone, ensure_tones
+            ensure_tones(config.get("tts_tone_volume", 0.8))
+            play_tone(severity, config)
+    except Exception:
+        pass
+
+
+def _tones_available() -> bool:
+    """Return True if tone WAV files exist."""
+    try:
+        import platform as _plat
+        if _plat.system().lower() == "linux":
+            from platforms.linux.tts_tones import tones_exist
+            return tones_exist()
+    except Exception:
+        pass
+    return False
+
+
+def cmd_fix_voice(config: dict) -> None:
+    """
+    cleanshot fix-voice — detect platform and restore best available voice.
+    """
+    import platform as _plat
+
+    plat = _plat.system().lower()
+
+    if plat == "linux":
+        try:
+            from platforms.linux.tts_linux import fix_voice
+            fix_voice(show_progress=True)
+        except Exception as e:
+            print(f"\n  ❌ Fix failed: {e}")
+            print("     support@cleanshothq.com\n")
+
+    elif plat == "windows":
+        print()
+        print("  Windows uses built-in SAPI voices.")
+        print("  For best quality, ensure 'David' or 'Mark' is installed:")
+        print("  Settings → Time & Language → Speech → Add voices")
+        print()
+
+    elif plat == "darwin":
+        voice = config.get("tts_macos_voice", "Samantha")
+        print()
+        print(f"  macOS using: say -v {voice}")
+        print("  Available natural voices: Samantha (female), Alex (male)")
+        print(f"  Change: cleanshot settings tts-macos-voice Samantha")
+        print()
+
+    else:
+        print()
+        print("  fix-voice is available on Linux, Windows, and macOS.")
+        print()
 
 
 def cmd_voices(config: dict, args: list) -> None:
@@ -985,7 +1114,7 @@ def main():
     if config.get("latitude") is None and not args.location:
         _no_loc_cmds = ("settings", "help", "version", "doctor",
                         "test-tts", "testtts", "test-alerts", "testalerts",
-                        "voices")
+                        "voices", "fix-voice", "fixvoice")
         if args.command not in _no_loc_cmds:
             config = first_run_setup(config)
             if config.get("latitude") is None:
@@ -1042,6 +1171,9 @@ def main():
 
     elif cmd == "voices":
         cmd_voices(config, sys.argv[1:])
+
+    elif cmd in ("fix-voice", "fixvoice"):
+        cmd_fix_voice(config)
 
     elif cmd in ("version", "-v", "--version"):
         print(f"clean-shot v{VERSION}")

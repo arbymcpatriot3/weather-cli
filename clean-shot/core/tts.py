@@ -49,7 +49,7 @@ DIST_WARNING_MI   = 20.0
 DIST_CRITICAL_MI  = 5.0
 
 # Queue priority (lower = higher priority)
-_PRIORITY = {"CRITICAL": 0, "WARNING": 1, "INFO": 2}
+_PRIORITY = {"EMERGENCY": 0, "CRITICAL": 1, "WARNING": 2, "INFO": 3}
 
 # All 14 supported alert types (from claude/prompts.py)
 ALL_ALERT_TYPES = tuple(_CB_VOICE_ALERTS.keys())
@@ -69,6 +69,11 @@ _wake_callback      = None  # Phase 2 voice recognition hook
 
 # Show the pyttsx3-missing warning only once per session (not on every alert)
 _pyttsx3_warned:    bool = False
+
+# Last 3 spoken messages — for "Hey Clean Shot, repeat" and the R-to-repeat UI
+# Each entry: {"text": str, "severity": str, "ts": float}
+_last_messages:     list = []
+_last_msg_lock            = threading.Lock()
 
 
 # ── Platform detection ────────────────────────────────────────────────────────
@@ -110,37 +115,43 @@ def _dispatch(text: str, config: dict) -> bool:
     if _is_termux():
         try:
             lang = config.get("language", "en")
+            # Rate 0.85 (slightly slower than default) + pitch 1.0 = clearest
             subprocess.Popen(
-                ["termux-tts-speak", "-l", lang, text],
+                ["termux-tts-speak", "-l", lang, "-r", "0.85", "-p", "1.0", text],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             return True
         except Exception:
-            pass
+            # termux-api might not support all flags — try minimal form
+            try:
+                subprocess.Popen(
+                    ["termux-tts-speak", text],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                return True
+            except Exception:
+                pass
 
-    # ── Linux — pyttsx3 (fully offline) ──────────────────────────────────────
+    # ── Linux — piper (neural) → festival → pyttsx3 ──────────────────────────
     if plat == "linux":
         global _pyttsx3_warned
         try:
-            import pyttsx3 as _pyttsx3_check  # noqa: F401
-            del _pyttsx3_check
+            from platforms.linux.tts_linux import speak_linux
+            if speak_linux(text, config):
+                return True
         except ImportError:
-            if not _pyttsx3_warned:
-                _pyttsx3_warned = True
-                print(
-                    "\n  ⚠️  Voice alerts not available — pyttsx3 not installed"
-                    "\n     Fix: sudo apt-get install -y espeak-ng libespeak-ng1"
-                    "\n          pip3 install pyttsx3 --break-system-packages"
-                    "\n     Or:  cleanshot settings tts off\n"
-                )
-            # Fall through to terminal print fallback
-        else:
-            try:
-                from platforms.linux.tts_linux import speak_linux
-                if speak_linux(text, config):
-                    return True
-            except Exception:
-                pass
+            pass
+        except Exception:
+            pass
+
+        # If speak_linux() returned False (no engine at all), show warning once
+        if not _pyttsx3_warned:
+            _pyttsx3_warned = True
+            print(
+                "\n  ⚠️  No TTS engine available"
+                "\n     Fix: cleanshot fix-voice"
+                "\n     Or:  cleanshot settings tts off\n"
+            )
 
     # ── Windows — SAPI (built-in, natural voices) ─────────────────────────────
     elif plat == "windows":
@@ -155,14 +166,16 @@ def _dispatch(text: str, config: dict) -> bool:
     elif plat == "darwin":
         try:
             from platforms.ios.tts_ios import speak_ios
-            if speak_ios(text):
+            if speak_ios(text, config):
                 return True
         except Exception:
             pass
         try:
-            rate = int(config.get("tts_rate", 150))
+            rate  = int(config.get("tts_rate", 150))
+            # Prefer Samantha (female, natural) → Alex (male, natural) → default
+            voice = config.get("tts_macos_voice", "Samantha")
             subprocess.Popen(
-                ["say", "-r", str(rate), text],
+                ["say", "-v", voice, "-r", str(rate), text],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
             return True
@@ -172,6 +185,109 @@ def _dispatch(text: str, config: dict) -> bool:
     # ── Terminal fallback — always works ─────────────────────────────────────
     print(f"\n[Clean Shot] {text}\n", flush=True)
     return True   # print is never False
+
+
+# ── Last-message ring buffer (for R-to-repeat and "Hey Clean Shot, repeat") ──
+
+def _store_message(text: str, severity: str) -> None:
+    """Store a spoken message in the last-3 ring buffer."""
+    with _last_msg_lock:
+        _last_messages.append({"text": text, "severity": severity, "ts": time.time()})
+        if len(_last_messages) > 3:
+            _last_messages.pop(0)
+
+
+def get_last_messages() -> list:
+    """Return the last up-to-3 spoken messages (newest last)."""
+    with _last_msg_lock:
+        return list(_last_messages)
+
+
+# ── Repeat prompt UI ──────────────────────────────────────────────────────────
+
+def wait_for_repeat(
+    text: str,
+    speak_fn,
+    severity: str = "WARNING",
+    timeout: int = None,
+    config: dict = None,
+) -> None:
+    """
+    Show the post-alert repeat prompt and wait for driver input.
+
+    Press R → repeat tone + message
+    Press Enter / any other key → continue immediately
+    No key after timeout seconds → auto-continue
+
+    Timeout defaults by severity:
+        EMERGENCY  30 s
+        CRITICAL   15 s
+        WARNING    10 s
+        INFO       10 s
+    """
+    if config is None:
+        config = {}
+
+    if timeout is None:
+        _timeouts = {"EMERGENCY": 30, "CRITICAL": 15, "WARNING": 10, "INFO": 10}
+        timeout = config.get("tts_repeat_timeout",
+                             _timeouts.get(severity.upper(), 10))
+
+    sev_icon = {"EMERGENCY": "🚨", "CRITICAL": "🚨", "WARNING": "⚠️", "INFO": "ℹ️"}
+    icon = sev_icon.get(severity.upper(), "🔊")
+
+    # Short display of message (first 60 chars)
+    short = text[:60] + ("…" if len(text) > 60 else "")
+    sep   = "━" * 37
+
+    print(f"\n  {sep}")
+    print(f"  {icon} {severity.upper()} ALERT SPOKEN")
+    print(f"     {short}")
+    print()
+    print("  🔁 Press R to repeat")
+    print("  ↵  Press Enter to continue")
+    print(f"  ⏱  Auto-continues in {timeout}s")
+    print(f"  {sep}\n", flush=True)
+
+    _do_repeat_loop(text, speak_fn, severity, timeout, config)
+
+
+def _do_repeat_loop(
+    text: str, speak_fn, severity: str, timeout: int, config: dict
+) -> None:
+    """Inner loop for wait_for_repeat — tries tty, falls back to plain wait."""
+    import sys as _sys
+
+    key_event = threading.Event()
+
+    def _key_listener():
+        try:
+            import tty
+            import termios
+            fd  = _sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                ch = _sys.stdin.read(1).lower()
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+            if ch == 'r':
+                speak_fn(text)
+                # Allow another repeat
+                wait_for_repeat(text, speak_fn, severity, timeout, config)
+        except Exception:
+            pass
+        finally:
+            key_event.set()
+
+    if _sys.stdin.isatty():
+        t = threading.Thread(target=_key_listener, daemon=True)
+        t.start()
+        key_event.wait(timeout=timeout)
+    else:
+        # Non-interactive (piped/testing) — just return immediately
+        pass
 
 
 # ── Smart behavior helpers ────────────────────────────────────────────────────
@@ -282,22 +398,42 @@ def speak(text: str, config: dict, bypass_quiet: bool = False) -> bool:
     return _dispatch(text, config)
 
 
+def _play_alert_tone(severity: str, config: dict) -> None:
+    """
+    Play the severity-appropriate alert tone before speaking.
+    Linux only — no-op on other platforms.
+    Silently ignores all failures (tone is enhancement, not critical path).
+    """
+    if not config.get("tts_tone_enabled", True):
+        return
+    try:
+        import platform as _plat
+        if _plat.system().lower() == "linux":
+            from platforms.linux.tts_tones import play_tone
+            play_tone(severity, config)
+    except Exception:
+        pass
+
+
 def speak_alert(alert_type: str, severity: str, config: dict,
-                distance_mi: float = None, force: bool = False) -> bool:
+                distance_mi: float = None, force: bool = False,
+                show_repeat: bool = False) -> bool:
     """
     Smart alert speech with all filters applied.
 
     Args:
         alert_type   : one of ALL_ALERT_TYPES (e.g. "black_ice")
-        severity     : "CRITICAL" | "WARNING" | "INFO"
+        severity     : "EMERGENCY" | "CRITICAL" | "WARNING" | "INFO"
         config       : driver config dict
         distance_mi  : miles ahead (overrides severity via distance_to_severity)
         force        : bypass repeat suppression and quiet hours
+        show_repeat  : show R-to-repeat prompt after speaking (interactive only)
 
     Routing:
-        CRITICAL → speak immediately (bypasses quiet hours, bypasses queue)
-        WARNING  → add to queue; speak immediately only if parked
-        INFO     → add to queue only; never auto-fires
+        EMERGENCY → speak immediately, bypass all filters
+        CRITICAL  → speak immediately (bypasses quiet hours, bypasses queue)
+        WARNING   → add to queue; speak immediately only if parked
+        INFO      → add to queue only; never auto-fires
     """
     if not config.get("tts_enabled", False):
         return False
@@ -306,34 +442,49 @@ def speak_alert(alert_type: str, severity: str, config: dict,
     if distance_mi is not None:
         severity = distance_to_severity(distance_mi)
 
+    sev = severity.upper()
+
     # INFO never auto-fires
-    if severity == "INFO":
-        _enqueue(alert_type, severity, config)
+    if sev == "INFO":
+        _enqueue(alert_type, sev, config)
         return False
 
     text = _resolve_text(alert_type, config)
     if not text:
         return False
 
-    # Repeat suppression (CRITICAL always fires the first time)
-    if not force and _is_suppressed(alert_type, text, config):
-        return False
+    # EMERGENCY bypasses all suppression and quiet-hour checks
+    if sev != "EMERGENCY":
+        # Repeat suppression
+        if not force and _is_suppressed(alert_type, text, config):
+            return False
 
-    is_driving = config.get("is_driving", False)
-    is_crit    = (severity == "CRITICAL")
-    quiet      = _is_quiet_hours(config) and not (is_crit and CRITICAL_BYPASS_QUIET)
+        is_driving = config.get("is_driving", False)
+        is_crit    = sev in ("CRITICAL", "EMERGENCY")
+        quiet      = _is_quiet_hours(config) and not (is_crit and CRITICAL_BYPASS_QUIET)
 
-    if quiet:
-        return False
+        if quiet:
+            return False
 
-    # Speed-aware: WARNING waits for a pause
-    if severity == "WARNING" and is_driving and not force:
-        _enqueue(alert_type, severity, config)
-        return False
+        # Speed-aware: WARNING waits for a pause
+        if sev == "WARNING" and is_driving and not force:
+            _enqueue(alert_type, sev, config)
+            return False
 
-    # CRITICAL: speak now regardless of motion
+    # Play tone before speaking
+    _play_alert_tone(sev, config)
+    time.sleep(0.2)   # brief gap between tone and voice
+
+    # Speak
     _mark_spoken(alert_type, text)
-    return _dispatch(text, config)
+    result = _dispatch(text, config)
+
+    if result:
+        _store_message(text, sev)
+        if show_repeat:
+            wait_for_repeat(text, lambda t: _dispatch(t, config), sev, config=config)
+
+    return result
 
 
 def queue_warning(alert_type: str, config: dict) -> None:
@@ -381,11 +532,17 @@ def flush_queue(config: dict, max_alerts: int = 3) -> int:
         del _queue[:max_alerts]
 
     spoken = 0
-    for _, alert_type, text, _ in batch:
+    for priority, alert_type, text, _ in batch:
         if _is_suppressed(alert_type, text, config):
             continue
+        # Map priority back to severity for tone selection
+        _sev_by_priority = {0: "EMERGENCY", 1: "CRITICAL", 2: "WARNING", 3: "INFO"}
+        sev = _sev_by_priority.get(priority, "WARNING")
+        _play_alert_tone(sev, config)
+        time.sleep(0.15)
         if _dispatch(text, config):
             _mark_spoken(alert_type, text)
+            _store_message(text, sev)
             spoken += 1
             time.sleep(0.3)   # brief gap between alerts
 
