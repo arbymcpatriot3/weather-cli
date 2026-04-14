@@ -130,7 +130,7 @@ def _dispatch(text: str, config: dict) -> bool:
                 print(
                     "\n  ⚠️  Voice alerts not available — pyttsx3 not installed"
                     "\n     Fix: sudo apt-get install -y espeak-ng libespeak-ng1"
-                    "\n          pip3 install pyttsx3"
+                    "\n          pip3 install pyttsx3 --break-system-packages"
                     "\n     Or:  cleanshot settings tts off\n"
                 )
             # Fall through to terminal print fallback

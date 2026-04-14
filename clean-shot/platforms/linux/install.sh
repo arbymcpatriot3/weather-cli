@@ -151,24 +151,23 @@ else
 fi
 
 # ── STEP 6: Install Python packages ───────────────────────────────────────────
+# --break-system-packages is required on Linux Mint 21+, Ubuntu 22.04+, Debian 12+
+# (PEP 668 "externally managed environment"). Try it first, fall back to --user.
 printf "\n"
-info "Installing Python packages (requests, colorama)..."
-"$PYTHON" -m pip install --upgrade pip --quiet 2>/dev/null || true
-"$PYTHON" -m pip install requests colorama --quiet --user 2>/dev/null || \
-    "$PYTHON" -m pip install requests colorama --quiet --break-system-packages 2>/dev/null || \
-    "$PYTHON" -m pip install requests colorama --quiet 2>/dev/null || true
-ok "requests, colorama installed"
+info "Installing Python packages (requests, colorama, pyttsx3)..."
+"$PYTHON" -m pip install --upgrade pip --quiet --break-system-packages 2>/dev/null || \
+    "$PYTHON" -m pip install --upgrade pip --quiet 2>/dev/null || true
 
-info "Installing pyttsx3 (voice alert engine)..."
-"$PYTHON" -m pip install pyttsx3 --quiet --user 2>/dev/null || \
-    "$PYTHON" -m pip install pyttsx3 --quiet --break-system-packages 2>/dev/null || \
-    "$PYTHON" -m pip install pyttsx3 --quiet 2>/dev/null || true
+"$PYTHON" -m pip install requests colorama pyttsx3 --quiet --break-system-packages 2>/dev/null || \
+    "$PYTHON" -m pip install requests colorama pyttsx3 --quiet --user 2>/dev/null || \
+    "$PYTHON" -m pip install requests colorama pyttsx3 --quiet 2>/dev/null || true
 
 if "$PYTHON" -c "import pyttsx3" 2>/dev/null; then
-    ok "pyttsx3 installed — voice alerts ready"
+    ok "Packages installed (requests, colorama, pyttsx3)"
 else
     warn "pyttsx3 not installed — voice alerts will use text fallback"
-    warn "Fix: sudo apt-get install -y espeak-ng libespeak-ng1 && pip3 install pyttsx3"
+    warn "Fix: sudo apt-get install -y espeak-ng libespeak-ng1"
+    warn "     pip3 install pyttsx3 --break-system-packages"
 fi
 
 # ── STEP 7: Create cleanshot command ──────────────────────────────────────────

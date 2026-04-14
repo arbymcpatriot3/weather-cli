@@ -676,7 +676,7 @@ def cmd_test_tts(config: dict) -> None:
         print()
         print("  Fix:")
         print("    sudo apt-get install -y espeak-ng libespeak-ng1")
-        print("    pip3 install pyttsx3")
+        print("    pip3 install pyttsx3 --break-system-packages")
         print()
         print("  Or disable TTS:  cleanshot settings tts off")
         print(f"  {sep}")
