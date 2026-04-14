@@ -1,0 +1,149 @@
+Problems 3.0.0
+Date.time platform description
+
+260414.0335 Android Termux. No tts greeting.
+260414.0338 Android Termux. GPS not being used to autodetect location - used last location (currently at 08079, used 08085)
+260414.0340 Android Termux. python3 ./weather.py 08079 gives errors
+260414.0355 Linux terminal. 
+
+260414.0430 Android Termux. Ran program, no auto-update. Re-installed. No tts greeting still. Hourly forcast should start from current time, not from 12 AM. At usage limit until 8 AM.
+260414.0437 Linux terminal. From program:
+bruce@bruce-ASUS-Z390-A:~/weather-cli/clean-shot$ cleanshot
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🚛 WELCOME TO CLEAN SHOT v3.0
+     By Blue Collar Nation LLC
+     cleanshothq.com
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Built for the road,
+  not the boardroom.
+
+  Quick setup — just 3 questions:
+
+  1. Your name (optional):
+     > Bruce
+
+  2. Your location:
+     City, State or ZIP code
+     (or press Enter to auto-detect)
+     > 08079
+     ✓ Salem, New Jersey
+
+  3. Your vehicle type:
+     1. Diesel truck
+     2. Gas truck
+     3. Electric truck (EV)
+     4. Hybrid
+     5. Other
+     > 2
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅ Welcome aboard Bruce!
+     You have 30 days free.
+     No credit card needed.
+
+     Type: cleanshot
+     For help: cleanshot help
+     Check system: cleanshot doctor
+
+     "Roads are clean and green.
+      Welcome to Clean Shot
+      good buddy." 🚛
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Clean Shot — Salem, New Jersey  v3.0.0                                                                                                                                                                                   │
+└───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Location: Salem, New Jersey
+Updated:  04/14/2026 04:37 AM
+
+Current Conditions
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Temperature     : 61.6°F  (feels like 61.6°F)
+Condition       : Clear sky ☀
+Humidity        : 76%
+Wind            : 3.0 mph  SW ↙
+Sunrise / Sunset: 06:25  /  19:38
+
+Hourly Forecast (Next 24 hours)
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+12:00 AM EDT |  68.5°F | ##############################################################                                                                                                                    | Gust: 16.8
+ 1:00 AM EDT |  66.4°F | ################################################                                                                                                                                  | Gust:  8.1
+ 2:00 AM EDT |  65.2°F | ########################################                                                                                                                                          | Gust:  9.2
+ 3:00 AM EDT |  63.6°F | #############################                                                                                                                                                     |
+ 4:00 AM EDT |  62.4°F | #####################                                                                                                                                                             | Gust:  7.6
+ 5:00 AM EDT |  60.7°F | ##########                                                                                                                                                                        | Gust:  6.9
+ 6:00 AM EDT |  59.1°F |                                                                                                                                                                                   | Gust:  8.5
+ 7:00 AM EDT |  59.1°F |                                                                                                                                                                                   | Gust: 12.1
+ 8:00 AM EDT |  63.6°F | #############################                                                                                                                                                     | Gust: 11.9
+ 9:00 AM EDT |  68.6°F | ##############################################################                                                                                                                    | Gust: 13.4
+10:00 AM EDT |  73.7°F | ################################################################################################                                                                                  | Gust: 14.1
+11:00 AM EDT |  78.8°F | ##################################################################################################################################                                                | Gust: 17.4
+12:00 PM EDT |  82.3°F | #########################################################################################################################################################                         | Gust: 16.1
+ 1:00 PM EDT |  84.0°F | ####################################################################################################################################################################              | Gust: 17.0
+ 2:00 PM EDT |  85.0°F | ###########################################################################################################################################################################       | Gust: 19.9
+ 3:00 PM EDT |  85.9°F | ################################################################################################################################################################################  | Gust: 23.3
+ 4:00 PM EDT |  85.9°F | ################################################################################################################################################################################  | Gust: 23.3
+ 5:00 PM EDT |  85.7°F | ###############################################################################################################################################################################   | Gust: 22.6
+ 6:00 PM EDT |  85.0°F | ###########################################################################################################################################################################       | Gust: 20.6
+ 7:00 PM EDT |  81.4°F | ###################################################################################################################################################                               | Gust: 18.2
+ 8:00 PM EDT |  76.6°F | ###################################################################################################################                                                               | Gust: 15.2
+ 9:00 PM EDT |  73.6°F | ###############################################################################################                                                                                   | Gust: 16.1
+10:00 PM EDT |  70.6°F | ###########################################################################                                                                                                       | Gust: 28.6 🌧 21%
+11:00 PM EDT |  68.1°F | ###########################################################                                                                                                                       | Gust: 11.4
+
+7-Day Forecast
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Tue Apr 14  Overcast ☁
+     High 86°F   Low 59°F   Rain 21%
+
+Wed Apr 15  Overcast ☁
+     High 88°F   Low 62°F   Rain 9%
+
+Thu Apr 16  Overcast ☁
+     High 85°F   Low 67°F   Rain 9%
+
+Fri Apr 17  Light drizzle 🌦
+     High 81°F   Low 63°F   Rain 27%
+
+Sat Apr 18  Overcast ☁
+     High 76°F   Low 54°F   Rain 14%
+
+Sun Apr 19  Light drizzle 🌦
+     High 69°F   Low 49°F   Rain 32%
+
+Mon Apr 20  Overcast ☁
+     High 54°F   Low 40°F   Rain 26%
+     ⚠ Gusts up to 35 mph
+
+
+  ✓ No road hazards detected for current conditions.
+
+⚡ Smart Parking: Solo Pro+ required
+
+  HOS Guardian: Solo Pro+ feature — upgrade to enable
+bruce@bruce-ASUS-Z390-A:~/weather-cli/clean-shot$ 
+
+Voice output was Ryan, speaking only one word... might have spoken, "Quiet" or "Class". Program is asking for upgrade to Solo Pro+. Should have 30 day free trial of all features.
+
+260414.0446 iOS iPhone SE. Re-installing, downloading packages.Setup runs, prompts for name, "Setup cancelled." Program quit. Trying R-Bruces-iPhone:~/CleanShot# ./install.sh
+env: can't execute 'bash': No such file or directory
+
+running python3 ./weather.py
+text too wide for screen - wraps text. Still at version v2...
+Tried to get Claude on iPhone, requires iOS 18.0 or later. Would be nice if our program ran on older equipment... fallback to what will work, advising user of benefits of using a newer device, in a nice way. Ordered iPhone SE 3rd gen from Amazon.
+
+... 24 hour temperature & wind is fine. Timezone not needed on every line - should be added to Location text in output, not on every line of hourly forecast. Screen width may be very limited on some devices, such as the iPhone SE. Also, don't have location with title - use that space for our tagline or other info. Would be nice to be able to toggle temperature horizontal bar chart on and off if screen space is limited.
+
+260414.0521 Linux terminal. ~/weather-cli/clean-shot$ cleanshot route 08079 90210
+Geocoding route: 08079 → 90210 ...
+
+Route Weather: Salem, New Jersey  →  Beverly Hills, California
+(5 stops along route)
+
+Does not give city names of locations on route. Should they be called "Stop" if the trucker isn't stopping there? Perhaps a different term... waypoint? midway#1, midway#2, etc.
+
+Typing "clearshot help" gives old usage info, should use "clearshot", not python3 main.py [command] [options]. 
+
