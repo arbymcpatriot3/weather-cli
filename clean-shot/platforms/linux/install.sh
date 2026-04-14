@@ -112,28 +112,41 @@ if ! command -v git &>/dev/null; then
 fi
 ok "Git ready"
 
-# ── STEP 4: Install TTS engine (espeak-ng + libraries) ────────────────────────
+# ── STEP 4: Install TTS engines ───────────────────────────────────────────────
+# espeak-ng = standard (always install as fallback)
+# festival + festvox-us-slt-hts = enhanced (much more natural voice)
 printf "\n"
-info "Installing TTS engine (voice alerts)..."
+info "Installing TTS engines (voice alerts)..."
 case "$PKG_MGR" in
     apt-get|apt)
-        $SUDO_CMD "$PKG_MGR" install -y espeak-ng libespeak-ng1 python3-dev gcc -q 2>/dev/null || \
-        $SUDO_CMD "$PKG_MGR" install -y espeak-ng libespeak-ng1 -q 2>/dev/null || \
+        $SUDO_CMD "$PKG_MGR" install -y \
+            espeak-ng libespeak-ng1 python3-dev gcc \
+            festival festvox-us-slt-hts \
+            -q 2>/dev/null || \
+        $SUDO_CMD "$PKG_MGR" install -y \
+            espeak-ng libespeak-ng1 festival \
+            -q 2>/dev/null || \
         $SUDO_CMD "$PKG_MGR" install -y espeak-ng 2>/dev/null || true ;;
     dnf|yum)
-        $SUDO_CMD "$PKG_MGR" install -y espeak-ng python3-devel -q 2>/dev/null || \
+        $SUDO_CMD "$PKG_MGR" install -y espeak-ng festival python3-devel -q 2>/dev/null || \
         $SUDO_CMD "$PKG_MGR" install -y espeak-ng 2>/dev/null || true ;;
     pacman)
+        $SUDO_CMD pacman -S --noconfirm espeak-ng festival 2>/dev/null || \
         $SUDO_CMD pacman -S --noconfirm espeak-ng 2>/dev/null || true ;;
     zypper)
+        $SUDO_CMD zypper install -y espeak-ng festival 2>/dev/null || \
         $SUDO_CMD zypper install -y espeak-ng 2>/dev/null || true ;;
     *) true ;;
 esac
-if command -v espeak-ng &>/dev/null || command -v espeak &>/dev/null; then
-    ok "TTS engine installed (espeak-ng)"
+
+if command -v festival &>/dev/null; then
+    ok "TTS engines installed (festival + espeak-ng)"
+elif command -v espeak-ng &>/dev/null || command -v espeak &>/dev/null; then
+    ok "TTS engine installed (espeak-ng — enhanced quality requires festival)"
+    warn "For better voice: sudo apt-get install -y festival festvox-us-slt-hts"
 else
     warn "TTS engine not installed — voice alerts disabled until fixed"
-    warn "Fix: sudo apt-get install -y espeak-ng libespeak-ng1"
+    warn "Fix: sudo apt-get install -y espeak-ng libespeak-ng1 festival"
 fi
 
 # ── STEP 5: Clone or update repo ──────────────────────────────────────────────

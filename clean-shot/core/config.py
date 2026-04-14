@@ -44,6 +44,9 @@ _DEFAULTS = {
     "quiet_hours_start": None,         # "22:00" or None to disable
     "quiet_hours_end":   None,         # "06:00" or None to disable
     "tts_speed_aware":   True,         # WARNING/INFO wait until parked
+    "tts_voice_quality": "enhanced",   # standard (espeak) | enhanced (festival) | premium (piper)
+    "tts_rate":          150,          # words per minute (80–300)
+    "tts_volume":        0.9,          # 0.0 – 1.0
     # GPS / location
     "language":          "en",         # en | es (auto-detected on first run)
     "last_gps_lat":      None,
@@ -232,6 +235,9 @@ def show_settings(config: dict, args: list):
     print(f"Vehicle type  : {config.get('vehicle_type', 'semi')}")
     print(f"Wind alert    : {config.get('wind_alert_mph', 40)} mph")
     print(f"TTS           : {'on' if config.get('tts_enabled') else 'off'}")
+    print(f"TTS quality   : {config.get('tts_voice_quality', 'enhanced')}  (standard/enhanced/premium)")
+    print(f"TTS rate      : {config.get('tts_rate', 150)} WPM")
+    print(f"TTS volume    : {config.get('tts_volume', 0.9)}")
     print(f"Subscription  : {config.get('subscription_tier', 'free')}")
     ref_count = config.get("referral_count", 0)
     ref_tier  = config.get("referral_tier", "road_scout")
@@ -242,8 +248,11 @@ def show_settings(config: dict, args: list):
     print("  cleanshot settings 24h           Set 24-hour time")
     print("  cleanshot settings height 13.5   Set vehicle height")
     print("  cleanshot settings wind 35       Set wind alert threshold")
-    print("  cleanshot settings tts on|off    Toggle text-to-speech")
-    print("  cleanshot settings location      Change default location")
+    print("  cleanshot settings tts on|off              Toggle text-to-speech")
+    print("  cleanshot settings tts-quality enhanced     standard/enhanced/premium")
+    print("  cleanshot settings tts-rate 150             Words per minute (80-300)")
+    print("  cleanshot settings tts-volume 0.9           Volume (0.0-1.0)")
+    print("  cleanshot settings location                 Change default location")
     print("  cleanshot settings vehicle semi|box|flatbed|tanker|rv")
     print()
 
@@ -277,6 +286,39 @@ def show_settings(config: dict, args: list):
         config["tts_enabled"] = args[2].lower() in ("on", "yes", "true", "1")
         save_config(config)
         print(f"✓ TTS {'enabled' if config['tts_enabled'] else 'disabled'}")
+
+    elif key == "tts-quality" and len(args) >= 3:
+        q = args[2].lower()
+        if q in ("standard", "enhanced", "premium"):
+            config["tts_voice_quality"] = q
+            save_config(config)
+            print(f"✓ TTS quality set to {q}")
+        else:
+            print("Options: standard, enhanced, premium")
+
+    elif key == "tts-rate" and len(args) >= 3:
+        try:
+            r = int(args[2])
+            if 80 <= r <= 300:
+                config["tts_rate"] = r
+                save_config(config)
+                print(f"✓ TTS rate set to {r} WPM")
+            else:
+                print("Rate must be 80–300 WPM")
+        except ValueError:
+            print("Invalid rate. Example: cleanshot settings tts-rate 150")
+
+    elif key == "tts-volume" and len(args) >= 3:
+        try:
+            v = float(args[2])
+            if 0.0 <= v <= 1.0:
+                config["tts_volume"] = v
+                save_config(config)
+                print(f"✓ TTS volume set to {v}")
+            else:
+                print("Volume must be 0.0–1.0")
+        except ValueError:
+            print("Invalid volume. Example: cleanshot settings tts-volume 0.9")
 
     elif key == "vehicle" and len(args) >= 3:
         vtype = args[2].lower()

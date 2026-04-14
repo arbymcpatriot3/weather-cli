@@ -137,16 +137,16 @@ def _dispatch(text: str, config: dict) -> bool:
         else:
             try:
                 from platforms.linux.tts_linux import speak_linux
-                if speak_linux(text):
+                if speak_linux(text, config):
                     return True
             except Exception:
                 pass
 
-    # ── Windows — SAPI (built-in) ─────────────────────────────────────────────
+    # ── Windows — SAPI (built-in, natural voices) ─────────────────────────────
     elif plat == "windows":
         try:
             from platforms.windows.tts_windows import speak_windows
-            if speak_windows(text):
+            if speak_windows(text, config):
                 return True
         except Exception:
             pass
@@ -160,8 +160,11 @@ def _dispatch(text: str, config: dict) -> bool:
         except Exception:
             pass
         try:
-            subprocess.Popen(["say", text],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            rate = int(config.get("tts_rate", 150))
+            subprocess.Popen(
+                ["say", "-r", str(rate), text],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
             return True
         except Exception:
             pass
