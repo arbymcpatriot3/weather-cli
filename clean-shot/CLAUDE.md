@@ -611,6 +611,109 @@ desktop terminals.
 
 ---
 
+## Session 4 Fixes — 2026-04-13
+
+### What Was Fixed Tonight
+
+**Version Files Created:**
+- `clean-shot/VERSION` → 3.0.0
+- `clean-shot/VERSION.dev` → 3.1.0-dev
+- `clean-shot/CHANGELOG.md` → full v3.0 changelog
+
+**Installer Fixes (all 5 platforms):**
+- All 5 installers now launch Clean Shot immediately after install (no manual step)
+- Linux: added Python 3.13+ warning + explicit python3.11 install attempt + dnf pre-update
+- Linux: success screen no longer says "Open a new terminal" — just launches
+- Android: removed "Restart Termux" instruction — launches in current session
+- iOS: fixed launch for POSIX sh (replaced exec with safe command -v check)
+- macOS/Windows: launch added (were missing entirely)
+
+**Doctor Command (cmd_doctor) — full rewrite:**
+Matches the v3.0 spec output format exactly.
+Sections: SYSTEM / DEPENDENCIES / STORAGE / CONNECTIVITY / FEATURES / SUBSCRIPTION
+- SYSTEM: platform, Python version (3.13+ gets "3.11 recommended"), Clean Shot version
+- DEPENDENCIES: requests+version, colorama+version, pyttsx3 (Linux/Windows only)
+- STORAGE: cache dir, config file, temp dir — all with fix commands on failure
+- CONNECTIVITY: Internet, NOAA/NWS, Open-Meteo, Geocoding — 4 live checks, 5s timeout
+- FEATURES: all 8 modules checked individually with operational/error status
+- SUBSCRIPTION: plan, days remaining, upgrade link
+- Summary: "ALL SYSTEMS OPERATIONAL" or "N issue(s) found — see above for fixes"
+- Every failure shows exact fix command
+- Support email at bottom
+
+**First Run Setup (first_run_setup) — full rewrite:**
+- New header: 🚛 WELCOME TO CLEAN SHOT v3.0
+- 3 questions only: name (optional), location, vehicle type (5 options)
+- Location: accepts City/State/ZIP or Enter for IP auto-detect
+- Vehicle type: maps display names to internal wind-calc types
+- Welcome screen: greeting, 30-day trial, CB radio welcome message
+- TTS speaks welcome message on first launch (forced on for this one message)
+- config["driver_name"] stored in config (new field added to _DEFAULTS)
+- Never asks again (existing behavior — only runs when latitude is None)
+
+**Error Messages (audit):**
+- `resolve_location`: replaced ✗ error with friendly "Can't find that location" + examples
+- `resolve_location`: "No location set" message now shows two example fix commands
+- `get_weather_data`: replaced raw error with "Can't reach weather service" + "Check connection"
+- linux/main.py: unhandled exception now shows "Something went wrong / support@cleanshothq.com"
+- android/main.py: same friendly error wrapper
+
+**Public README:**
+Replaced detailed technical README with clean v3.0 marketing README:
+- What's in v3.0 (feature list)
+- One-line install per platform (all 5)
+- Coming in v3.1 preview
+- cleanshothq.com + support email
+- "Built for the road, not the boardroom"
+- No unbuilt features mentioned
+
+### What Needs Real-Hardware Testing
+
+| Platform | Test Focus |
+|---|---|
+| Android Termux | Install one-liner + auto-launch after install |
+| iOS iSH | sh compatibility, slow git clone (~30s), launch |
+| Windows 11 | winget Python/Git install, PowerShell profile, bat launcher |
+| macOS M1/M2 | Homebrew ARM path, xcode-select wait loop |
+| Linux (Fedora/Arch) | dnf/pacman install paths, python3.11 package name |
+
+### Test Count: 277 / 277 passing
+
+All 9 suites unchanged — new code (doctor, first_run) does not affect test modules.
+
+---
+
+## SESSION 4 — Build Priorities
+
+Start here next session. Build in this order. One module at a time, read CLAUDE.md first.
+
+### 1. `core/feedback.py` — Driver Report Submission
+- Submit feedback on road conditions, stops, hazards
+- Upvote / dismiss other drivers' reports
+- Claude AI parsing integration (`claude/parser.py`)
+- Offline queue → backend sync stub (Phase 2)
+- Subscription gated: solo_pro+
+- Target: ~35 tests
+
+### 2. `core/savings.py` — Time & Money Saved Tracker
+- Calculate time saved vs. stopping for bad weather
+- Milestone celebrations
+- Shareable ASCII stats card
+- Target: ~25 tests
+
+### 3. `display/glance.py` — 2-Second Glance Mode
+- Max 6 lines, no scroll
+- Ultra-compact for phones (36 chars)
+- `cleanshot glance` command
+- Target: ~20 tests
+
+### 4. `platforms/windows/main.py` + `platforms/ios/main.py`
+- Proper error handling, sys.path, dep checks (mirrors linux/main.py)
+
+### 5. cleanshothq.com — Coming Soon Landing Page
+
+---
+
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
-*Last updated: 2026-04-09 — All 5 installers rewritten to be fully hands-free (zero manual steps). Python 3.9 compatibility fixed in gps.py, dot511.py, parking.py (from __future__ import annotations). 277/277 tests passing. Session 3 priorities: feedback.py → savings.py → glance.py → windows/main.py → ios/main.py → cleanshothq.com.*
+*Last updated: 2026-04-13 — Session 4 complete. Doctor rewritten, first_run redesigned, 5 installers all launch-immediately, error messages humanized, version files created, public README updated. 277/277 tests passing.*

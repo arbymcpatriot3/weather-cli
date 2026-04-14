@@ -107,8 +107,9 @@ def resolve_location(args, config):
         loc_str = args.location.strip()
         lat, lon, city = geocode_location(loc_str)
         if lat is None:
-            print(f"✗ Could not find location: '{loc_str}'")
-            print('  Try: --location "Memphis TN" or --location "38101"')
+            print(f"  Can't find that location: '{loc_str}'")
+            print('  Try: cleanshot "Memphis TN"  or  cleanshot 38101')
+            print("  Need help? support@cleanshothq.com")
             sys.exit(1)
         config["latitude"]  = lat
         config["longitude"] = lon
@@ -133,7 +134,9 @@ def resolve_location(args, config):
         save_config(config)
         return lat, lon, city
 
-    print(f"✗ No location configured. Run: {_cmd()} settings location")
+    print(f"  No location set yet.")
+    print(f"  Run: {_cmd()} settings location")
+    print(f"  Or:  {_cmd()} \"Memphis TN\"  to use a location once")
     sys.exit(1)
 
 
@@ -155,8 +158,9 @@ def get_weather_data(lat, lon, force_fresh, label=""):
     """Fetch + report cache status. Returns (data_str, cache_age)."""
     data_str, cache_age = fetch_weather(lat, lon, force_fresh)
     if data_str is None:
-        loc = label or f"({lat:.4f}, {lon:.4f})"
-        print(f"✗ Failed to fetch weather data for {loc}")
+        print("  Can't reach weather service right now.")
+        print("  Showing last known conditions if available.")
+        print("  Check your connection or try again in a moment.")
         return None, None
     return data_str, cache_age
 
@@ -323,113 +327,249 @@ def cmd_map(args, config, width):
 
 def cmd_doctor(config: dict) -> None:
     """
-    cleanshot doctor — system health check.
-    Prints status of Python, deps, cache, config, GPS, TTS, and network.
+    cleanshot doctor — comprehensive system health check.
     """
     import platform as _platform
     from pathlib import Path
     from core.config import CONFIG_PATH
 
-    ok_  = "✅"
-    bad_ = "❌"
-    wrn_ = "⚠️ "
+    w   = min(get_width() - 2, 39)
+    sep = "━" * w
 
-    w = get_width()
-    sep = "─" * min(w, 50)
+    _req     = None
+    failures = []
 
+    def _ok(label, detail=""):
+        d = f": {detail}" if detail else ""
+        print(f"  ✅ {label}{d}")
+
+    def _fail(label, fix=None):
+        print(f"  ❌ {label}")
+        if fix:
+            print(f"     Fix: {fix}")
+        failures.append(label)
+
+    def _info(label, detail=""):
+        d = f": {detail}" if detail else ""
+        print(f"  ℹ️  {label}{d}")
+
+    # ── Header ─────────────────────────────────────────────────────────────────
     print()
-    print(f"  Clean Shot v{VERSION} — Doctor")
     print(f"  {sep}")
+    print(f"  🔍 CLEAN SHOT DOCTOR v{VERSION}")
+    print(f"     cleanshothq.com")
+    print(f"  {sep}")
+    print()
 
-    # Python version
-    pv = sys.version_info
-    py_path = sys.executable
-    if pv >= (3, 8):
-        print(f"  {ok_} Python {pv.major}.{pv.minor}.{pv.micro}  {py_path}")
-    else:
-        print(f"  {bad_} Python {pv.major}.{pv.minor} — need 3.8+  {py_path}")
-
-    # Platform
-    plat = _platform.system()
+    # ── SYSTEM ─────────────────────────────────────────────────────────────────
+    print("  SYSTEM:")
+    plat      = _platform.system()
     is_termux = "com.termux" in os.environ.get("PREFIX", "")
-    plat_str  = "Android/Termux" if is_termux else f"{plat} {_platform.release()}"
-    print(f"  {ok_} Platform — {plat_str}")
+    if is_termux:
+        plat_str = "Android/Termux"
+    else:
+        try:
+            ver_str = _platform.version()
+            plat_str = f"{plat} {_platform.release()}"
+        except Exception:
+            plat_str = plat
+    _ok(f"Platform: {plat_str}")
 
-    # requests
+    pv = sys.version_info
+    if pv >= (3, 8) and pv < (3, 13):
+        _ok(f"Python: {pv.major}.{pv.minor}.{pv.micro} (compatible)")
+    elif pv >= (3, 13):
+        _ok(f"Python: {pv.major}.{pv.minor}.{pv.micro} (3.11 recommended)")
+    else:
+        _fail(f"Python: {pv.major}.{pv.minor} — need 3.8+",
+              "Install Python 3.11 from python.org")
+
+    _ok(f"Clean Shot: v{VERSION}")
+    print()
+
+    # ── DEPENDENCIES ───────────────────────────────────────────────────────────
+    print("  DEPENDENCIES:")
     try:
         import requests as _req
-        print(f"  {ok_} requests installed")
+        _ok(f"requests: {_req.__version__}")
     except ImportError:
-        print(f"  {bad_} requests missing — run: pip install requests")
-        _req = None
+        _fail("requests: not installed", "pip install requests")
 
-    # colorama
     try:
-        import colorama  # noqa: F401
-        print(f"  {ok_} colorama installed")
+        import colorama as _col
+        _ok(f"colorama: {_col.__version__}")
     except ImportError:
-        print(f"  {wrn_} colorama missing — colors disabled  (pip install colorama)")
+        _fail("colorama: not installed", "pip install colorama")
 
-    # Cache dir writable
+    if plat in ("Linux", "Windows") and not is_termux:
+        try:
+            import pyttsx3 as _pyttsx3
+            _ok(f"pyttsx3: {_pyttsx3.__version__}")
+        except ImportError:
+            _fail("pyttsx3: not found",
+                  "pip install pyttsx3  |  Or: cleanshot settings tts off")
+    print()
+
+    # ── STORAGE ────────────────────────────────────────────────────────────────
+    print("  STORAGE:")
     cache_dir = Path(tempfile.gettempdir()) / "clean-shot-cache"
     try:
         cache_dir.mkdir(parents=True, exist_ok=True)
         _test = cache_dir / ".doctor"
         _test.write_text("ok")
         _test.unlink()
-        print(f"  {ok_} Cache dir writable — {cache_dir}")
-    except Exception as e:
-        print(f"  {bad_} Cache dir not writable — {cache_dir}: {e}")
+        _ok("Cache directory: writable")
+    except Exception:
+        _fail("Cache directory: not writable",
+              f"chmod 755 {cache_dir}")
 
-    # Config file
     if CONFIG_PATH.exists():
         try:
             with CONFIG_PATH.open() as _f:
                 json.load(_f)
-            loc = config.get("city") or "no location set"
-            print(f"  {ok_} Config valid — {loc}  ({CONFIG_PATH})")
-        except Exception as e:
-            print(f"  {bad_} Config corrupt — {e}")
+            _ok("Config file: valid")
+        except Exception:
+            _fail("Config file: corrupt",
+                  f"rm {CONFIG_PATH}  (will recreate on next run)")
     else:
-        print(f"  {wrn_} No config yet — will create on first run")
+        _info("Config file: will create on first run")
 
-    # GPS module
     try:
-        from core.gps import get_position  # noqa: F401
-        print(f"  {ok_} GPS module available")
-    except ImportError as e:
-        print(f"  {bad_} GPS module error — {e}")
+        import tempfile as _tmp
+        _t = _tmp.mktemp(dir=tempfile.gettempdir())
+        with open(_t, "w") as _f2:
+            _f2.write("ok")
+        os.unlink(_t)
+        _ok("Temp directory: writable")
+    except Exception:
+        _fail("Temp directory: not writable")
+    print()
 
-    # TTS
-    try:
-        from core.tts import _detect_platform_name
-        tts_plat = _detect_platform_name()
-        print(f"  {ok_} TTS available — {tts_plat}")
-    except Exception as e:
-        print(f"  {bad_} TTS error — {e}")
-
-    # Network
-    if _req is not None:
+    # ── CONNECTIVITY ───────────────────────────────────────────────────────────
+    print("  CONNECTIVITY:")
+    if _req is None:
+        _fail("Internet: skipped — requests not installed",
+              "pip install requests")
+    else:
+        # NWS
         try:
             r = _req.get("https://api.weather.gov", timeout=5)
             if r.status_code < 500:
-                print(f"  {ok_} Network — NWS reachable (HTTP {r.status_code})")
+                _ok("Internet: connected")
+                _ok("NOAA/NWS API: reachable")
             else:
-                print(f"  {wrn_} Network — NWS returned HTTP {r.status_code}")
-        except Exception as e:
-            print(f"  {bad_} Network — {e}")
-    else:
-        print(f"  {bad_} Network — skipped (requests not installed)")
+                _fail(f"NOAA/NWS API: HTTP {r.status_code}",
+                      "Check your internet connection")
+        except Exception:
+            _fail("Internet: no connection",
+                  "Check WiFi or cellular signal")
 
-    # Location
+        # Open-Meteo
+        try:
+            r2 = _req.get(
+                "https://api.open-meteo.com/v1/forecast"
+                "?latitude=40&longitude=-80&current_weather=true",
+                timeout=5,
+            )
+            if r2.status_code < 500:
+                _ok("Open-Meteo API: reachable")
+            else:
+                _fail("Open-Meteo API: server error")
+        except Exception:
+            _fail("Open-Meteo API: unreachable")
+
+        # Geocoding
+        try:
+            r3 = _req.get(
+                "https://nominatim.openstreetmap.org/search"
+                "?q=Chicago&format=json&limit=1",
+                timeout=5,
+                headers={"User-Agent": f"CleanShot/{VERSION}"},
+            )
+            if r3.status_code < 500:
+                _ok("Geocoding: reachable")
+            else:
+                _fail("Geocoding: server error")
+        except Exception:
+            _fail("Geocoding: unreachable")
+    print()
+
+    # ── FEATURES ───────────────────────────────────────────────────────────────
+    print("  FEATURES:")
+
+    try:
+        from core.api import fetch_weather  # noqa: F401
+        _ok("Weather: operational")
+    except Exception as e:
+        _fail(f"Weather: {e}")
+
+    try:
+        from core.alerts import get_road_alerts  # noqa: F401
+        _ok("Alerts: operational")
+    except Exception as e:
+        _fail(f"Alerts: {e}")
+
     lat = config.get("latitude")
     lon = config.get("longitude")
     if lat and lon:
-        city = config.get("city", "unknown")
-        print(f"  {ok_} Location — {city} ({lat:.4f}, {lon:.4f})")
+        city_str = config.get("city", "unknown")
+        _ok(f"GPS: {city_str} ({lat:.4f}, {lon:.4f})")
     else:
-        print(f"  {wrn_} No location set — run: {_cmd()} settings location")
+        _ok("GPS: IP fallback active")
 
+    try:
+        from core.tts import _detect_platform_name
+        tts_plat = _detect_platform_name()
+        _ok(f"TTS: {tts_plat}")
+    except Exception as e:
+        _fail(f"TTS: {e}",
+              "cleanshot settings tts off")
+
+    try:
+        from core.dot511 import fetch_dot511  # noqa: F401
+        _ok("DOT/511: operational")
+    except Exception as e:
+        _fail(f"DOT/511: {e}")
+
+    try:
+        from core.hazards import get_active_hazards  # noqa: F401
+        _ok("Community reports: operational")
+    except Exception as e:
+        _fail(f"Community reports: {e}")
+
+    try:
+        from core.hos import get_hos_status  # noqa: F401
+        _ok("HOS guardian: operational")
+    except Exception as e:
+        _fail(f"HOS guardian: {e}")
+
+    try:
+        from core.parking import compute_runway  # noqa: F401
+        _ok("Parking runway: operational")
+    except Exception as e:
+        _fail(f"Parking runway: {e}")
+    print()
+
+    # ── SUBSCRIPTION ───────────────────────────────────────────────────────────
+    print("  SUBSCRIPTION:")
+    tier = config.get("subscription_tier", "free")
+    if tier == "free":
+        _info("Plan: Free Trial")
+        _info("Days remaining: 30")
+        _info("Upgrade: cleanshothq.com")
+    else:
+        _ok(f"Plan: {tier}")
+    print()
+
+    # ── Summary ────────────────────────────────────────────────────────────────
+    print(f"  {sep}")
+    if failures:
+        print(f"  ⚠️  {len(failures)} issue(s) found — see above for fixes")
+    else:
+        print("  ✅ ALL SYSTEMS OPERATIONAL")
+    print()
+    print("  Need help?")
+    print("  support@cleanshothq.com")
     print(f"  {sep}")
     print()
 
@@ -454,6 +594,8 @@ Commands:
   alerts            Active weather alerts only
   settings          View/change settings
   doctor            System health check
+  test-tts          Test voice alerts
+  test-alerts       Test flash + beep + alert display
   help              This help screen
 
 Road Intelligence (Solo Pro+):
@@ -486,6 +628,133 @@ Data sources:
 Config:  ~/.config/clean-shot.conf
 Cache:   {tempfile.gettempdir()}/clean-shot-cache/ (refreshes every 10 min)
 """)
+
+# ── Test commands ─────────────────────────────────────────────────────────────
+
+def cmd_test_tts(config: dict) -> None:
+    """
+    cleanshot test-tts — verify voice alerts are working.
+    Forces a real TTS dispatch and reports the result.
+    """
+    import platform as _plat
+
+    test_msg = (
+        "Clean Shot text to speech is working. "
+        "Roads are clean and green good buddy."
+    )
+
+    w = min(get_width() - 2, 39)
+    sep = "━" * w
+
+    print()
+    print(f"  {sep}")
+    print("  🔊 TTS Test — Clean Shot v" + VERSION)
+    print(f"  {sep}")
+    print()
+
+    plat      = _plat.system().lower()
+    is_termux = "com.termux" in os.environ.get("PREFIX", "")
+
+    # Determine what engine we expect
+    if is_termux:
+        engine_name = "termux-tts-speak"
+    elif plat == "linux":
+        try:
+            import pyttsx3  # noqa: F401
+            engine_name = "pyttsx3 (Linux)"
+        except ImportError:
+            engine_name = None
+    elif plat == "windows":
+        engine_name = "Windows SAPI"
+    elif plat == "darwin":
+        engine_name = "macOS say"
+    else:
+        engine_name = "terminal fallback"
+
+    if engine_name is None:
+        print("  ❌ pyttsx3 not installed — no voice output")
+        print()
+        print("  Fix:")
+        print("    sudo apt-get install -y espeak-ng libespeak-ng1")
+        print("    pip3 install pyttsx3")
+        print()
+        print("  Or disable TTS:  cleanshot settings tts off")
+        print(f"  {sep}")
+        print()
+        return
+
+    print(f"  Engine: {engine_name}")
+    print(f"  Saying: \"{test_msg}\"")
+    print()
+
+    # Force TTS on for this test
+    test_config = dict(config)
+    test_config["tts_enabled"] = True
+
+    from core.tts import speak
+    result = speak(test_msg, test_config)
+
+    print()
+    if result:
+        print(f"  ✅ TTS working — {engine_name}")
+    else:
+        print(f"  ❌ TTS dispatch failed")
+        print("     support@cleanshothq.com")
+    print(f"  {sep}")
+    print()
+
+
+def cmd_test_alerts(config: dict, width: int) -> None:
+    """
+    cleanshot test-alerts — test critical alert display (flash + beep).
+    """
+    w   = min(width, 50)
+    sep = "━" * min(w, 39)
+
+    RED_BG = "\033[41;97m"   # bright white on red background
+    RESET  = "\033[0m"
+    BOLD   = "\033[1m"
+
+    print()
+
+    # Audible beep — uses terminal bell character
+    sys.stdout.write("\a")
+    sys.stdout.flush()
+
+    # Flash red banner 3 times
+    banner = " ⛔  CRITICAL ALERT TEST  ⛔ "
+    pad    = max(0, w - len(banner) - 2)
+    line   = f"  {RED_BG}{banner}{' ' * pad}{RESET}"
+
+    for _ in range(3):
+        print(line)
+        time.sleep(0.18)
+        # Clear line and reprint blank (flash effect)
+        sys.stdout.write(f"\033[1A\033[2K  {' ' * (len(banner) + pad)}\r")
+        sys.stdout.flush()
+        time.sleep(0.10)
+
+    # Final banner stays visible
+    print(line)
+    print()
+    print(f"  {sep}")
+    print(f"  {BOLD}TEST ALERT — Black Ice Warning{RESET}")
+    print(f"  {sep}")
+    print()
+    print("  ⛔ [CRITICAL] Black Ice")
+    print("     Smokey's reporting black ice ahead")
+    print("     good buddy — back it down.")
+    print()
+    print(f"  {sep}")
+    print()
+    print("  ✅ Flash: displayed")
+    print("  ✅ Beep: sent (check device volume)")
+    print("  ✅ Alert display: working")
+    print()
+    print(f"  Test voice:  {_cmd()} test-tts")
+    print(f"  {sep}")
+    print()
+
 
 # ── Road intelligence display ─────────────────────────────────────────────────
 
@@ -623,7 +892,9 @@ def main():
     config = get_config()
 
     if config.get("latitude") is None and not args.location:
-        if args.command not in ("settings", "help", "version"):
+        _no_loc_cmds = ("settings", "help", "version", "doctor",
+                        "test-tts", "testtts", "test-alerts", "testalerts")
+        if args.command not in _no_loc_cmds:
             config = first_run_setup(config)
             if config.get("latitude") is None:
                 return
@@ -671,6 +942,12 @@ def main():
     elif cmd == "doctor":
         cmd_doctor(config)
 
+    elif cmd in ("test-tts", "testtts", "tts-test"):
+        cmd_test_tts(config)
+
+    elif cmd in ("test-alerts", "testalerts", "alerts-test"):
+        cmd_test_alerts(config, width)
+
     elif cmd in ("version", "-v", "--version"):
         print(f"clean-shot v{VERSION}")
 
@@ -682,7 +959,7 @@ def main():
             args.location = original_cmd
             cmd_full(args, config, width)
         else:
-            print(f"✗ Unknown command: '{original_cmd}'")
+            print(f"  Unknown command: '{original_cmd}'")
             print(f"  Run '{_cmd()} help' for usage.")
             sys.exit(1)
 

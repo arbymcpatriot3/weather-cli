@@ -67,6 +67,9 @@ _queue_lock         = threading.Lock()
 
 _wake_callback      = None  # Phase 2 voice recognition hook
 
+# Show the pyttsx3-missing warning only once per session (not on every alert)
+_pyttsx3_warned:    bool = False
+
 
 # ── Platform detection ────────────────────────────────────────────────────────
 
@@ -117,12 +120,27 @@ def _dispatch(text: str, config: dict) -> bool:
 
     # ── Linux — pyttsx3 (fully offline) ──────────────────────────────────────
     if plat == "linux":
+        global _pyttsx3_warned
         try:
-            from platforms.linux.tts_linux import speak_linux
-            if speak_linux(text):
-                return True
-        except Exception:
-            pass
+            import pyttsx3 as _pyttsx3_check  # noqa: F401
+            del _pyttsx3_check
+        except ImportError:
+            if not _pyttsx3_warned:
+                _pyttsx3_warned = True
+                print(
+                    "\n  ⚠️  Voice alerts not available — pyttsx3 not installed"
+                    "\n     Fix: sudo apt-get install -y espeak-ng libespeak-ng1"
+                    "\n          pip3 install pyttsx3"
+                    "\n     Or:  cleanshot settings tts off\n"
+                )
+            # Fall through to terminal print fallback
+        else:
+            try:
+                from platforms.linux.tts_linux import speak_linux
+                if speak_linux(text):
+                    return True
+            except Exception:
+                pass
 
     # ── Windows — SAPI (built-in) ─────────────────────────────────────────────
     elif plat == "windows":

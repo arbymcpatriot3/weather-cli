@@ -50,12 +50,14 @@ def main():
         print("\n  Clean Shot — drive safe out there.")
         sys.exit(0)
     except Exception as exc:
-        print(f"\n  ✗ Clean Shot error: {exc}")
         if os.environ.get("CLEANSHOT_DEBUG"):
             import traceback
             traceback.print_exc()
         else:
-            print("  Set CLEANSHOT_DEBUG=1 for full traceback.")
+            print("\n  Something went wrong.")
+            print("  Please contact: support@cleanshothq.com")
+            print("  We'll fix it fast.")
+            print("  (Set CLEANSHOT_DEBUG=1 for details)")
         sys.exit(1)
 
 

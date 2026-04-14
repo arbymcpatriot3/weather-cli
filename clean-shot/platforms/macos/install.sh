@@ -156,8 +156,11 @@ info "Checking Clean Shot..."
 printf "\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 printf "${GREEN}  Clean Shot installed!               ${NC}\n\n"
-printf "  Open a new terminal and type:\n"
-printf "${CYAN}    cleanshot${NC}\n\n"
 printf "  For help:  cleanshot help\n"
 printf "  Support:   support@cleanshothq.com\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n\n"
+
+# ── Launch Clean Shot ──────────────────────────────────────────────────────────
+printf "  Starting Clean Shot...\n\n"
+exec cleanshot 2>/dev/null || \
+    (cd "$INSTALL_DIR/clean-shot" && exec "$PYTHON" platforms/linux/main.py)

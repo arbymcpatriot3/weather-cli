@@ -71,21 +71,29 @@ for cmd in python3 python3.11 python3.10 python3.9 python3.8; do
 done
 
 if [ -z "$PYTHON" ]; then
-    info "Installing Python 3..."
+    info "Installing Python 3.11..."
     # Update index first so installs succeed
     case "$PKG_MGR" in
         apt-get|apt) $SUDO_CMD "$PKG_MGR" update -qq 2>/dev/null || true ;;
+        dnf|yum)     $SUDO_CMD "$PKG_MGR" check-update -q 2>/dev/null || true ;;
     esac
+    # Try python3.11 first, fall back to any python3
+    install_pkg python3.11 2>/dev/null || true
     install_pkg python3
     install_pkg python3-pip
     install_pkg python3-venv
-    for cmd in python3 python3.11 python3.10; do
+    for cmd in python3.11 python3.10 python3.9 python3; do
         command -v "$cmd" &>/dev/null && { PYTHON="$cmd"; break; }
     done
 fi
 
 [ -z "$PYTHON" ] && PYTHON="python3"
 ver=$("$PYTHON" -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>/dev/null || echo "3")
+minor_ver=$("$PYTHON" -c "import sys; print(sys.version_info.minor)" 2>/dev/null || echo "0")
+if [ "$minor_ver" -ge 13 ] 2>/dev/null; then
+    warn "Python $ver detected — Python 3.11 is recommended for best compatibility"
+    warn "Clean Shot works but pyttsx3 TTS may not work on Python 3.13+"
+fi
 ok "Python $ver ready"
 
 # ── Ensure pip ────────────────────────────────────────────────────────────────
@@ -104,12 +112,29 @@ if ! command -v git &>/dev/null; then
 fi
 ok "Git ready"
 
-# ── STEP 4: Install espeak (TTS engine) ───────────────────────────────────────
-info "Checking audio (TTS)..."
-if ! command -v espeak &>/dev/null && ! command -v espeak-ng &>/dev/null; then
-    install_pkg espeak-ng 2>/dev/null || install_pkg espeak 2>/dev/null || true
+# ── STEP 4: Install TTS engine (espeak-ng + libraries) ────────────────────────
+printf "\n"
+info "Installing TTS engine (voice alerts)..."
+case "$PKG_MGR" in
+    apt-get|apt)
+        $SUDO_CMD "$PKG_MGR" install -y espeak-ng libespeak-ng1 python3-dev gcc -q 2>/dev/null || \
+        $SUDO_CMD "$PKG_MGR" install -y espeak-ng libespeak-ng1 -q 2>/dev/null || \
+        $SUDO_CMD "$PKG_MGR" install -y espeak-ng 2>/dev/null || true ;;
+    dnf|yum)
+        $SUDO_CMD "$PKG_MGR" install -y espeak-ng python3-devel -q 2>/dev/null || \
+        $SUDO_CMD "$PKG_MGR" install -y espeak-ng 2>/dev/null || true ;;
+    pacman)
+        $SUDO_CMD pacman -S --noconfirm espeak-ng 2>/dev/null || true ;;
+    zypper)
+        $SUDO_CMD zypper install -y espeak-ng 2>/dev/null || true ;;
+    *) true ;;
+esac
+if command -v espeak-ng &>/dev/null || command -v espeak &>/dev/null; then
+    ok "TTS engine installed (espeak-ng)"
+else
+    warn "TTS engine not installed — voice alerts disabled until fixed"
+    warn "Fix: sudo apt-get install -y espeak-ng libespeak-ng1"
 fi
-ok "Audio ready"
 
 # ── STEP 5: Clone or update repo ──────────────────────────────────────────────
 printf "\n"
@@ -127,12 +152,24 @@ fi
 
 # ── STEP 6: Install Python packages ───────────────────────────────────────────
 printf "\n"
-info "Installing Python packages..."
+info "Installing Python packages (requests, colorama)..."
 "$PYTHON" -m pip install --upgrade pip --quiet 2>/dev/null || true
-"$PYTHON" -m pip install requests colorama pyttsx3 --quiet --user 2>/dev/null || \
-    "$PYTHON" -m pip install requests colorama pyttsx3 --quiet --break-system-packages 2>/dev/null || \
-    "$PYTHON" -m pip install requests colorama pyttsx3 --quiet 2>/dev/null || true
-ok "Packages installed (requests, colorama, pyttsx3)"
+"$PYTHON" -m pip install requests colorama --quiet --user 2>/dev/null || \
+    "$PYTHON" -m pip install requests colorama --quiet --break-system-packages 2>/dev/null || \
+    "$PYTHON" -m pip install requests colorama --quiet 2>/dev/null || true
+ok "requests, colorama installed"
+
+info "Installing pyttsx3 (voice alert engine)..."
+"$PYTHON" -m pip install pyttsx3 --quiet --user 2>/dev/null || \
+    "$PYTHON" -m pip install pyttsx3 --quiet --break-system-packages 2>/dev/null || \
+    "$PYTHON" -m pip install pyttsx3 --quiet 2>/dev/null || true
+
+if "$PYTHON" -c "import pyttsx3" 2>/dev/null; then
+    ok "pyttsx3 installed — voice alerts ready"
+else
+    warn "pyttsx3 not installed — voice alerts will use text fallback"
+    warn "Fix: sudo apt-get install -y espeak-ng libespeak-ng1 && pip3 install pyttsx3"
+fi
 
 # ── STEP 7: Create cleanshot command ──────────────────────────────────────────
 SYSTEM_BIN="/usr/local/bin/cleanshot"
@@ -165,8 +202,11 @@ info "Checking Clean Shot..."
 printf "\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 printf "${GREEN}  Clean Shot installed!               ${NC}\n\n"
-printf "  Open a new terminal and type:\n"
-printf "${CYAN}    cleanshot${NC}\n\n"
 printf "  For help:  cleanshot help\n"
 printf "  Support:   support@cleanshothq.com\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n\n"
+
+# ── Launch Clean Shot ──────────────────────────────────────────────────────────
+printf "  Starting Clean Shot...\n\n"
+exec cleanshot 2>/dev/null || \
+    (cd "$INSTALL_DIR/clean-shot" && exec "$PYTHON" platforms/linux/main.py)

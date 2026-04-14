@@ -29,6 +29,8 @@ _DEFAULTS = {
     "tts_enabled":       False,
     "voice_enabled":     False,
     "offline_mode":      False,
+    # Driver profile
+    "driver_name":       None,        # set during first_run_setup
     # Account
     "driver_id":         None,
     "subscription_tier": "free",      # free | solo_pro | pro_plus | fleet | enterprise
@@ -81,59 +83,134 @@ def save_config(config: dict):
 
 def first_run_setup(config: dict) -> dict:
     """Interactive first-run wizard — runs once when no location is set."""
-    print("=" * 55)
-    print("  Clean Shot — First Run Setup")
-    print("  Built for the road, not the boardroom.")
-    print("=" * 55)
+    sep = "━" * 35
+
     print()
-    print("No location configured. Let's get you set up.")
-    print('Enter a city name, ZIP code, or "City ST".')
-    print('Examples: "Memphis TN"  |  "62701"  |  "Flagstaff"')
+    print(f"  {sep}")
+    print(f"  🚛 WELCOME TO CLEAN SHOT v{VERSION[:3]}")
+    print(f"     By Blue Collar Nation LLC")
+    print(f"     cleanshothq.com")
+    print(f"  {sep}")
+    print()
+    print("  Built for the road,")
+    print("  not the boardroom.")
+    print()
+    print("  Quick setup — just 3 questions:")
     print()
 
-    from core.api import geocode_location
+    # ── Q1: Name (optional) ───────────────────────────────────────────────────
+    try:
+        print("  1. Your name (optional):")
+        name = input("     > ").strip()
+        if name:
+            config["driver_name"] = name
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Setup cancelled.")
+        sys.exit(0)
+
+    # ── Q2: Location ──────────────────────────────────────────────────────────
+    print()
+    print("  2. Your location:")
+    print("     City, State or ZIP code")
+    print("     (or press Enter to auto-detect)")
+
+    from core.api import geocode_location, get_auto_location
+
     while True:
         try:
-            loc = input("Your home base or current location: ").strip()
+            loc = input("     > ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nSetup cancelled.")
+            print("\n  Setup cancelled.")
             sys.exit(0)
 
         if not loc:
-            print("Please enter a location.")
-            continue
+            print("     Auto-detecting your location...")
+            try:
+                lat, lon, city = get_auto_location()
+            except Exception:
+                lat = None
+            if lat is not None:
+                config["latitude"]  = lat
+                config["longitude"] = lon
+                config["city"]      = city
+                config["home_base"] = city
+                print(f"     Found: {city}")
+                break
+            else:
+                print("     Could not auto-detect.")
+                print("     Please enter City, State or ZIP:")
+                continue
 
         lat, lon, city = geocode_location(loc)
-        if lat is None:
-            print(f"Could not find '{loc}'. Please try again.")
-            continue
+        if lat is not None:
+            config["latitude"]  = lat
+            config["longitude"] = lon
+            config["city"]      = city
+            config["home_base"] = city
+            print(f"     ✓ {city}")
+            break
+        else:
+            print(f"     Can't find that location.")
+            print(f"     Try: Memphis TN  |  38101  |  Chicago")
 
-        config["latitude"]  = lat
-        config["longitude"] = lon
-        config["city"]      = city
-        config["home_base"] = city
-        print(f"✓ Location set to: {city} ({lat:.4f}, {lon:.4f})")
-        break
-
+    # ── Q3: Vehicle type ──────────────────────────────────────────────────────
     print()
-    fmt = input("Time format: 12h or 24h? [12h]: ").strip().lower()
-    config["time_format"] = "24h" if fmt == "24h" else "12h"
+    print("  3. Your vehicle type:")
+    print("     1. Diesel truck")
+    print("     2. Gas truck")
+    print("     3. Electric truck (EV)")
+    print("     4. Hybrid")
+    print("     5. Other")
 
-    print()
-    print("Vehicle height? Standard semi is ~13.5 ft. Press Enter to skip.")
-    try:
-        h = input("Height in feet [Enter to skip]: ").strip()
-        if h:
-            config["vehicle_height_ft"] = float(h)
-            print(f"✓ Vehicle height saved: {config['vehicle_height_ft']} ft")
-    except (ValueError, EOFError, KeyboardInterrupt):
-        pass
+    _vmap = {"1": "semi", "2": "box", "3": "semi", "4": "box", "5": "semi"}
+    while True:
+        try:
+            choice = input("     > ").strip()
+        except (EOFError, KeyboardInterrupt):
+            choice = "1"
+        if choice in _vmap:
+            config["vehicle_type"] = _vmap[choice]
+            break
+        if not choice:
+            config["vehicle_type"] = "semi"
+            break
+        print("     Enter 1–5")
 
     save_config(config)
+
+    # ── Welcome screen ────────────────────────────────────────────────────────
+    driver_name = config.get("driver_name", "")
+    greeting = f"Welcome aboard {driver_name}!" if driver_name else "You're all set!"
+
     print()
-    print("Setup complete! Run 'cleanshot' anytime for your forecast.")
-    print("Run 'cleanshot help' to see all commands.")
+    print(f"  {sep}")
+    print(f"  ✅ {greeting}")
+    print(f"     You have 30 days free.")
+    print(f"     No credit card needed.")
     print()
+    print(f"     Type: cleanshot")
+    print(f"     For help: cleanshot help")
+    print(f"     Check system: cleanshot doctor")
+    print()
+    print(f"     \"Roads are clean and green.")
+    print(f"      Welcome to Clean Shot")
+    print(f"      good buddy.\" 🚛")
+    print(f"  {sep}")
+    print()
+
+    # ── TTS welcome ───────────────────────────────────────────────────────────
+    try:
+        from core.tts import speak
+        _tts_cfg = dict(config)
+        _tts_cfg["tts_enabled"] = True
+        speak(
+            "Roads are clean and green. "
+            "Welcome to Clean Shot good buddy.",
+            _tts_cfg,
+        )
+    except Exception:
+        pass
+
     return config
 
 

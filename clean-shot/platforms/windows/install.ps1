@@ -138,11 +138,19 @@ Write-Host ""
 info "Installing Python packages..."
 if ($pyExe) {
     & $pyExe ($pyArgs + @("-m", "pip", "install", "--upgrade", "pip", "--quiet")) 2>&1 | Out-Null
-    & $pyExe ($pyArgs + @("-m", "pip", "install", "requests", "colorama", "pywin32", "--quiet")) 2>&1 | Out-Null
+    & $pyExe ($pyArgs + @("-m", "pip", "install", "requests", "colorama", "pywin32", "pyttsx3", "--quiet")) 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        & $pyExe ($pyArgs + @("-m", "pip", "install", "requests", "colorama", "pywin32", "--quiet", "--user")) 2>&1 | Out-Null
+        & $pyExe ($pyArgs + @("-m", "pip", "install", "requests", "colorama", "pywin32", "pyttsx3", "--quiet", "--user")) 2>&1 | Out-Null
     }
-    ok "Packages installed (requests, colorama, pywin32)"
+
+    # Verify pyttsx3 installed
+    $ttsOk = & $pyExe ($pyArgs + @("-c", "import pyttsx3; print('ok')")) 2>&1
+    if ("$ttsOk" -match "ok") {
+        ok "Packages installed (requests, colorama, pywin32, pyttsx3)"
+    } else {
+        ok "Packages installed (requests, colorama, pywin32)"
+        warn "pyttsx3 install issue — run: py -3.11 -m pip install pyttsx3"
+    }
 }
 
 # ── STEP 6: Create cleanshot.bat launcher ─────────────────────────────────────
@@ -195,10 +203,16 @@ Write-Host ""
 Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
 Write-Host "  Clean Shot installed!               " -ForegroundColor Green
 Write-Host ""
-Write-Host "  Open a NEW PowerShell window and type:" -ForegroundColor White
-Write-Host "    cleanshot" -ForegroundColor Cyan
-Write-Host ""
 info "For help:  cleanshot help"
 info "Support:   support@cleanshothq.com"
 Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
 Write-Host ""
+
+# ── Launch Clean Shot ──────────────────────────────────────────────────────────
+info "Starting Clean Shot..."
+Write-Host ""
+if ($pyExe) {
+    Push-Location "$INSTALL_DIR\clean-shot"
+    & $pyExe ($pyArgs + @("platforms\windows\main.py")) 2>&1
+    Pop-Location
+}

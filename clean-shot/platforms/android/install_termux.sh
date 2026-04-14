@@ -43,19 +43,35 @@ info "Updating package list..."
 pkg update -y 2>/dev/null || pkg update 2>/dev/null || true
 ok "Packages updated"
 
-# ── STEP 2: Install Python, Git, termux-api ───────────────────────────────────
+# ── STEP 2: Install Python, Git, termux-api, espeak ───────────────────────────
 info "Installing Python, Git, termux-api..."
 pkg install -y python git termux-api 2>/dev/null || \
     pkg install -y python git 2>/dev/null || \
     pkg install python git 2>/dev/null || true
 ok "Python, Git, termux-api installed"
 
+info "Installing espeak (TTS engine)..."
+pkg install -y espeak 2>/dev/null || true
+if command -v espeak &>/dev/null; then
+    ok "espeak installed"
+else
+    warn "espeak not available — voice will use termux-tts-speak"
+fi
+
 # ── STEP 3: Install Python packages ───────────────────────────────────────────
 info "Installing Python packages..."
 pip install --upgrade pip --quiet 2>/dev/null || true
 pip install requests colorama --quiet 2>/dev/null || \
     pip install requests colorama 2>/dev/null || true
-ok "Packages installed (requests, colorama)"
+ok "requests, colorama installed"
+
+info "Installing pyttsx3 (voice alerts)..."
+pip install pyttsx3 --quiet 2>/dev/null || pip install pyttsx3 2>/dev/null || true
+if python3 -c "import pyttsx3" 2>/dev/null; then
+    ok "pyttsx3 installed"
+else
+    warn "pyttsx3 not available — voice will use termux-tts-speak (that's OK)"
+fi
 
 # ── STEP 4: Clone or update repo ──────────────────────────────────────────────
 printf "\n"
@@ -107,8 +123,11 @@ info "Checking Clean Shot..."
 printf "\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 printf "${GREEN}  Clean Shot installed!               ${NC}\n\n"
-printf "  Restart Termux then type:\n"
-printf "${CYAN}    cleanshot${NC}\n\n"
 printf "  For help:  cleanshot help\n"
 printf "  Support:   support@cleanshothq.com\n"
 printf "${GREEN}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n\n"
+
+# ── Launch Clean Shot ──────────────────────────────────────────────────────────
+printf "  Starting Clean Shot...\n\n"
+exec cleanshot 2>/dev/null || \
+    (cd "$INSTALL_DIR/clean-shot" && exec python3 platforms/android/main.py)
