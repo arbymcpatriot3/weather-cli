@@ -80,8 +80,11 @@ _last_msg_lock            = threading.Lock()
 
 def _is_termux() -> bool:
     """Return True when running inside Termux (Android)."""
-    return bool(os.environ.get("TERMUX_VERSION")
-                or shutil.which("termux-tts-speak"))
+    return bool(
+        os.environ.get("TERMUX_VERSION")
+        or "com.termux" in os.environ.get("PREFIX", "")
+        or shutil.which("termux-tts-speak")
+    )
 
 
 def _is_bt_connected() -> bool:
@@ -112,25 +115,17 @@ def _dispatch(text: str, config: dict) -> bool:
     plat = platform.system().lower()
 
     # ── Termux (Android) ──────────────────────────────────────────────────────
+    # MUST be checked before Linux path — Termux also reports platform="linux"
     if _is_termux():
         try:
-            lang = config.get("language", "en")
-            # Rate 0.85 (slightly slower than default) + pitch 1.0 = clearest
-            subprocess.Popen(
-                ["termux-tts-speak", "-l", lang, "-r", "0.85", "-p", "1.0", text],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            subprocess.run(
+                ["termux-tts-speak", text],
+                timeout=30,
             )
             return True
-        except Exception:
-            # termux-api might not support all flags — try minimal form
-            try:
-                subprocess.Popen(
-                    ["termux-tts-speak", text],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-                return True
-            except Exception:
-                pass
+        except Exception as e:
+            print(f"TTS error: {e}", flush=True)
+            return False
 
     # ── Linux — piper (neural) → festival → pyttsx3 ──────────────────────────
     if plat == "linux":
@@ -401,12 +396,15 @@ def speak(text: str, config: dict, bypass_quiet: bool = False) -> bool:
 def _play_alert_tone(severity: str, config: dict) -> None:
     """
     Play the severity-appropriate alert tone before speaking.
-    Linux only — no-op on other platforms.
     Silently ignores all failures (tone is enhancement, not critical path).
     """
     if not config.get("tts_tone_enabled", True):
         return
     try:
+        if _is_termux():
+            from platforms.android.tts_tones_android import play_tone_android
+            play_tone_android(severity, config)
+            return
         import platform as _plat
         if _plat.system().lower() == "linux":
             from platforms.linux.tts_tones import play_tone

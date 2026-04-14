@@ -2,7 +2,7 @@
 ## Project Context for AI-Assisted Development
 
 **Company:** Blue Collar Nation LLC
-**Product:** Clean Shot — weather + road intelligence platform for truck drivers
+**Product:** Clean Shot — Driver Intelligence System (CSDIS)
 **Tagline:** Built for the road, not the boardroom.
 **Mission:** Truckers first. Everything else follows.
 **Version:** 3.0.0 (rewrite from weather-cli v2.0.0)
@@ -760,3 +760,25 @@ Start here next session. Build in this order. One module at a time, read CLAUDE.
 
 *Session 4 (continued) — ryan-high approved + Alert Tone System + Repeat Prompt:*
 *Default voice changed to en_US-ryan-high (approved, clearest quality). Alert tones: 4-severity WAV system (INFO chime / WARNING ascending / CRITICAL descending BONG / EMERGENCY rapid pulse), pure Python, no downloads. Repeat prompt (R to repeat / Enter / auto-timeout). Last-3-messages ring buffer for Hey Clean Shot repeat. EMERGENCY as 4th severity. Degraded voice warning when espeak is used. `cleanshot fix-voice` command. Doctor now has VOICE section. Windows SAPI prefers David/Mark. macOS say prefers Samantha. iOS AVSpeech prefers natural voices. `cleanshot settings tone on/off`, `tone-volume`, `repeat-timeout`, `voice ryan` (short alias). 357/357 tests passing (80 new tone/voice/repeat tests).*
+
+*Session 5 — Android real-device fixes (Blu K50, Google Play Termux):*
+*TTS fixed: Termux checked BEFORE Linux/piper (both show platform="linux"); subprocess.run not Popen; return False on failure stops fallthrough. Tones fixed: sox confirmed working on device; new platforms/android/tts_tones_android.py with INFO/WARNING/CRITICAL/EMERGENCY via play -n synth. GPS fixed: _get_termux_location() added to gps.py; fallback chain termux-location→IP geo→cached→ask; Google Play uses IP geo (termux-location unavailable). Installer: smart root install.sh dispatches to correct platform installer; SSL ca-certificates installed FIRST; F-Droid recommendation shown before install with Enter-to-continue; Google Play vs F-Droid auto-detected from TERMUX_VERSION. Doctor: Android section added. Product name updated: "Clean Shot — Driver Intelligence System" (CSDIS) in help/doctor/first-run/changelog/CLAUDE.md. 357/357 tests passing.*
+
+## Android Platform Notes (Session 5 — confirmed on Blu K50)
+
+**Google Play Termux limitations (TERMUX_VERSION contains "googleplay"):**
+- `termux-location` NOT available → GPS falls back to IP geolocation
+- Some Termux:API features missing
+- Recommend F-Droid Termux for full functionality
+
+**F-Droid Termux (recommended):**
+- `termux-location -p gps -r once` → live GPS ✅
+- Full Termux:API feature set
+- Latest updates
+
+**Detection:** `"googleplay" in os.environ.get("TERMUX_VERSION", "").lower()`
+
+**Android TTS:** `subprocess.run(["termux-tts-speak", text], timeout=30)` — confirmed working.
+**Android tones:** `play -n synth <dur> sine <freq>` via sox — confirmed working.
+**Android GPS:** termux-location (F-Droid) → IP geolocation (Google Play) → cached → ask.
+**SSL fix:** `pkg install -y ca-certificates openssl-tool` must be FIRST step in installer.

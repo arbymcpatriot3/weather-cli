@@ -63,6 +63,9 @@ _DEFAULTS = {
     "last_gps_time":     None,
     "last_gps_source":   None,         # "gps" | "ip" | "config"
     "is_driving":        False,
+    # Auto-update
+    "last_update_check": 0,            # unix timestamp of last GitHub version check
+    "pending_update_msg": None,        # set by background thread; shown once on next startup
 }
 
 
@@ -99,7 +102,8 @@ def first_run_setup(config: dict) -> dict:
 
     print()
     print(f"  {sep}")
-    print(f"  🚛 WELCOME TO CLEAN SHOT v{VERSION[:3]}")
+    print(f"  🚛 CLEAN SHOT v{VERSION[:3]}")
+    print(f"     Driver Intelligence System")
     print(f"     By Blue Collar Nation LLC")
     print(f"     cleanshothq.com")
     print(f"  {sep}")

@@ -122,6 +122,43 @@ def resolve_location(args, config):
     city = config.get("city", "Unknown")
 
     if lat is not None and lon is not None:
+        # On Android: refresh location through fallback chain before using cached coords
+        if os.environ.get("TERMUX_VERSION") or "com.termux" in os.environ.get("PREFIX", ""):
+            # 1. termux-location (F-Droid Termux only — not available on Google Play)
+            try:
+                from core.gps import _get_termux_location
+                gps = _get_termux_location()
+                if gps and not gps.get("stale"):
+                    lat = gps["lat"]
+                    lon = gps["lon"]
+                    config["latitude"]  = lat
+                    config["longitude"] = lon
+                    print(f"  📍 {city}  GPS ✅")
+                    return lat, lon, city
+            except Exception:
+                pass
+
+            # 2. IP geolocation (always available, less precise)
+            try:
+                ip_lat, ip_lon, ip_city = get_auto_location()
+                if ip_lat is not None:
+                    lat, lon = ip_lat, ip_lon
+                    if ip_city:
+                        city = ip_city
+                        config["city"] = city
+                    config["latitude"]  = lat
+                    config["longitude"] = lon
+                    print(f"  📍 {city}")
+                    print(f"     Source: IP geolocation ⚠️")
+                    print(f"     For GPS accuracy: install Termux from F-Droid")
+                    return lat, lon, city
+            except Exception:
+                pass
+
+            # 3. Cached config coords — last resort
+            print(f"  📍 {city}  Cached ⚠️")
+            print(f"     Run: {_cmd()} update-location")
+
         return lat, lon, city
 
     print("ℹ  Auto-detecting location via IP...")
@@ -357,6 +394,7 @@ def cmd_doctor(config: dict) -> None:
     print()
     print(f"  {sep}")
     print(f"  🔍 CLEAN SHOT DOCTOR v{VERSION}")
+    print(f"     Driver Intelligence System")
     print(f"     cleanshothq.com")
     print(f"  {sep}")
     print()
@@ -364,12 +402,14 @@ def cmd_doctor(config: dict) -> None:
     # ── SYSTEM ─────────────────────────────────────────────────────────────────
     print("  SYSTEM:")
     plat      = _platform.system()
-    is_termux = "com.termux" in os.environ.get("PREFIX", "")
+    is_termux = (
+        bool(os.environ.get("TERMUX_VERSION"))
+        or "com.termux" in os.environ.get("PREFIX", "")
+    )
     if is_termux:
         plat_str = "Android/Termux"
     else:
         try:
-            ver_str = _platform.version()
             plat_str = f"{plat} {_platform.release()}"
         except Exception:
             plat_str = plat
@@ -384,8 +424,43 @@ def cmd_doctor(config: dict) -> None:
         _fail(f"Python: {pv.major}.{pv.minor} — need 3.8+",
               "Install Python 3.11 from python.org")
 
-    _ok(f"Clean Shot: v{VERSION}")
+    _ok(f"Clean Shot: v{VERSION} — Driver Intelligence System")
     print()
+
+    # ── ANDROID SPECIFIC ───────────────────────────────────────────────────────
+    if is_termux:
+        import shutil as _shutil
+        print("  ANDROID:")
+        _ok("Termux detected")
+
+        # termux-api
+        if _shutil.which("termux-tts-speak"):
+            _ok("termux-api: installed  (TTS ready)")
+        else:
+            _fail("termux-api: not installed",
+                  "pkg install termux-api")
+
+        # Google Play vs F-Droid
+        tv = os.environ.get("TERMUX_VERSION", "")
+        if "googleplay" in tv.lower():
+            _fail("Google Play Termux detected",
+                  "For full GPS install from F-Droid: https://f-droid.org")
+            _info("GPS limited — using IP geolocation instead")
+        else:
+            _ok("F-Droid Termux — full GPS available")
+            if _shutil.which("termux-location"):
+                _ok("termux-location: available  (GPS ready)")
+            else:
+                _fail("termux-location: not available",
+                      "pkg install termux-api  then enable Location permission")
+
+        # sox tones
+        if _shutil.which("play"):
+            _ok("sox: installed  (alert tones ready)")
+        else:
+            _fail("sox: not installed  (tones unavailable)",
+                  "pkg install sox")
+        print()
 
     # ── DEPENDENCIES ───────────────────────────────────────────────────────────
     print("  DEPENDENCIES:")
@@ -404,7 +479,8 @@ def cmd_doctor(config: dict) -> None:
     if plat in ("Linux", "Windows") and not is_termux:
         try:
             import pyttsx3 as _pyttsx3
-            _ok(f"pyttsx3: {_pyttsx3.__version__}")
+            _ver = getattr(_pyttsx3, "__version__", "installed")
+            _ok(f"pyttsx3: {_ver}")
         except ImportError:
             _fail("pyttsx3: not found",
                   "pip install pyttsx3  |  Or: cleanshot settings tts off")
@@ -624,7 +700,8 @@ def cmd_doctor(config: dict) -> None:
 def cmd_help():
     c = _cmd()
     print(f"""
-Clean Shot v{VERSION}  —  Built for the road, not the boardroom.
+Clean Shot v{VERSION} — Driver Intelligence System
+Built for the road, not the boardroom.
 Blue Collar Nation LLC  |  cleanshothq.com
 {'─'*55}
 
@@ -689,7 +766,8 @@ def cmd_test_tts(config: dict) -> None:
     sep = "━" * w
 
     plat      = _plat.system().lower()
-    is_termux = "com.termux" in os.environ.get("PREFIX", "")
+    from core.tts import _is_termux
+    is_termux = _is_termux()
 
     # ── Get engine info ───────────────────────────────────────────────────────
     engine_name = None
@@ -723,7 +801,7 @@ def cmd_test_tts(config: dict) -> None:
 
     print()
     print(f"  {sep}")
-    print("  🔊 TTS Test — Clean Shot v" + VERSION)
+    print("  🔊 TTS Test — Clean Shot v" + VERSION + " | Driver Intelligence System")
     print(f"  {sep}")
     print()
 
@@ -805,6 +883,11 @@ def cmd_test_tts(config: dict) -> None:
 def _play_tone_for_test(severity: str, config: dict) -> None:
     """Play a tone during test-tts — suppresses all errors."""
     try:
+        from core.tts import _is_termux
+        if _is_termux():
+            from platforms.android.tts_tones_android import play_tone_android
+            play_tone_android(severity, config)
+            return
         import platform as _plat
         if _plat.system().lower() == "linux":
             from platforms.linux.tts_tones import play_tone, ensure_tones
@@ -815,8 +898,12 @@ def _play_tone_for_test(severity: str, config: dict) -> None:
 
 
 def _tones_available() -> bool:
-    """Return True if tone WAV files exist."""
+    """Return True if tones are available on this platform."""
     try:
+        from core.tts import _is_termux
+        if _is_termux():
+            from platforms.android.tts_tones_android import sox_available
+            return sox_available()
         import platform as _plat
         if _plat.system().lower() == "linux":
             from platforms.linux.tts_tones import tones_exist
@@ -1110,6 +1197,17 @@ def main():
         return
 
     config = get_config()
+
+    # ── Auto-update: show pending message, launch background check ────────────
+    try:
+        from core.updater import check_and_update, get_pending_message
+        msg = get_pending_message(config, save_config)
+        if msg:
+            print(msg)
+            print()
+        check_and_update(config, save_config)
+    except Exception:
+        pass   # updater never blocks or crashes the app
 
     if config.get("latitude") is None and not args.location:
         _no_loc_cmds = ("settings", "help", "version", "doctor",

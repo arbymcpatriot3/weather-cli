@@ -12,11 +12,10 @@
 #   tts_rate          : words per minute                      (default: 150)
 #   tts_volume        : 0.0 – 1.0                            (default: 0.9)
 
-import io
+import json
 import os
 import shutil
 import subprocess
-import wave
 from pathlib import Path
 
 # ── Piper voice catalog ───────────────────────────────────────────────────────
@@ -144,47 +143,35 @@ def list_voices(config: dict = None) -> None:
 
 # ── Engine: piper ─────────────────────────────────────────────────────────────
 
-def _play_audio(wav_bytes: bytes) -> bool:
-    """Play WAV bytes via aplay (or ffplay fallback). Returns True on success."""
-    if shutil.which("aplay"):
-        try:
-            result = subprocess.run(
-                ["aplay", "-q", "-"],
-                input=wav_bytes,
-                timeout=30,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return result.returncode == 0
-        except Exception:
-            pass
-
-    if shutil.which("ffplay"):
-        try:
-            result = subprocess.run(
-                ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", "-"],
-                input=wav_bytes,
-                timeout=30,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return result.returncode == 0
-        except Exception:
-            pass
-
-    return False
+def _get_sample_rate(voice_name: str) -> int:
+    """Read sample_rate from the voice's JSON config file. Falls back to 22050."""
+    json_path = PIPER_MODEL_DIR / f"{voice_name}.onnx.json"
+    try:
+        with open(json_path) as f:
+            data = json.load(f)
+        return int(data["audio"]["sample_rate"])
+    except Exception:
+        return 22050
 
 
 def _speak_piper(text: str, config: dict) -> bool:
     """
-    Speak via piper-tts neural engine.
-    Fires whenever a voice model is installed — regardless of quality setting.
-    Requires: pip3 install piper-tts --break-system-packages
-              cleanshot voices download  (downloads default voice model)
+    Speak via piper-tts neural engine using the CLI subprocess approach.
+
+    Proven working pipeline:
+        echo "text" | piper --model model.onnx --output_raw |
+        aplay -r 22050 -f S16_LE -t raw -q -
+
+    Fires whenever the piper CLI + a voice model are installed.
+    Does NOT use the Python PiperVoice API (wave header issue).
     """
-    try:
-        from piper import PiperVoice  # noqa: F401 — check import first
-    except ImportError:
+    # Require: piper CLI in PATH
+    piper_bin = shutil.which("piper")
+    if not piper_bin:
+        return False
+
+    # Require: aplay for playback
+    if not shutil.which("aplay"):
         return False
 
     voice_name = _active_voice(config)
@@ -198,19 +185,58 @@ def _speak_piper(text: str, config: dict) -> bool:
         else:
             return False
 
-    model_path = _get_voice_path(voice_name)
+    model_path  = _get_voice_path(voice_name)
+    sample_rate = _get_sample_rate(voice_name)
+    debug       = os.environ.get("CLEANSHOT_DEBUG")
 
     try:
-        from piper import PiperVoice
-        voice = PiperVoice.load(str(model_path))
+        # Step 1: piper — text → raw PCM via stdin/stdout
+        piper_proc = subprocess.Popen(
+            [piper_bin, "--model", str(model_path), "--output_raw", "--quiet"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
-        wav_io = io.BytesIO()
-        with wave.open(wav_io, "wb") as wav_file:
-            voice.synthesize(text, wav_file)
-        wav_bytes = wav_io.getvalue()
+        # Step 2: aplay — raw PCM → audio device
+        aplay_proc = subprocess.Popen(
+            ["aplay",
+             "-r", str(sample_rate),
+             "-f", "S16_LE",
+             "-t", "raw",
+             "-q", "-"],
+            stdin=piper_proc.stdout,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
 
-        return _play_audio(wav_bytes)
-    except Exception:
+        # Close piper's stdout in THIS process so aplay gets EOF when piper exits
+        piper_proc.stdout.close()
+
+        # Feed text to piper
+        _, piper_stderr = piper_proc.communicate(
+            input=text.encode("utf-8"), timeout=30
+        )
+        aplay_proc.wait(timeout=30)
+
+        if debug:
+            print(f"[piper] rc={piper_proc.returncode} stderr={piper_stderr[:200]}")
+            print(f"[aplay] rc={aplay_proc.returncode}")
+
+        return aplay_proc.returncode == 0
+
+    except subprocess.TimeoutExpired:
+        if debug:
+            print("[piper] timeout")
+        try:
+            piper_proc.kill()
+            aplay_proc.kill()
+        except Exception:
+            pass
+        return False
+    except Exception as exc:
+        if debug:
+            print(f"[piper] exception: {exc}")
         return False
 
 

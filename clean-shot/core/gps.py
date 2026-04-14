@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import platform
+import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -120,11 +123,52 @@ def get_poll_interval(config: dict) -> int:
 
 # ── Platform dispatch ─────────────────────────────────────────────────────────
 
-def _platform_gps() -> dict | None:
+def _is_termux() -> bool:
+    """Return True when running inside Termux (Android)."""
+    return bool(
+        os.environ.get("TERMUX_VERSION")
+        or "com.termux" in os.environ.get("PREFIX", "")
+    )
+
+
+def _get_termux_location() -> "dict | None":
+    """
+    Get live GPS fix via termux-location (requires termux-api + location permission).
+    Returns GpsResult or None on failure.
+    """
+    if not shutil.which("termux-location"):
+        return None
+    try:
+        result = subprocess.run(
+            ["termux-location", "-p", "gps", "-r", "once"],
+            capture_output=True,
+            timeout=30,
+            text=True,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout)
+            lat  = data.get("latitude")
+            lon  = data.get("longitude")
+            acc  = data.get("accuracy")
+            if lat is not None and lon is not None:
+                return _result(lat, lon, "gps", accuracy_m=acc)
+    except Exception:
+        pass
+    return None
+
+
+def _platform_gps() -> "dict | None":
     """
     Try to get a live GPS fix from the platform driver.
     Returns GpsResult or None if unavailable.
+
+    Termux MUST be checked before Linux — Termux also reports platform="linux"
+    but uses termux-location instead of gpsd.
     """
+    # ── Android / Termux ──────────────────────────────────────────────────────
+    if _is_termux():
+        return _get_termux_location()   # None if termux-location not installed
+
     plat = platform.system().lower()
     try:
         if plat == "linux":
