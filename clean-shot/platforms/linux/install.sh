@@ -183,7 +183,56 @@ else
     warn "     pip3 install pyttsx3 --break-system-packages"
 fi
 
-# ── STEP 7: Create cleanshot command ──────────────────────────────────────────
+# ── STEP 7a: Install piper-tts (neural voice — most natural) ──────────────────
+printf "\n"
+info "Installing piper-tts (neural voice engine)..."
+"$PYTHON" -m pip install piper-tts --quiet --break-system-packages 2>/dev/null || \
+    "$PYTHON" -m pip install piper-tts --quiet --user 2>/dev/null || \
+    "$PYTHON" -m pip install piper-tts --quiet 2>/dev/null || true
+
+if "$PYTHON" -c "from piper import PiperVoice" 2>/dev/null; then
+    ok "piper-tts installed"
+
+    # Download default voice model: en_US-lessac-medium (~60MB)
+    PIPER_DIR="$HOME/.local/share/piper"
+    VOICE_NAME="en_US-lessac-medium"
+    VOICE_ONNX="$PIPER_DIR/$VOICE_NAME.onnx"
+    VOICE_JSON="$PIPER_DIR/$VOICE_NAME.onnx.json"
+    HF_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium"
+
+    if [ -f "$VOICE_ONNX" ] && [ -f "$VOICE_JSON" ]; then
+        ok "Voice model already installed: $VOICE_NAME"
+    else
+        mkdir -p "$PIPER_DIR"
+        info "Downloading voice model: $VOICE_NAME (~60MB)..."
+        info "This is a one-time download — truckers deserve a natural voice."
+
+        DOWNLOAD_OK=true
+        curl -fsSL -o "$VOICE_ONNX" "$HF_BASE/$VOICE_NAME.onnx" 2>/dev/null || \
+            wget -q -O "$VOICE_ONNX" "$HF_BASE/$VOICE_NAME.onnx" 2>/dev/null || \
+            { DOWNLOAD_OK=false; rm -f "$VOICE_ONNX"; }
+
+        if [ "$DOWNLOAD_OK" = true ]; then
+            curl -fsSL -o "$VOICE_JSON" "$HF_BASE/$VOICE_NAME.onnx.json" 2>/dev/null || \
+                wget -q -O "$VOICE_JSON" "$HF_BASE/$VOICE_NAME.onnx.json" 2>/dev/null || \
+                { DOWNLOAD_OK=false; rm -f "$VOICE_JSON"; }
+        fi
+
+        if [ "$DOWNLOAD_OK" = true ] && [ -f "$VOICE_ONNX" ] && [ -f "$VOICE_JSON" ]; then
+            ok "Voice model downloaded: $VOICE_NAME ⭐⭐⭐⭐⭐"
+        else
+            warn "Voice model download failed — festival/espeak will be used"
+            warn "Download later: cleanshot voices download"
+            rm -f "$VOICE_ONNX" "$VOICE_JSON" 2>/dev/null || true
+        fi
+    fi
+else
+    warn "piper-tts not installed — festival/espeak fallback active"
+    warn "Install manually: pip3 install piper-tts --break-system-packages"
+    warn "Download voice:   cleanshot voices download"
+fi
+
+# ── STEP 8: Create cleanshot command ──────────────────────────────────────────
 SYSTEM_BIN="/usr/local/bin/cleanshot"
 USER_BIN="$HOME/.local/bin/cleanshot"
 LAUNCHER_BODY="$(printf '#!/usr/bin/env bash\nexport CLEANSHOT_CMD=cleanshot\ncd "%s/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' "$INSTALL_DIR" "$PYTHON")"
@@ -205,7 +254,7 @@ else
     ok "Launcher: $USER_BIN"
 fi
 
-# ── STEP 8: Run doctor ────────────────────────────────────────────────────────
+# ── STEP 9: Run doctor ────────────────────────────────────────────────────────
 printf "\n"
 info "Checking Clean Shot..."
 (cd "$INSTALL_DIR/clean-shot" && "$PYTHON" platforms/linux/main.py doctor 2>/dev/null) || true

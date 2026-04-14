@@ -45,6 +45,7 @@ _DEFAULTS = {
     "quiet_hours_end":   None,         # "06:00" or None to disable
     "tts_speed_aware":   True,         # WARNING/INFO wait until parked
     "tts_voice_quality": "enhanced",   # standard (espeak) | enhanced (festival) | premium (piper)
+    "tts_voice_name":    "en_US-lessac-medium",  # piper voice model name
     "tts_rate":          150,          # words per minute (80–300)
     "tts_volume":        0.9,          # 0.0 – 1.0
     # GPS / location
@@ -236,6 +237,7 @@ def show_settings(config: dict, args: list):
     print(f"Wind alert    : {config.get('wind_alert_mph', 40)} mph")
     print(f"TTS           : {'on' if config.get('tts_enabled') else 'off'}")
     print(f"TTS quality   : {config.get('tts_voice_quality', 'enhanced')}  (standard/enhanced/premium)")
+    print(f"TTS voice     : {config.get('tts_voice_name', 'en_US-lessac-medium')}  (piper model)")
     print(f"TTS rate      : {config.get('tts_rate', 150)} WPM")
     print(f"TTS volume    : {config.get('tts_volume', 0.9)}")
     print(f"Subscription  : {config.get('subscription_tier', 'free')}")
@@ -252,6 +254,9 @@ def show_settings(config: dict, args: list):
     print("  cleanshot settings tts-quality enhanced     standard/enhanced/premium")
     print("  cleanshot settings tts-rate 150             Words per minute (80-300)")
     print("  cleanshot settings tts-volume 0.9           Volume (0.0-1.0)")
+    print("  cleanshot settings voice list               Show piper voices")
+    print("  cleanshot settings voice en_US-ryan-medium  Set piper voice")
+    print("  cleanshot voices download                   Download default voice")
     print("  cleanshot settings location                 Change default location")
     print("  cleanshot settings vehicle semi|box|flatbed|tanker|rv")
     print()
@@ -329,6 +334,33 @@ def show_settings(config: dict, args: list):
             print(f"✓ Vehicle type set to {vtype}")
         else:
             print(f"Unknown vehicle type. Options: {', '.join(sorted(valid))}")
+
+    elif key == "voice" and len(args) >= 3:
+        sub = args[2].lower()
+        if sub == "list":
+            try:
+                from platforms.linux.tts_linux import list_voices
+                list_voices(config)
+            except ImportError:
+                print("Voice listing only available on Linux.")
+        else:
+            # Set voice by name
+            try:
+                from platforms.linux.tts_linux import PIPER_VOICES, _voice_is_installed
+                if sub in PIPER_VOICES:
+                    config["tts_voice_name"] = sub
+                    save_config(config)
+                    if _voice_is_installed(sub):
+                        print(f"✓ Voice set to {sub}")
+                    else:
+                        print(f"✓ Voice set to {sub}")
+                        print(f"  (model not downloaded yet)")
+                        print(f"  Run: cleanshot voices download {sub}")
+                else:
+                    print(f"Unknown voice: {sub}")
+                    print("  Run: cleanshot voices  to see available voices")
+            except ImportError:
+                print("Voice selection only available on Linux.")
 
     elif key == "location":
         from core.api import geocode_location

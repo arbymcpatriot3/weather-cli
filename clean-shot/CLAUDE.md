@@ -159,7 +159,7 @@ Keys: `location.*`, `direction.*`, `gps.*`, `hazard.*`, `tts.*`
 ### `core/tts.py` ✅ COMPLETE — 40 tests
 Platform dispatch chain (first working engine wins):
 ```
-Termux (termux-tts-speak) → Linux (pyttsx3) → Windows (SAPI) →
+Termux (termux-tts-speak) → Linux (piper→festival→pyttsx3) → Windows (SAPI) →
 iOS/macOS (AVSpeechSynthesizer/say) → terminal print fallback
 ```
 Terminal fallback always returns True — TTS never crashes the app.
@@ -340,9 +340,11 @@ Run: `python3 platforms/linux/main.py`
 Full unified view (no args): weather + alerts + DOT/511 + hazards + parking + HOS.
 
 ### `platforms/linux/install.sh`
-Fully hands-free. Auto-installs: Python 3+, pip, git, espeak-ng (TTS),
-pyttsx3, requests, colorama. Creates launcher at `/usr/local/bin/cleanshot`
-(falls back to `~/.local/bin`). Runs doctor at end. Zero manual steps.
+Fully hands-free. Auto-installs: Python 3+, pip, git, espeak-ng + festival
+(TTS fallback), pyttsx3, requests, colorama, piper-tts (neural TTS).
+Downloads `en_US-lessac-medium` voice model (~60MB) to `~/.local/share/piper/`.
+Creates launcher at `/usr/local/bin/cleanshot` (falls back to `~/.local/bin`).
+Runs doctor at end. Zero manual steps.
 
 ### `platforms/macos/install.sh` ✅ REWRITTEN — hands-free
 Fully hands-free. Steps: Xcode CLT (with wait loop) → Homebrew (friendly
@@ -717,3 +719,5 @@ Start here next session. Build in this order. One module at a time, read CLAUDE.
 *This file is auto-loaded by Claude Code in every session.*
 *Update it when a module is completed or a key decision changes.*
 *Last updated: 2026-04-13 — Session 4 complete. Doctor rewritten, first_run redesigned, 5 installers all launch-immediately, error messages humanized, version files created, public README updated. 277/277 tests passing.*
+
+*Session 4 (continued) — Piper TTS integration: full neural voice on Linux. Cascade: piper→festival→pyttsx3. `cleanshot voices download`, `cleanshot voices download <name>`, `cleanshot settings voice <name>`. `test-tts` shows engine+voice+stars. Linux installer auto-installs piper-tts + en_US-lessac-medium model. 277/277 tests passing.*

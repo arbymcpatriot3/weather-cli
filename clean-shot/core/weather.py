@@ -634,7 +634,7 @@ Cache:   {tempfile.gettempdir()}/clean-shot-cache/ (refreshes every 10 min)
 def cmd_test_tts(config: dict) -> None:
     """
     cleanshot test-tts — verify voice alerts are working.
-    Forces a real TTS dispatch and reports the result.
+    Forces a real TTS dispatch and reports the engine, voice, and star rating.
     """
     import platform as _plat
 
@@ -643,7 +643,7 @@ def cmd_test_tts(config: dict) -> None:
         "Roads are clean and green good buddy."
     )
 
-    w = min(get_width() - 2, 39)
+    w   = min(get_width() - 2, 39)
     sep = "━" * w
 
     print()
@@ -655,35 +655,60 @@ def cmd_test_tts(config: dict) -> None:
     plat      = _plat.system().lower()
     is_termux = "com.termux" in os.environ.get("PREFIX", "")
 
-    # Determine what engine we expect
+    # ── Get engine info ───────────────────────────────────────────────────────
+    engine_name = None
+    voice_label = None
+    star_str    = ""
+
     if is_termux:
         engine_name = "termux-tts-speak"
+        star_str    = "⭐⭐⭐"
     elif plat == "linux":
         try:
-            import pyttsx3  # noqa: F401
-            engine_name = "pyttsx3 (Linux)"
-        except ImportError:
-            engine_name = None
+            from platforms.linux.tts_linux import get_engine_info
+            info        = get_engine_info(config)
+            engine_name = info["engine"]
+            voice_label = info["voice"]
+            star_str    = info["star_str"]
+        except Exception:
+            try:
+                import pyttsx3  # noqa: F401
+                engine_name = "pyttsx3 (espeak en+m3)"
+                star_str    = "⭐⭐"
+            except ImportError:
+                engine_name = None
     elif plat == "windows":
         engine_name = "Windows SAPI"
+        star_str    = "⭐⭐⭐⭐"
     elif plat == "darwin":
         engine_name = "macOS say"
+        star_str    = "⭐⭐⭐"
     else:
         engine_name = "terminal fallback"
+        star_str    = ""
 
     if engine_name is None:
-        print("  ❌ pyttsx3 not installed — no voice output")
+        print("  ❌ No TTS engine — voice alerts disabled")
         print()
-        print("  Fix:")
+        print("  Quick fix:")
         print("    sudo apt-get install -y espeak-ng libespeak-ng1")
         print("    pip3 install pyttsx3 --break-system-packages")
+        print()
+        print("  For best quality (neural voice):")
+        print("    pip3 install piper-tts --break-system-packages")
+        print("    cleanshot voices download")
         print()
         print("  Or disable TTS:  cleanshot settings tts off")
         print(f"  {sep}")
         print()
         return
 
-    print(f"  Engine: {engine_name}")
+    print(f"  Engine : {engine_name}")
+    if voice_label:
+        print(f"  Voice  : {voice_label}")
+    if star_str:
+        print(f"  Quality: {star_str}")
+    print()
     print(f"  Saying: \"{test_msg}\"")
     print()
 
@@ -697,11 +722,77 @@ def cmd_test_tts(config: dict) -> None:
     print()
     if result:
         print(f"  ✅ TTS working — {engine_name}")
+        if not voice_label or "piper" not in engine_name:
+            print()
+            print("  Want a more natural voice?")
+            print("    pip3 install piper-tts --break-system-packages")
+            print("    cleanshot voices download")
     else:
-        print(f"  ❌ TTS dispatch failed")
+        print("  ❌ TTS dispatch failed")
         print("     support@cleanshothq.com")
     print(f"  {sep}")
     print()
+
+
+def cmd_voices(config: dict, args: list) -> None:
+    """
+    cleanshot voices            — list available piper voices
+    cleanshot voices download   — download default voice (en_US-lessac-medium)
+    cleanshot voices download <name>  — download specific voice
+    """
+    import platform as _plat
+
+    plat = _plat.system().lower()
+    if plat != "linux":
+        print()
+        print("  Piper voices are only available on Linux.")
+        print("  Windows uses SAPI, macOS uses say.")
+        print()
+        return
+
+    try:
+        from platforms.linux.tts_linux import list_voices, download_voice, DEFAULT_VOICE
+    except ImportError:
+        print("  Could not load voice manager.")
+        return
+
+    sub = args[1].lower() if len(args) > 1 else ""
+
+    if sub == "download":
+        # Install piper-tts if not already there
+        try:
+            from piper import PiperVoice  # noqa: F401
+        except ImportError:
+            print()
+            print("  Installing piper-tts...")
+            import subprocess as _sp
+            try:
+                _sp.run(
+                    ["pip3", "install", "piper-tts", "--break-system-packages", "--quiet"],
+                    check=True, timeout=120,
+                )
+            except Exception:
+                try:
+                    _sp.run(
+                        ["pip3", "install", "piper-tts", "--quiet"],
+                        check=True, timeout=120,
+                    )
+                except Exception:
+                    print("  ❌ Could not install piper-tts")
+                    print("     Fix: pip3 install piper-tts --break-system-packages")
+                    print()
+                    return
+
+        voice_name = args[2] if len(args) > 2 else DEFAULT_VOICE
+        print()
+        print(f"  Downloading {voice_name}...")
+        download_voice(voice_name, show_progress=True)
+        print()
+        print(f"  To use this voice:")
+        print(f"    cleanshot settings voice {voice_name}")
+        print()
+    else:
+        list_voices(config)
 
 
 def cmd_test_alerts(config: dict, width: int) -> None:
@@ -893,7 +984,8 @@ def main():
 
     if config.get("latitude") is None and not args.location:
         _no_loc_cmds = ("settings", "help", "version", "doctor",
-                        "test-tts", "testtts", "test-alerts", "testalerts")
+                        "test-tts", "testtts", "test-alerts", "testalerts",
+                        "voices")
         if args.command not in _no_loc_cmds:
             config = first_run_setup(config)
             if config.get("latitude") is None:
@@ -947,6 +1039,9 @@ def main():
 
     elif cmd in ("test-alerts", "testalerts", "alerts-test"):
         cmd_test_alerts(config, width)
+
+    elif cmd == "voices":
+        cmd_voices(config, sys.argv[1:])
 
     elif cmd in ("version", "-v", "--version"):
         print(f"clean-shot v{VERSION}")
