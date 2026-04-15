@@ -7,9 +7,9 @@ case "$(uname -s)" in
     Linux)
         # Check for Android (Termux sets $PREFIX)
         if [[ -n "$PREFIX" && "$PREFIX" == *termux* ]]; then
-            exec ./weather-cli/clean-shot/platforms/android/cleanshot.sh "$@"
+            exec ./clean-shot/platforms/android/cleanshot.sh "$@"
         else
-            exec ./weather-cli/clean-shot/platforms/linux/cleanshot.sh "$@"
+            exec ./clean-shot/platforms/linux/cleanshot.sh "$@"
         fi
         ;;
     Darwin)
