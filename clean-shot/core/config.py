@@ -66,6 +66,8 @@ _DEFAULTS = {
     # Auto-update
     "last_update_check": 0,            # unix timestamp of last GitHub version check
     "pending_update_msg": None,        # set by background thread; shown once on next startup
+    # Trial
+    "trial_start": None,               # unix timestamp set on first install; None = not started
 }
 
 
@@ -73,16 +75,22 @@ _DEFAULTS = {
 
 def get_config() -> dict:
     """Load config, back-filling any missing defaults."""
+    import time as _time
     if CONFIG_PATH.exists():
         try:
             with CONFIG_PATH.open() as f:
                 config = json.load(f)
             for key, val in _DEFAULTS.items():
                 config.setdefault(key, val)
+            # Start trial on first load of an existing config with no trial_start
+            if config.get("trial_start") is None:
+                config["trial_start"] = _time.time()
+                save_config(config)
             return config
         except Exception:
             pass
     config = dict(_DEFAULTS)
+    config["trial_start"] = _time.time()
     save_config(config)
     return config
 

@@ -1173,9 +1173,17 @@ def build_parser():
     )
     parser.add_argument("command", nargs="?", default="full")
     parser.add_argument("extra", nargs="*")
-    parser.add_argument("--location", "-l", type=str)
+    parser.add_argument("--location", "-l", type=str,
+                        help="Location (city, ZIP, 'City ST', lat,lon)")
+    parser.add_argument("--zip", type=str, dest="zip_code",
+                        help="ZIP code shorthand for --location")
     parser.add_argument("--route", nargs=2, metavar=("START", "END"))
-    parser.add_argument("--fresh", action="store_true")
+    parser.add_argument("--fresh", action="store_true",
+                        help="Force fresh API call (skip cache)")
+    parser.add_argument("--no-tts", action="store_true", dest="no_tts",
+                        help="Disable text-to-speech for this run")
+    parser.add_argument("--compact", action="store_true",
+                        help="Run in compact display mode")
     parser.add_argument("--version", "-v", action="store_true")
     parser.add_argument("--help", "-h", action="store_true")
     return parser
@@ -1197,6 +1205,18 @@ def main():
         return
 
     config = get_config()
+
+    # ── Apply --zip as --location shorthand ───────────────────────────────────
+    if getattr(args, "zip_code", None) and not args.location:
+        args.location = args.zip_code
+
+    # ── Apply --no-tts flag ───────────────────────────────────────────────────
+    if getattr(args, "no_tts", False):
+        config["tts_enabled"] = False
+
+    # ── Apply --compact flag (override positional command) ────────────────────
+    if getattr(args, "compact", False) and args.command == "full":
+        args.command = "compact"
 
     # ── Auto-update: show pending message, launch background check ────────────
     try:

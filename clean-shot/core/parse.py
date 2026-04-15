@@ -151,25 +151,38 @@ def parse_forecast(data_str: str) -> list:
 
 
 def parse_hourly(data_str: str) -> dict:
-    """Parse 24-hour hourly data from Open-Meteo response."""
+    """Parse 24-hour hourly data from Open-Meteo response, starting from current hour."""
     d = json.loads(data_str)
     hourly   = d["hourly"]
     timezone = d.get("timezone", "")
     tz_abbr  = d.get("timezone_abbreviation", "")
-    month    = datetime.now().month
-    tz_label = tz_display(tz_abbr, timezone, month)
+    now      = datetime.now()
+    tz_label = tz_display(tz_abbr, timezone, now.month)
 
-    times_iso    = hourly["time"][:24]
+    all_times = hourly.get("time", [])
+    # Find index of current hour — show 24h starting from now, not from midnight
+    current_hour_str = now.strftime("%Y-%m-%dT%H:00")
+    start_idx = 0
+    for i, t in enumerate(all_times):
+        if t >= current_hour_str:
+            start_idx = i
+            break
+
+    def _slice(key, default=0):
+        vals = hourly.get(key, [default] * (len(all_times) or 168))
+        return vals[start_idx:start_idx + 24]
+
+    times_iso    = all_times[start_idx:start_idx + 24]
     times_parsed = [datetime.fromisoformat(t) for t in times_iso]
 
     return {
         "times_iso":    times_iso,
         "times_parsed": times_parsed,
         "tz_label":     tz_label,
-        "temps":        hourly["temperature_2m"][:24],
-        "precip_probs": hourly["precipitation_probability"][:24],
-        "wind_speeds":  hourly.get("wind_speed_10m",    [0]*24)[:24],
-        "wind_dirs":    hourly.get("wind_direction_10m", [0]*24)[:24],
-        "wind_gusts":   hourly.get("wind_gusts_10m",    [0]*24)[:24],
-        "uv_indices":   hourly.get("uv_index",          [0]*24)[:24],
+        "temps":        _slice("temperature_2m"),
+        "precip_probs": _slice("precipitation_probability"),
+        "wind_speeds":  _slice("wind_speed_10m"),
+        "wind_dirs":    _slice("wind_direction_10m"),
+        "wind_gusts":   _slice("wind_gusts_10m"),
+        "uv_indices":   _slice("uv_index"),
     }

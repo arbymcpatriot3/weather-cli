@@ -43,12 +43,29 @@ _FEATURE_TIER = {
 _TIER_ORDER = ["free", "solo_pro", "pro_plus", "fleet", "enterprise"]
 
 
+_TRIAL_DAYS = 30
+
+
+def is_trial_active(config: dict) -> bool:
+    """Return True if the 30-day trial is still active."""
+    import time as _time
+    trial_start = config.get("trial_start")
+    if trial_start is None:
+        return True   # no start recorded → treat as active (new install)
+    elapsed_days = (_time.time() - trial_start) / 86400.0
+    return elapsed_days <= _TRIAL_DAYS
+
+
 def has_feature(config: dict, feature: str) -> bool:
     """Return True if config's subscription tier includes the feature."""
-    tier         = config.get("subscription_tier", "free")
-    required     = _FEATURE_TIER.get(feature, "enterprise")
+    tier     = config.get("subscription_tier", "free")
+    required = _FEATURE_TIER.get(feature, "enterprise")
 
-    # Referral-based free subscription counts as solo_pro
+    # 30-day trial unlocks all solo_pro features
+    if tier == "free" and is_trial_active(config):
+        tier = "solo_pro"
+
+    # Referral-based free subscription also counts as solo_pro
     ref_count = config.get("referral_count", 0)
     if ref_count >= 10 and tier == "free":
         tier = "solo_pro"

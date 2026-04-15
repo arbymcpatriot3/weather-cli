@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # platforms/linux/install.sh — Clean Shot Linux Installer
 # Blue Collar Nation LLC — cleanshothq.com
 #
 # One-line install:
-#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/linux/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/linux/install.sh | sh
 
 set -e
 
@@ -25,15 +25,15 @@ printf "${CYAN}  ━━━━━━━━━━━━━━━━━━━━━
 # ── STEP 1: Detect package manager ────────────────────────────────────────────
 PKG_MGR=""
 SUDO_CMD=""
-command -v sudo &>/dev/null && SUDO_CMD="sudo"
+command -v sudo >/dev/null 2>&1 && SUDO_CMD="sudo"
 
-if   command -v apt-get &>/dev/null; then PKG_MGR="apt-get"
-elif command -v apt     &>/dev/null; then PKG_MGR="apt"
-elif command -v dnf     &>/dev/null; then PKG_MGR="dnf"
-elif command -v yum     &>/dev/null; then PKG_MGR="yum"
-elif command -v pacman  &>/dev/null; then PKG_MGR="pacman"
-elif command -v zypper  &>/dev/null; then PKG_MGR="zypper"
-elif command -v apk     &>/dev/null; then PKG_MGR="apk"
+if   command -v apt-get >/dev/null 2>&1; then PKG_MGR="apt-get"
+elif command -v apt     >/dev/null 2>&1; then PKG_MGR="apt"
+elif command -v dnf     >/dev/null 2>&1; then PKG_MGR="dnf"
+elif command -v yum     >/dev/null 2>&1; then PKG_MGR="yum"
+elif command -v pacman  >/dev/null 2>&1; then PKG_MGR="pacman"
+elif command -v zypper  >/dev/null 2>&1; then PKG_MGR="zypper"
+elif command -v apk     >/dev/null 2>&1; then PKG_MGR="apk"
 fi
 
 install_pkg() {
@@ -60,8 +60,8 @@ install_pkg() {
 info "Checking Python..."
 PYTHON=""
 for cmd in python3 python3.11 python3.10 python3.9 python3.8; do
-    if command -v "$cmd" &>/dev/null; then
-        ver=$("$cmd" -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>/dev/null || true)
+    if command -v "$cmd" >/dev/null 2>&1; then
+        ver=$("$cmd" -c "import sys; v=sys.version_info; print(str(v.major)+'.'+str(v.minor))" 2>/dev/null || true)
         major=$(echo "$ver" | cut -d. -f1)
         minor=$(echo "$ver" | cut -d. -f2)
         if [ "$major" -eq 3 ] && [ "$minor" -ge 8 ] 2>/dev/null; then
@@ -83,12 +83,12 @@ if [ -z "$PYTHON" ]; then
     install_pkg python3-pip
     install_pkg python3-venv
     for cmd in python3.11 python3.10 python3.9 python3; do
-        command -v "$cmd" &>/dev/null && { PYTHON="$cmd"; break; }
+        command -v "$cmd" >/dev/null 2>&1 && { PYTHON="$cmd"; break; }
     done
 fi
 
 [ -z "$PYTHON" ] && PYTHON="python3"
-ver=$("$PYTHON" -c "import sys; v=sys.version_info; print(f'{v.major}.{v.minor}')" 2>/dev/null || echo "3")
+ver=$("$PYTHON" -c "import sys; v=sys.version_info; print(str(v.major)+'.'+str(v.minor))" 2>/dev/null || echo "3")
 minor_ver=$("$PYTHON" -c "import sys; print(sys.version_info.minor)" 2>/dev/null || echo "0")
 if [ "$minor_ver" -ge 13 ] 2>/dev/null; then
     warn "Python $ver detected — Python 3.11 is recommended for best compatibility"
@@ -97,7 +97,7 @@ fi
 ok "Python $ver ready"
 
 # ── Ensure pip ────────────────────────────────────────────────────────────────
-if ! "$PYTHON" -m pip --version &>/dev/null; then
+if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
     info "Installing pip..."
     install_pkg python3-pip
     "$PYTHON" -m ensurepip --upgrade 2>/dev/null || true
@@ -106,7 +106,7 @@ fi
 
 # ── STEP 3: Install Git ───────────────────────────────────────────────────────
 info "Checking Git..."
-if ! command -v git &>/dev/null; then
+if ! command -v git >/dev/null 2>&1; then
     info "Installing Git..."
     install_pkg git
 fi
@@ -139,9 +139,9 @@ case "$PKG_MGR" in
     *) true ;;
 esac
 
-if command -v festival &>/dev/null; then
+if command -v festival >/dev/null 2>&1; then
     ok "TTS engines installed (festival + espeak-ng)"
-elif command -v espeak-ng &>/dev/null || command -v espeak &>/dev/null; then
+elif command -v espeak-ng >/dev/null 2>&1 || command -v espeak >/dev/null 2>&1; then
     ok "TTS engine installed (espeak-ng — enhanced quality requires festival)"
     warn "For better voice: sudo apt-get install -y festival festvox-us-slt-hts"
 else
@@ -258,7 +258,7 @@ except Exception as e:
 # ── STEP 8: Create cleanshot command ──────────────────────────────────────────
 SYSTEM_BIN="/usr/local/bin/cleanshot"
 USER_BIN="$HOME/.local/bin/cleanshot"
-LAUNCHER_BODY="$(printf '#!/usr/bin/env bash\nexport CLEANSHOT_CMD=cleanshot\ncd "%s/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' "$INSTALL_DIR" "$PYTHON")"
+LAUNCHER_BODY="$(printf '#!/usr/bin/env sh\nexport CLEANSHOT_CMD=cleanshot\ncd "%s/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' "$INSTALL_DIR" "$PYTHON")"
 
 if printf '%s\n' "$LAUNCHER_BODY" | $SUDO_CMD tee "$SYSTEM_BIN" > /dev/null 2>&1; then
     $SUDO_CMD chmod +x "$SYSTEM_BIN" 2>/dev/null || true
