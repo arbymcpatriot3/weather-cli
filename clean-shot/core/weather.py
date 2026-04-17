@@ -527,18 +527,34 @@ def cmd_doctor(config: dict) -> None:
         _fail("Internet: skipped — requests not installed",
               "pip install requests")
     else:
-        # NWS
+        # Primary internet check: Open-Meteo (always reachable, no geo-blocking)
+        _internet_ok = False
         try:
-            r = _req.get("https://api.weather.gov", timeout=5)
-            if r.status_code < 500:
-                _ok("Internet: connected")
-                _ok("NOAA/NWS API: reachable")
-            else:
-                _fail(f"NOAA/NWS API: HTTP {r.status_code}",
-                      "Check your internet connection")
+            import urllib.request as _urlreq
+            _urlreq.urlopen("https://api.open-meteo.com", timeout=5)
+            _ok("Internet: connected")
+            _internet_ok = True
         except Exception:
-            _fail("Internet: no connection",
-                  "Check WiFi or cellular signal")
+            try:
+                r = _req.get("https://api.open-meteo.com", timeout=5)
+                if r.status_code < 500:
+                    _ok("Internet: connected")
+                    _internet_ok = True
+            except Exception:
+                _fail("Internet: no connection",
+                      "Check WiFi or cellular signal")
+
+        # NWS — checked separately (may be geo-blocked outside US)
+        if _internet_ok:
+            try:
+                r = _req.get("https://api.weather.gov", timeout=5)
+                if r.status_code < 500:
+                    _ok("NOAA/NWS API: reachable")
+                else:
+                    _fail(f"NOAA/NWS API: HTTP {r.status_code}",
+                          "US-only service — alerts may not work outside US")
+            except Exception:
+                _info("NOAA/NWS API: unreachable (alerts limited outside US)")
 
         # Open-Meteo
         try:

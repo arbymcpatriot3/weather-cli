@@ -120,11 +120,11 @@ def _dispatch(text: str, config: dict) -> bool:
         try:
             subprocess.run(
                 ["termux-tts-speak", text],
-                timeout=30,
+                timeout=5,
+                check=False,
             )
             return True
-        except Exception as e:
-            print(f"TTS error: {e}", flush=True)
+        except Exception:
             return False
 
     # ── Linux — piper (neural) → festival → pyttsx3 ──────────────────────────

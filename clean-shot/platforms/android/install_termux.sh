@@ -97,9 +97,42 @@ fi
 # ── STEP 4: Install Python packages ───────────────────────────────────────────
 info "Installing Python packages..."
 pip install --upgrade pip --quiet 2>/dev/null || true
-pip install requests colorama --quiet 2>/dev/null || \
+pip install requests colorama --quiet --break-system-packages 2>/dev/null || \
+    pip install requests colorama --quiet 2>/dev/null || \
     pip install requests colorama 2>/dev/null || true
 ok "requests, colorama installed"
+
+# ── STEP 4b: Try piper-tts on aarch64 (optional upgrade) ─────────────────────
+ARCH=$(uname -m 2>/dev/null || echo "unknown")
+if [ "$ARCH" = "aarch64" ]; then
+    info "Trying piper-tts for Android (aarch64)..."
+    pip install piper-tts --quiet --break-system-packages 2>/dev/null || \
+        pip install piper-tts --quiet 2>/dev/null || true
+    if python3 -c "from piper import PiperVoice" 2>/dev/null; then
+        ok "piper-tts installed — downloading voice model..."
+        PIPER_DIR="$HOME/.local/share/piper"
+        mkdir -p "$PIPER_DIR"
+        VOICE_NAME="en_US-ryan-high"
+        HF_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/ryan/high"
+        DOWNLOAD_OK=true
+        curl -fsSL -o "$PIPER_DIR/$VOICE_NAME.onnx" "$HF_BASE/$VOICE_NAME.onnx" 2>/dev/null || \
+            wget -q -O "$PIPER_DIR/$VOICE_NAME.onnx" "$HF_BASE/$VOICE_NAME.onnx" 2>/dev/null || \
+            { DOWNLOAD_OK=false; rm -f "$PIPER_DIR/$VOICE_NAME.onnx"; }
+        if [ "$DOWNLOAD_OK" = true ]; then
+            curl -fsSL -o "$PIPER_DIR/$VOICE_NAME.onnx.json" "$HF_BASE/$VOICE_NAME.onnx.json" 2>/dev/null || \
+                wget -q -O "$PIPER_DIR/$VOICE_NAME.onnx.json" "$HF_BASE/$VOICE_NAME.onnx.json" 2>/dev/null || \
+                { DOWNLOAD_OK=false; }
+        fi
+        if [ "$DOWNLOAD_OK" = true ] && [ -f "$PIPER_DIR/$VOICE_NAME.onnx" ]; then
+            ok "Voice model downloaded: $VOICE_NAME ⭐⭐⭐⭐⭐"
+        else
+            warn "Voice model download failed — device TTS will be used"
+            rm -f "$PIPER_DIR/$VOICE_NAME.onnx" "$PIPER_DIR/$VOICE_NAME.onnx.json" 2>/dev/null || true
+        fi
+    else
+        info "piper-tts not available — using device TTS (termux-tts-speak)"
+    fi
+fi
 
 # ── STEP 5: Clone or update repo ──────────────────────────────────────────────
 printf "\n"
@@ -141,7 +174,32 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 export PATH="$BIN_DIR:$PATH"
 
-# ── STEP 8: Run doctor ─────────────────────────────────────────────────────────
+# ── STEP 8: Auto voice setup ───────────────────────────────────────────────────
+printf "\n"
+info "Setting up voice system..."
+python3 -c "
+import sys, shutil
+sys.path.insert(0, '$INSTALL_DIR/clean-shot')
+# Check voice engine
+tts_ok = shutil.which('termux-tts-speak')
+piper_ok = False
+try:
+    from piper import PiperVoice
+    from pathlib import Path
+    piper_dir = Path.home() / '.local' / 'share' / 'piper'
+    piper_ok = (piper_dir / 'en_US-ryan-high.onnx').exists()
+except Exception:
+    pass
+if piper_ok:
+    print('  [OK]  Voice: piper-tts en_US-ryan-high ⭐⭐⭐⭐⭐')
+elif tts_ok:
+    print('  [OK]  Voice: termux-tts-speak (device TTS) ⭐⭐⭐')
+else:
+    print('  [!]   termux-tts-speak not found')
+    print('        Fix: pkg install termux-api')
+" 2>/dev/null || true
+
+# ── STEP 9: Run doctor ─────────────────────────────────────────────────────────
 printf "\n"
 info "Checking Clean Shot..."
 (cd "$INSTALL_DIR/clean-shot" && python3 platforms/android/main.py doctor 2>/dev/null) || true

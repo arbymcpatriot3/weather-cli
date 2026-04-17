@@ -160,13 +160,17 @@ def parse_hourly(data_str: str) -> dict:
     tz_label = tz_display(tz_abbr, timezone, now.month)
 
     all_times = hourly.get("time", [])
-    # Find index of current hour — show 24h starting from now, not from midnight
-    current_hour_str = now.strftime("%Y-%m-%dT%H:00")
+    # Find index of current hour — show 24h starting from now, not from midnight.
+    # Use datetime comparison (not string) for reliability across timezones.
+    current_dt = now.replace(minute=0, second=0, microsecond=0)
     start_idx = 0
     for i, t in enumerate(all_times):
-        if t >= current_hour_str:
-            start_idx = i
-            break
+        try:
+            if datetime.fromisoformat(t) >= current_dt:
+                start_idx = i
+                break
+        except Exception:
+            continue
 
     def _slice(key, default=0):
         vals = hourly.get(key, [default] * (len(all_times) or 168))

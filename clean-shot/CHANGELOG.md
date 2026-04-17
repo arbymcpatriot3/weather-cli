@@ -1,6 +1,42 @@
 # Clean Shot — Driver Intelligence System — Changelog
 # By Blue Collar Nation LLC | cleanshothq.com
 
+## v3.0.3 — April 2026 (real-world testing fixes)
+
+### iOS iPhone SE Gen 3 + Android Blu K50 — field test fixes
+
+**Trial features fully unlocked:**
+- All features now available during 30-day trial, no exceptions
+- Trial now returns `True` for ALL features (was limited to solo_pro tier only)
+- Fleet, Pro Plus, and Enterprise features also unlocked during trial
+
+**Auto voice setup on install:**
+- Voice system configured automatically — user never sees "Run cleanshot fix-voice"
+- Android: piper-tts attempted on aarch64; falls back to termux-tts-speak
+- iOS iSH: espeak-ng en+m3 at rate 130 (best available on x86 Alpine)
+- Linux: `fix_voice()` runs silently at end of install before doctor
+- Native iOS app (Phase 2) will have full AVSpeech natural voice
+
+**Hourly forecast starts at current hour:**
+- Fixed datetime comparison to use Python datetime objects (was string comparison)
+- More reliable across all timezones and platforms
+
+**Android TTS timeout reduced:**
+- `termux-tts-speak` timeout reduced from 30s to 5s — never blocks app
+- Silently continues if TTS fails; no error spam
+
+**piper-tts install fix:**
+- All installers now use `--break-system-packages` flag (required on PEP 668 systems)
+- iOS iSH: gracefully handles missing x86 wheels; falls back to espeak-ng
+- Android aarch64: attempts piper-tts + ryan-high download; falls back to device TTS
+
+**Internet connectivity check fixed:**
+- Doctor now checks Open-Meteo as primary internet test (was api.weather.gov)
+- Open-Meteo is always reachable; NWS checked separately (US-only service)
+- No more false "❌ no connection" when APIs are actually reachable
+
+---
+
 ## v3.0.0 — April 2026
 ### The Road Intelligence Edition
 

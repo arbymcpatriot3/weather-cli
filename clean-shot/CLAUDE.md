@@ -5,7 +5,7 @@
 **Product:** Clean Shot — Driver Intelligence System (CSDIS)
 **Tagline:** Built for the road, not the boardroom.
 **Mission:** Truckers first. Everything else follows.
-**Version:** 3.0.0 (rewrite from weather-cli v2.0.0)
+**Version:** 3.0.3 (rewrite from weather-cli v2.0.0)
 **Website:** cleanshothq.com (coming soon)
 **Repo:** https://github.com/arbymcpatriot3/weather-cli (branch: main)
 **Root:** `clean-shot/` inside the repo
@@ -778,7 +778,38 @@ Start here next session. Build in this order. One module at a time, read CLAUDE.
 
 **Detection:** `"googleplay" in os.environ.get("TERMUX_VERSION", "").lower()`
 
-**Android TTS:** `subprocess.run(["termux-tts-speak", text], timeout=30)` — confirmed working.
+**Android TTS:** `subprocess.run(["termux-tts-speak", text], timeout=5, check=False)` — timeout reduced from 30s to 5s.
 **Android tones:** `play -n synth <dur> sine <freq>` via sox — confirmed working.
 **Android GPS:** termux-location (F-Droid) → IP geolocation (Google Play) → cached → ask.
 **SSL fix:** `pkg install -y ca-certificates openssl-tool` must be FIRST step in installer.
+
+## iOS Platform Notes (Session 7 — iPhone SE Gen 3 iSH)
+
+**iSH runs Alpine Linux with x86 emulation on ARM iPhone.**
+- `platform.system()` → `"linux"` — uses Linux TTS path
+- piper-tts: likely NO x86 wheels available → fails silently, falls to espeak-ng
+- Best available voice: `espeak-ng -v en+m3 -s 130` — ⭐⭐⭐
+- Native iOS app (Phase 2) will have full AVSpeech natural voice
+- `apk add espeak-ng` is the preferred TTS engine on iSH
+
+**iOS TTS cascade:** piper (fails on x86) → festival (not installed) → espeak-ng direct subprocess → pyttsx3
+
+**TTS direct subprocess path added:** `_speak_espeak_direct()` in `tts_linux.py` — calls `espeak-ng -v en+m3 -s 130` directly without pyttsx3. Works on Alpine/iSH even if pyttsx3 doesn't build.
+
+## Session 7 — Real-World Testing Fixes (2026-04-17)
+
+**Trial:** `has_feature()` now returns True for ALL features during active trial (was solo_pro only).
+
+**TTS timeout:** Android `termux-tts-speak` timeout reduced 30s → 5s.
+
+**Hourly forecast:** `parse_hourly()` now uses datetime object comparison (was string comparison) — more reliable across timezones.
+
+**Internet check:** Doctor checks Open-Meteo first (always reachable) instead of api.weather.gov (US-only, can fail outside US or on mobile networks).
+
+**piper install:** All installers now use `--break-system-packages` — required on PEP 668 systems (Ubuntu 22.04+, Debian 12+, Alpine).
+
+**Voice auto-setup:** All installers now run voice check/setup before doctor — user never sees "Run cleanshot fix-voice" after install.
+
+**iOS voice:** espeak-ng preferred over legacy espeak. `_speak_espeak_direct()` added as explicit fallback in cascade (no pyttsx3 required).
+
+*Last updated: 2026-04-17 — Session 7 complete. v3.0.3. Real-world testing fixes: trial unlock, TTS timeout, hourly forecast, internet check, piper install, auto voice setup.*

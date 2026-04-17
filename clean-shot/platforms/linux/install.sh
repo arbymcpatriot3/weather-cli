@@ -277,7 +277,26 @@ else
     ok "Launcher: $USER_BIN"
 fi
 
-# ── STEP 9: Run doctor ────────────────────────────────────────────────────────
+# ── STEP 9: Auto voice setup (runs fix-voice silently) ────────────────────────
+printf "\n"
+info "Setting up voice system..."
+"$PYTHON" -c "
+import sys
+sys.path.insert(0, '$INSTALL_DIR/clean-shot')
+try:
+    from platforms.linux.tts_linux import fix_voice
+    fix_voice(show_progress=False)
+    from platforms.linux.tts_linux import get_engine_info
+    info = get_engine_info({})
+    if info.get('engine'):
+        print('  [OK]  Voice:', info['engine'], info.get('star_str',''))
+    else:
+        print('  [!]   No voice engine — run: cleanshot fix-voice')
+except Exception as e:
+    print('  [!]   Voice setup skipped:', e)
+" 2>/dev/null || true
+
+# ── STEP 10: Run doctor ───────────────────────────────────────────────────────
 printf "\n"
 info "Checking Clean Shot..."
 (cd "$INSTALL_DIR/clean-shot" && "$PYTHON" platforms/linux/main.py doctor 2>/dev/null) || true

@@ -262,6 +262,33 @@ def _speak_festival(text: str) -> bool:
         return False
 
 
+# ── Engine: espeak direct (subprocess) ───────────────────────────────────────
+# Used on iOS iSH and any Linux where pyttsx3 fails to install.
+# espeak-ng is preferred over legacy espeak.
+
+def _speak_espeak_direct(text: str, rate: int = 130) -> bool:
+    """
+    Speak via espeak-ng or espeak subprocess directly — no pyttsx3 needed.
+    Best voice on Alpine/iSH: en-us+m3 at rate 130.
+    Falls back to espeak if espeak-ng not installed.
+    Returns True if speech dispatched, False on failure.
+    """
+    for cmd in ("espeak-ng", "espeak"):
+        if not shutil.which(cmd):
+            continue
+        try:
+            subprocess.run(
+                [cmd, "-v", "en+m3", "-s", str(rate), text],
+                timeout=15,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except Exception:
+            continue
+    return False
+
+
 # ── Engine: pyttsx3 ───────────────────────────────────────────────────────────
 
 _degraded_warned = False   # show degraded-voice warning at most once per session
@@ -330,6 +357,10 @@ def speak_linux(text: str, config: dict = None) -> bool:
         if _speak_festival(text):
             return True
 
+    # ── espeak direct (subprocess): works on iOS iSH and Alpine without pyttsx3
+    if _speak_espeak_direct(text, rate):
+        return True
+
     # ── pyttsx3/espeak: always the final fallback ──────────────────────────────
     return _speak_pyttsx3(text, rate, volume)
 
@@ -381,6 +412,18 @@ def get_engine_info(config: dict = None) -> dict:
     if shutil.which("festival"):
         return {
             "engine":   "festival",
+            "voice":    None,
+            "stars":    3,
+            "star_str": "⭐⭐⭐",
+            "degraded": True,
+        }
+
+    # espeak direct (no pyttsx3 needed — works on Alpine/iSH)
+    if shutil.which("espeak-ng") or shutil.which("espeak"):
+        _is_ish = not shutil.which("apt-get") and not shutil.which("dnf")
+        _note   = " (iOS iSH)" if _is_ish else ""
+        return {
+            "engine":   f"espeak en+m3{_note}",
             "voice":    None,
             "stars":    3,
             "star_str": "⭐⭐⭐",

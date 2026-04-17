@@ -9,7 +9,7 @@ import json
 import sys
 
 CONFIG_PATH = Path.home() / ".config" / "clean-shot.conf"
-VERSION     = "3.0.1"
+VERSION     = "3.0.3"
 
 _DEFAULTS = {
     # Location

@@ -494,13 +494,15 @@ def test_display_hos_status_no_crash_solo_pro():
     print("✓ display_hos_status: no crash (solo_pro)")
 
 def test_display_hos_status_free_tier_upgrade_prompt():
-    import io, contextlib
-    cfg = {"subscription_tier": "free", "tts_enabled": False}
+    import io, contextlib, time
+    # Simulate expired trial (trial_start > 30 days ago) so gating applies
+    expired_start = time.time() - (31 * 86400)
+    cfg = {"subscription_tier": "free", "tts_enabled": False, "trial_start": expired_start}
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         display_hos_status(cfg)
     assert "Solo Pro" in buf.getvalue() or "upgrade" in buf.getvalue().lower()
-    print("✓ display_hos_status: upgrade prompt for free tier")
+    print("✓ display_hos_status: upgrade prompt for expired-trial free tier")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

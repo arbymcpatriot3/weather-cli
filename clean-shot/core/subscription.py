@@ -61,9 +61,10 @@ def has_feature(config: dict, feature: str) -> bool:
     tier     = config.get("subscription_tier", "free")
     required = _FEATURE_TIER.get(feature, "enterprise")
 
-    # 30-day trial unlocks all solo_pro features
-    if tier == "free" and is_trial_active(config):
-        tier = "solo_pro"
+    # Active trial = full access to ALL features, no exceptions.
+    # Every feature must be available during the free trial.
+    if is_trial_active(config):
+        return True
 
     # Referral-based free subscription also counts as solo_pro
     ref_count = config.get("referral_count", 0)
