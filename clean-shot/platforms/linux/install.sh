@@ -256,26 +256,40 @@ except Exception as e:
 " 2>/dev/null || true
 
 # ── STEP 8: Create cleanshot command ──────────────────────────────────────────
-SYSTEM_BIN="/usr/local/bin/cleanshot"
-USER_BIN="$HOME/.local/bin/cleanshot"
-LAUNCHER_BODY="$(printf '#!/usr/bin/env sh\nexport CLEANSHOT_CMD=cleanshot\ncd "%s/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' "$INSTALL_DIR" "$PYTHON")"
+LAUNCHER_BODY="$(printf '#!/usr/bin/env bash\nexport CLEANSHOT_CMD=cleanshot\ncd "%s/clean-shot"\nexec %s platforms/linux/main.py "$@"\n' "$INSTALL_DIR" "$PYTHON")"
 
-if printf '%s\n' "$LAUNCHER_BODY" | $SUDO_CMD tee "$SYSTEM_BIN" > /dev/null 2>&1; then
-    $SUDO_CMD chmod +x "$SYSTEM_BIN" 2>/dev/null || true
-    ok "Launcher: $SYSTEM_BIN"
-else
-    mkdir -p "$HOME/.local/bin"
-    printf '%s\n' "$LAUNCHER_BODY" > "$USER_BIN"
-    chmod +x "$USER_BIN"
-    for RC in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
-        [ -f "$RC" ] || continue
-        grep -q 'local/bin' "$RC" 2>/dev/null && break
-        printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$RC"
-        break
-    done
-    export PATH="$HOME/.local/bin:$PATH"
-    ok "Launcher: $USER_BIN"
-fi
+# Write launcher to a directory.
+# User dirs (~/.local/bin) are written directly; system dirs use sudo.
+install_wrapper() {
+    _dir="$1"
+    _dest="$_dir/cleanshot"
+    case "$_dir" in
+        "$HOME"*)
+            printf '%s\n' "$LAUNCHER_BODY" > "$_dest" && chmod +x "$_dest" || return 1
+            ;;
+        *)
+            printf '%s\n' "$LAUNCHER_BODY" | $SUDO_CMD tee "$_dest" > /dev/null 2>&1 || return 1
+            $SUDO_CMD chmod +x "$_dest" 2>/dev/null || true
+            ;;
+    esac
+    ok "Launcher: $_dest"
+}
+
+# Ensure ~/.local/bin exists and is on PATH
+mkdir -p "$HOME/.local/bin"
+for RC in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+    [ -f "$RC" ] || continue
+    grep -q 'local/bin' "$RC" 2>/dev/null && break
+    printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$RC"
+    break
+done
+export PATH="$HOME/.local/bin:$PATH"
+
+# Write to both locations — ~/.local/bin always works; /usr/local/bin needs sudo
+for dir in "$HOME/.local/bin" "/usr/local/bin"; do
+    [ -d "$dir" ] || continue
+    install_wrapper "$dir"
+done
 
 # ── STEP 9: Auto voice setup (runs fix-voice silently) ────────────────────────
 printf "\n"
