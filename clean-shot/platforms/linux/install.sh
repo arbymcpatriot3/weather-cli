@@ -7,7 +7,7 @@
 
 set -e
 
-INSTALL_DIR="$HOME/CleanShot"
+INSTALL_DIR="$HOME/weather-cli"
 REPO_URL="https://github.com/arbymcpatriot3/weather-cli.git"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
