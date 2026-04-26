@@ -192,7 +192,7 @@ def _speak_piper(text: str, config: dict) -> bool:
     try:
         # Step 1: piper — text → raw PCM via stdin/stdout
         piper_proc = subprocess.Popen(
-            [piper_bin, "--model", str(model_path), "--output_raw", "--quiet"],
+            [piper_bin, "--model", str(model_path), "--output_raw"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
