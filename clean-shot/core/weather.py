@@ -604,18 +604,38 @@ def cmd_doctor(config: dict) -> None:
     lat = config.get("latitude")
     lon = config.get("longitude")
     if lat and lon:
-        city_str = config.get("city", "unknown")
-        _ok(f"GPS: {city_str} ({lat:.4f}, {lon:.4f})")
+        # Always read from config — never trust the stale city string
+        _ok(f"Location: {float(lat):.4f}, {float(lon):.4f} (from config)")
+        # Sanity check: warn when last GPS differs by 500+ miles from config
+        last_lat = config.get("last_gps_lat")
+        last_lon = config.get("last_gps_lon")
+        if last_lat and last_lon:
+            try:
+                from core.gps import haversine as _hv
+                _dist = _hv(float(lat), float(lon),
+                            float(last_lat), float(last_lon))
+                if _dist > 500:
+                    _fail(
+                        f"Location mismatch: {_dist:.0f} mi from last GPS fix",
+                        "cleanshot settings location  (to update home base)"
+                    )
+            except Exception:
+                pass
     else:
-        _ok("GPS: IP fallback active")
+        _ok("Location: not set — IP geolocation active")
 
     try:
-        from core.tts import _detect_platform_name
-        tts_plat = _detect_platform_name()
-        _ok(f"TTS: {tts_plat}")
+        if is_termux:
+            _ok("TTS: termux-tts-speak")
+        elif plat == "Linux":
+            from platforms.linux.tts_linux import get_engine_info as _gei
+            _vi = _gei(config)
+            _ok(f"TTS: {_vi['engine'] or 'no engine'}")
+        else:
+            from core.tts import _detect_platform_name
+            _ok(f"TTS: {_detect_platform_name()}")
     except Exception as e:
-        _fail(f"TTS: {e}",
-              "cleanshot settings tts off")
+        _fail(f"TTS: {e}", "cleanshot settings tts off")
 
     try:
         from core.dot511 import fetch_dot511  # noqa: F401
@@ -691,10 +711,16 @@ def cmd_doctor(config: dict) -> None:
 
     # ── SUBSCRIPTION ───────────────────────────────────────────────────────────
     print("  SUBSCRIPTION:")
+    import time as _time_sub, math as _math_sub
     tier = config.get("subscription_tier", "free")
     if tier == "free":
-        _info("Plan: Free Trial")
-        _info("Days remaining: 30")
+        trial_start = config.get("trial_start")
+        if trial_start is not None:
+            _elapsed = (_time_sub.time() - trial_start) / 86400.0
+            _days_left = max(0, int(_math_sub.ceil(30 - _elapsed)))
+        else:
+            _days_left = 30
+        _info(f"Plan: Free Trial — {_days_left} day(s) remaining")
         _info("Upgrade: cleanshothq.com")
     else:
         _ok(f"Plan: {tier}")
@@ -711,6 +737,16 @@ def cmd_doctor(config: dict) -> None:
     print("  support@cleanshothq.com")
     print(f"  {sep}")
     print()
+
+
+def cmd_replaces(args, config: dict) -> None:
+    """cleanshot replaces — show what Clean Shot replaces and how much it saves."""
+    from display.replaces import display_replaces, get_tts_summary
+    short = "--short" in (getattr(args, "extra", None) or [])
+    display_replaces(config, short=short)
+    if config.get("tts_enabled", False) and not short:
+        from core.tts import speak
+        speak(get_tts_summary(), config, bypass_quiet=True)
 
 
 def cmd_help():
@@ -736,6 +772,7 @@ Commands:
   doctor            System health check
   test-tts          Test voice alerts
   test-alerts       Test flash + beep + alert display
+  replaces          What Clean Shot replaces and how much it saves
   help              This help screen
 
 Road Intelligence (Solo Pro+):
@@ -1230,6 +1267,11 @@ def main():
     if getattr(args, "no_tts", False):
         config["tts_enabled"] = False
 
+    # ── Apply --fresh: skip cache AND reset GPS so location re-resolves ───────
+    if getattr(args, "fresh", False):
+        for _k in ("last_gps_lat", "last_gps_lon", "last_gps_time", "last_gps_source"):
+            config[_k] = None
+
     # ── Apply --compact flag (override positional command) ────────────────────
     if getattr(args, "compact", False) and args.command == "full":
         args.command = "compact"
@@ -1308,6 +1350,9 @@ def main():
 
     elif cmd in ("fix-voice", "fixvoice"):
         cmd_fix_voice(config)
+
+    elif cmd in ("replaces", "replace"):
+        cmd_replaces(args, config)
 
     elif cmd in ("version", "-v", "--version"):
         print(f"clean-shot v{VERSION}")

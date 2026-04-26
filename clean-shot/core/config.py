@@ -9,7 +9,7 @@ import json
 import sys
 
 CONFIG_PATH = Path.home() / ".config" / "clean-shot.conf"
-VERSION     = "3.0.4"
+VERSION     = "3.0.5"
 
 _DEFAULTS = {
     # Location
@@ -221,6 +221,13 @@ def first_run_setup(config: dict) -> dict:
     print(f"      good buddy.\" 🚛")
     print(f"  {sep}")
     print()
+
+    # ── Savings pitch (short version, shown once on first run) ───────────────
+    try:
+        from display.replaces import display_replaces
+        display_replaces(config, short=True)
+    except Exception:
+        pass
 
     # ── TTS welcome ───────────────────────────────────────────────────────────
     try:
