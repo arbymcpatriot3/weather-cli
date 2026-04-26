@@ -544,17 +544,16 @@ def cmd_doctor(config: dict) -> None:
                 _fail("Internet: no connection",
                       "Check WiFi or cellular signal")
 
-        # NWS — checked separately (may be geo-blocked outside US)
-        if _internet_ok:
-            try:
-                r = _req.get("https://api.weather.gov", timeout=5)
-                if r.status_code < 500:
-                    _ok("NOAA/NWS API: reachable")
-                else:
-                    _fail(f"NOAA/NWS API: HTTP {r.status_code}",
-                          "US-only service — alerts may not work outside US")
-            except Exception:
-                _info("NOAA/NWS API: unreachable (alerts limited outside US)")
+        # NWS — always checked (shown even when primary internet check failed)
+        try:
+            r = _req.get("https://api.weather.gov", timeout=5)
+            if r.status_code < 500:
+                _ok("NOAA/NWS API: reachable")
+            else:
+                _fail(f"NOAA/NWS API: HTTP {r.status_code}",
+                      "US-only service — alerts may not work outside US")
+        except Exception:
+            _info("NOAA/NWS API: unreachable (alerts limited outside US)")
 
         # Open-Meteo
         try:
@@ -739,10 +738,9 @@ def cmd_doctor(config: dict) -> None:
     print()
 
 
-def cmd_replaces(args, config: dict) -> None:
+def cmd_replaces(config: dict, short: bool = False) -> None:
     """cleanshot replaces — show what Clean Shot replaces and how much it saves."""
     from display.replaces import display_replaces, get_tts_summary
-    short = "--short" in (getattr(args, "extra", None) or [])
     display_replaces(config, short=short)
     if config.get("tts_enabled", False) and not short:
         from core.tts import speak
@@ -1237,6 +1235,8 @@ def build_parser():
                         help="Disable text-to-speech for this run")
     parser.add_argument("--compact", action="store_true",
                         help="Run in compact display mode")
+    parser.add_argument("--short", action="store_true",
+                        help="Short output (used with replaces command)")
     parser.add_argument("--version", "-v", action="store_true")
     parser.add_argument("--help", "-h", action="store_true")
     return parser
@@ -1352,7 +1352,7 @@ def main():
         cmd_fix_voice(config)
 
     elif cmd in ("replaces", "replace"):
-        cmd_replaces(args, config)
+        cmd_replaces(config, short=getattr(args, "short", False))
 
     elif cmd in ("version", "-v", "--version"):
         print(f"clean-shot v{VERSION}")
