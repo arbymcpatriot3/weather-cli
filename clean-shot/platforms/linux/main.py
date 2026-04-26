@@ -35,6 +35,28 @@ try:
 except ImportError:
     _MISSING.append("requests")
 
+# ── Known CLI commands — checked BEFORE any location lookup ───────────────────
+# If a positional arg matches one of these it is routed as a command.
+# Anything else is passed as --location to avoid geocoding command names
+# (e.g. "parking" → "Parking, EG" or "doctor" → "Doctor Mora, MX").
+_KNOWN_COMMANDS = {
+    # Core display
+    "full", "simple", "compact", "watch", "json", "map",
+    # Weather / alerts
+    "alerts", "test-alerts", "testalerts", "alerts-test",
+    "morning",
+    # Trucking features
+    "parking", "fuel", "route", "pretrip",
+    # TTS / voice
+    "test-tts", "testtts", "tts-test", "fix-voice", "fixvoice", "voices",
+    # System / meta
+    "doctor", "help", "settings", "version", "--version", "-v",
+    "update", "setup", "replaces",
+    # Session control
+    "quit", "exit",
+}
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
@@ -42,6 +64,15 @@ def main():
         print(f"  ℹ  Optional packages not installed: {', '.join(_MISSING)}")
         print("     Run: pip install " + " ".join(_MISSING))
         print()
+
+    # Guard: if the first positional arg is not a known command, rewrite it
+    # as --location so core.weather.main() never falls through to the
+    # geocode fallback for command-like words.
+    # Example: `cleanshot "Memphis TN"` → `cleanshot --location "Memphis TN"`
+    if len(sys.argv) >= 2:
+        first = sys.argv[1]
+        if not first.startswith("-") and first.lower() not in _KNOWN_COMMANDS:
+            sys.argv = [sys.argv[0], "--location", first] + sys.argv[2:]
 
     try:
         from core.weather import main as _weather_main
