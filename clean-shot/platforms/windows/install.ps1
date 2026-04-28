@@ -7,7 +7,11 @@
 $ErrorActionPreference = "SilentlyContinue"
 trap { }
 
-$INSTALL_DIR = "$env:USERPROFILE\Documents\CleanShot"
+if (Test-Path "D:\") {
+    $INSTALL_DIR = "D:\Documents\CleanShot"
+} else {
+    $INSTALL_DIR = "$env:USERPROFILE\Documents\CleanShot"
+}
 $BIN_DIR     = "$env:USERPROFILE\AppData\Local\Microsoft\WindowsApps"
 
 function ok   { param($m) Write-Host "  [OK]  $m" -ForegroundColor Green }
