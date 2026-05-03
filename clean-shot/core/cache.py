@@ -42,10 +42,10 @@ def cache_load(path: Path, max_age: int):
 
 
 def cache_save(path: Path, data: str):
-    """Write data atomically (tmp → rename) to avoid partial reads."""
+    """Write data atomically (tmp → replace) to avoid partial reads."""
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(data)
-    tmp.rename(path)
+    tmp.write_text(data, encoding="utf-8")
+    tmp.replace(path)   # replace() overwrites atomically on both Windows and POSIX
 
 
 def cache_stale(path: Path):

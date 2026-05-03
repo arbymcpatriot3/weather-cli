@@ -23,6 +23,7 @@ _DEFAULTS = {
     # Vehicle
     "vehicle_height_ft": None,
     "vehicle_type":      "semi",      # semi | box | flatbed | tanker | rv
+    "fuel_type":         "diesel",    # diesel | gasoline | electric | hybrid | other
     # Alerts
     "wind_alert_mph":    40,
     # Features
@@ -177,28 +178,38 @@ def first_run_setup(config: dict) -> dict:
             print(f"     Can't find that location.")
             print(f"     Try: Memphis TN  |  38101  |  Chicago")
 
-    # ── Q3: Vehicle type ──────────────────────────────────────────────────────
+    # ── Q3: Vehicle (sets both fuel_type and vehicle_type) ───────────────────
     print()
-    print("  3. Your vehicle type:")
-    print("     1. Diesel truck")
-    print("     2. Gas truck")
-    print("     3. Electric truck (EV)")
-    print("     4. Hybrid")
-    print("     5. Other")
+    print("  3. What do you drive?")
+    print("     1. Diesel semi / 18-wheeler  (most common)")
+    print("     2. Diesel box truck")
+    print("     3. Diesel flatbed or tanker")
+    print("     4. Gas truck")
+    print("     5. Electric truck (EV)")
+    print("     6. Hybrid")
+    print("     7. RV / other")
 
-    _vmap = {"1": "semi", "2": "box", "3": "semi", "4": "box", "5": "semi"}
+    # (fuel_type, vehicle_type)
+    _vmap = {
+        "1": ("diesel",   "semi"),
+        "2": ("diesel",   "box"),
+        "3": ("diesel",   "flatbed"),
+        "4": ("gasoline", "box"),
+        "5": ("electric", "semi"),
+        "6": ("hybrid",   "box"),
+        "7": ("gasoline", "rv"),
+    }
     while True:
         try:
             choice = input("     > ").strip()
         except (EOFError, KeyboardInterrupt):
             choice = "1"
-        if choice in _vmap:
-            config["vehicle_type"] = _vmap[choice]
-            break
         if not choice:
-            config["vehicle_type"] = "semi"
+            choice = "1"
+        if choice in _vmap:
+            config["fuel_type"],  config["vehicle_type"] = _vmap[choice]
             break
-        print("     Enter 1–5")
+        print("     Enter 1–7")
 
     save_config(config)
 

@@ -1189,9 +1189,6 @@ def _display_road_section(lat, lon, parsed, config, width):
             print(f"  {icon} [{sev}] {atype}")
             if msg:
                 print(f"      {msg}")
-    elif _ALERTS_OK:
-        print()
-        print("  ✓ No road hazards detected for current conditions.")
 
     # 7. DOT/511 advisories (solo_pro+)
     if incidents and _DOT511_OK:
@@ -1202,6 +1199,15 @@ def _display_road_section(lat, lon, parsed, config, width):
     if hazards and _HAZARDS_OK:
         print()
         display_hazards(hazards, config)
+
+    # All-clear banner — shown only when every road-intelligence source is quiet
+    if not road_alerts and not incidents and not hazards:
+        bar = "═" * min(width - 2, 58)
+        print()
+        print(f"  {bar}")
+        print(f"  🟢  You've got a clean shot, good buddy!")
+        print(f"      Road is clear — keep the shiny side up.")
+        print(f"  {bar}")
 
     # 9. Parking runway (solo_pro+)
     if _PARKING_OK:

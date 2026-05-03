@@ -1,2 +1,11 @@
 __pycache__/
 *.pyc
+*.pyo
+
+# Build artifacts — use GitHub Releases for distributable files
+.venv-build/
+build_work/
+dist/
+
+# Archives
+*.zip

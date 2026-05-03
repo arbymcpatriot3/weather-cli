@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Clean Shot — Road intelligence for truck drivers. Windows laptop, Android, iOS.">
     <title>Clean Shot HQ | Road Intelligence for Truckers</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='15' y='45' width='70' height='25' rx='5' fill='%23f97316'/%3E%3Ccircle cx='30' cy='75' r='12' fill='%231f2937'/%3E%3Ccircle cx='70' cy='75' r='12' fill='%231f2937'/%3E%3Ctext x='50' y='38' font-size='28' text-anchor='middle' fill='%23f97316'%3E%F0%9F%9A%9B%3C/text%3E%3C/svg%3E" type="image/svg+xml">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         .hero-bg {
-            background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)), 
+            background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)),
                         url('https://images.unsplash.com/photo-1593689952882-babc725e730e') center/cover no-repeat fixed;
             background-position: center 30%;
         }
@@ -25,7 +25,7 @@
 </head>
 <body class="font-sans bg-zinc-950 text-white">
 
-    <!-- Navbar (unchanged) -->
+    <!-- Navbar -->
     <nav class="bg-black/90 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
             <div class="flex items-center gap-3">
@@ -33,18 +33,19 @@
                 <span class="text-2xl font-bold tracking-tighter">Clean Shot</span>
             </div>
             <div class="hidden md:flex gap-8 text-lg">
-                <a href="#windows" class="hover:text-orange-500 transition">Windows</a>
+                <a href="#install" class="hover:text-orange-500 transition">Windows</a>
                 <a href="#demo" class="hover:text-orange-500 transition">Screenshot</a>
                 <a href="#features" class="hover:text-orange-500 transition">Features</a>
                 <a href="https://github.com/arbymcpatriot3/weather-cli" target="_blank" class="hover:text-orange-500 transition">GitHub</a>
             </div>
-            <a href="#install" class="bg-orange-600 hover:bg-orange-700 px-6 py-2.5 rounded-2xl font-semibold flex items-center gap-2">
+            <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
+               class="bg-orange-600 hover:bg-orange-700 px-6 py-2.5 rounded-2xl font-semibold flex items-center gap-2 transition">
                 <i class="fa-solid fa-download"></i> Download
             </a>
         </div>
     </nav>
 
-    <!-- Hero (unchanged) -->
+    <!-- Hero -->
     <header class="hero-bg h-screen flex items-center relative">
         <div class="max-w-4xl mx-auto px-6 text-center z-10">
             <h1 class="text-5xl md:text-6xl font-bold leading-tight mb-6">
@@ -55,17 +56,63 @@
                 Runs perfectly on your Windows laptop — and your phone.
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="#install" class="bg-orange-600 hover:bg-orange-700 px-8 py-4 rounded-2xl font-semibold flex items-center justify-center gap-3 text-lg">
-                    <i class="fa-solid fa-laptop"></i> Windows Laptop (Recommended)
+                <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
+                   class="bg-orange-600 hover:bg-orange-700 px-8 py-4 rounded-2xl font-semibold flex items-center justify-center gap-3 text-lg transition">
+                    <i class="fa-solid fa-download"></i> Download for Windows — Free
                 </a>
-                <a href="https://github.com/arbymcpatriot3/weather-cli" target="_blank" class="border border-white/60 hover:bg-white/10 px-8 py-4 rounded-2xl font-semibold text-lg">
+                <a href="https://github.com/arbymcpatriot3/weather-cli" target="_blank"
+                   class="border border-white/60 hover:bg-white/10 px-8 py-4 rounded-2xl font-semibold text-lg transition">
                     GitHub Repo
                 </a>
             </div>
+            <p class="text-zinc-400 text-sm mt-4">Windows 10 / 11 &nbsp;•&nbsp; 14.8 MB &nbsp;•&nbsp; No Python, no Git, no terminal</p>
         </div>
     </header>
 
-    <!-- Fixed Features Section -->
+    <!-- Download / Install Section -->
+    <section id="install" class="py-20 bg-zinc-950">
+        <div class="max-w-4xl mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold mb-4">Download Clean Shot</h2>
+            <p class="text-zinc-400 text-lg mb-12">One file. Double-click. Everything installs automatically.<br>No Python. No Git. No terminal. Ever.</p>
+
+            <!-- Download card -->
+            <div class="bg-zinc-800 rounded-3xl p-10 border border-orange-500/40 max-w-sm mx-auto mb-12">
+                <i class="fa-brands fa-windows text-6xl text-orange-500 mb-5 block"></i>
+                <h3 class="text-2xl font-bold mb-1">Windows</h3>
+                <p class="text-zinc-400 mb-6">Windows 10 / 11 &nbsp;•&nbsp; 64-bit &nbsp;•&nbsp; 14.8 MB</p>
+                <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
+                   class="bg-orange-600 hover:bg-orange-700 px-8 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition w-full">
+                    <i class="fa-solid fa-download"></i> CleanShotSetup.exe
+                </a>
+                <p class="text-zinc-500 text-sm mt-4">Free 30-day trial &nbsp;•&nbsp; No credit card</p>
+            </div>
+
+            <!-- How to install steps -->
+            <div class="max-w-md mx-auto text-left">
+                <h4 class="text-xl font-semibold mb-5 text-center">How to install</h4>
+                <ol class="space-y-4">
+                    <li class="flex items-start gap-4">
+                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                        <span class="text-zinc-300">Click the download button above</span>
+                    </li>
+                    <li class="flex items-start gap-4">
+                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                        <span class="text-zinc-300">Double-click <strong>CleanShotSetup.exe</strong></span>
+                    </li>
+                    <li class="flex items-start gap-4">
+                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                        <span class="text-zinc-300">Follow the installer — about 30 seconds</span>
+                    </li>
+                    <li class="flex items-start gap-4">
+                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+                        <span class="text-zinc-300">Clean Shot launches and asks for your location — you're on the road</span>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
     <section id="features" class="py-20 bg-zinc-900">
         <div class="max-w-6xl mx-auto px-6">
             <h2 class="text-4xl font-bold text-center mb-12">Key Features for Truckers</h2>
@@ -104,12 +151,12 @@
         </div>
     </section>
 
-    <!-- New: Live Demo / Screenshots -->
+    <!-- Screenshots -->
     <section id="demo" class="py-20 bg-zinc-900">
         <div class="max-w-6xl mx-auto px-6">
             <h2 class="text-4xl font-bold text-center mb-4">Screenshot</h2>
-            <p class="text-center text-zinc-400 mb-12">Real terminal output from the current build (Linux shown — Windows looks identical)</p>
-            
+            <p class="text-center text-zinc-400 mb-12">Real output from the Windows build</p>
+
             <div class="grid md:grid-cols-2 gap-8">
                 <div>
                     <p class="text-sm text-orange-400 mb-3 font-mono">↑ Top of output</p>
@@ -120,15 +167,25 @@
                     <img src="assets/screenshot_windows_terminal_bottom.png" alt="Clean Shot Terminal - Rain Probability, Road Conditions & HOS Status" class="terminal-img w-full rounded-2xl">
                 </div>
             </div>
-            
+
             <p class="text-center text-zinc-400 mt-8 text-sm">
                 Clean, fast, scannable — even on a small laptop screen at a truck stop.
             </p>
         </div>
     </section>
 
+    <!-- Bottom CTA -->
+    <section class="py-16 bg-zinc-950 text-center">
+        <h2 class="text-3xl font-bold mb-4">Ready to roll?</h2>
+        <p class="text-zinc-400 mb-8">Free 30-day trial. No credit card. No nonsense.</p>
+        <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
+           class="bg-orange-600 hover:bg-orange-700 px-10 py-4 rounded-2xl font-bold text-lg inline-flex items-center gap-3 transition">
+            <i class="fa-solid fa-download"></i> Download Clean Shot — Free
+        </a>
+    </section>
+
     <footer class="bg-black py-12 text-center text-zinc-500 border-t border-zinc-800">
-        <p>© 2026 CleanShotHQ.com • support@cleanshothq.com</p>
+        <p>© 2026 CleanShotHQ.com &nbsp;•&nbsp; support@cleanshothq.com</p>
         <p class="text-sm mt-2">Built for truck drivers, not the boardroom.</p>
     </footer>
 </body>

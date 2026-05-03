@@ -1,0 +1,36 @@
+Clean Shot — Road Intelligence for Truck Drivers
+Copyright (C) 2026 CleanShotHQ LLC. All rights reserved.
+
+CLEAN SHOT END USER LICENSE AGREEMENT
+
+By installing or using Clean Shot ("Software"), you agree to the following terms.
+
+1. LICENSE GRANT
+   CleanShotHQ LLC ("Company") grants you a non-exclusive, non-transferable
+   license to install and use the Software on Windows devices you own or control,
+   solely for your personal, non-commercial use.
+
+2. RESTRICTIONS
+   You may not: (a) copy, modify, or distribute the Software; (b) reverse-engineer,
+   decompile, or disassemble the Software; (c) sell, sublicense, or rent the
+   Software; (d) remove any copyright or proprietary notices.
+
+3. DISCLAIMER OF WARRANTIES
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. THE COMPANY
+   EXPRESSLY DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+4. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL THE COMPANY BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR USE OF THE SOFTWARE,
+   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+5. SAFETY NOTICE
+   Clean Shot provides road information as a convenience only. Always obey all
+   traffic laws and use your own judgment. Never operate the Software while driving.
+
+6. GOVERNING LAW
+   This agreement is governed by the laws of the State of New Jersey, USA.
+
+For support: support@cleanshothq.com
+Website: https://cleanshothq.com
