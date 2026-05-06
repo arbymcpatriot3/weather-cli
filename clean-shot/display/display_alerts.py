@@ -107,7 +107,10 @@ def _box(lines: list, severity: str = "CRITICAL", width: int = 0) -> str:
     padded = []
     for line in lines:
         plain = _re.sub(r'\x1b\[[0-9;]*m', '', line)
-        pad   = max(0, inner - len(plain))
+        if len(plain) > inner:
+            line  = plain[:max(1, inner - 1)] + "…"
+            plain = line
+        pad = max(0, inner - len(plain))
         padded.append(f"║ {line}{' ' * pad} ║")
 
     bar    = "═" * (w - 2)

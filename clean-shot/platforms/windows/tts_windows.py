@@ -59,8 +59,11 @@ def speak_windows(text: str, config: dict = None) -> bool:
     sapi_rate = max(-5, min(5, round((rate - 180) / 20)))
     sapi_vol  = int(max(0.0, min(1.0, volume)) * 100)
 
-    # Escape single quotes for PowerShell safety
-    safe_text = text.replace("'", "\\'")
+    # Escape chars special in PowerShell double-quoted strings
+    safe_text = (text
+                 .replace('`', '``')   # backtick first — PS escape char
+                 .replace('"', '`"')   # double-quote
+                 .replace('$', '`$'))  # dollar sign (variable sigil)
 
     # ── win32com path (most reliable) ─────────────────────────────────────────
     try:
@@ -94,10 +97,12 @@ def speak_windows(text: str, config: dict = None) -> bool:
             f"$s.Rate = {sapi_rate}; "
             f"$s.Volume = {sapi_vol}; "
             f"{voice_sel}; "
-            f"$s.Speak('{safe_text}')"
+            f'$s.Speak("{safe_text}")'
         )
+        import base64
+        cmd_b64 = base64.b64encode(cmd.encode("utf-16-le")).decode("ascii")
         subprocess.run(
-            ["powershell", "-Command", cmd],
+            ["powershell", "-EncodedCommand", cmd_b64],
             timeout=15, check=True,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )

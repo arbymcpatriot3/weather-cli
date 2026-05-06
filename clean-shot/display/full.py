@@ -181,7 +181,8 @@ def display_current(parsed: dict, width: int):
         print(separator(w))
         print(_trunc(f"📍 {city}{cache_str}", w))
         tc = temp_color(cur["temp"])
-        print(f"  {tc}{cur['temp']:.1f}°F{Style.RESET_ALL} (feels {cur['feels']:.1f}) — {cur['desc_short']}")
+        _cond = _trunc(cur['desc_short'], max(1, w - 27))
+        print(f"  {tc}{cur['temp']:.1f}°F{Style.RESET_ALL} (feels {cur['feels']:.1f}) — {_cond}")
         ws  = cur["wind_speed"]
         wc  = wind_color(ws, parsed.get("wind_alert_mph", 40))
         wg  = cur["wind_gust"]
@@ -307,7 +308,8 @@ def display_hourly(hourly: dict, width: int, time_format: str = "12h",
         return
 
     # ── Standard / Full: 24 hours with bar ────────────────────────────────────
-    max_bar = max(4, w - 44)   # bar length scales with terminal width
+    # Reserve room for gust (~11 chars) + rain (~7 chars) annotations
+    max_bar = max(4, w - 48)
 
     print("Hourly Forecast (Next 24 hours)")
     print(separator(w))
