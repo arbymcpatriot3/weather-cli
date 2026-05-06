@@ -48,6 +48,7 @@ _WIND_FACTOR = {
     "rv":      0.80,   # most susceptible
 }
 _WIND_BASE_MPH     = 40.0   # default if not set in config
+_WIND_WARN_FLOOR   = 35.0   # absolute minimum mph to trigger a WARNING
 
 # Mudslide — no terrain data, so flag based on rainfall intensity alone
 _MUDSLIDE_PCT      = 80     # % precip probability to count as "heavy"
@@ -246,7 +247,7 @@ def _check_high_wind(current: dict, hourly: dict, config: dict):
     max_12h   = max(gusts[:12]) if gusts else 0
     peak      = max(gust_now, max_12h)
 
-    if peak < threshold * 0.75:
+    if peak < max(threshold * 0.75, _WIND_WARN_FLOOR):
         return None
 
     height     = config.get("vehicle_height_ft")
@@ -263,9 +264,9 @@ def _check_high_wind(current: dict, hourly: dict, config: dict):
                     f"gusts up to {peak:.0f} mph, watch that trailer and "
                     f"keep both hands on the wheel")
     else:
-        severity = "INFO"
-        cb       = (f"Bit of a breeze building out there — "
-                    f"{peak:.0f} mph gusts possible, keep two hands on the wheel")
+        severity = "WARNING"
+        cb       = (f"Heads up driver — winds running {peak:.0f} mph out there, "
+                    f"keep two hands on the wheel and watch that trailer")
 
     return _alert(
         "high_wind", severity,

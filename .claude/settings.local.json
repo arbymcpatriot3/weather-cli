@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python platforms/windows/main.py test-tts)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python *)",
+      "Bash(PYTHONIOENCODING=utf-8 python tests/test_display_alerts.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python tests/test_tts.py)",
+      "Bash(PYTHONIOENCODING=utf-8 python tests/test_hazards.py)",
+      "Bash(where iscc *)",
+      "Bash(where \"Inno Setup Compiler\")",
+      "Bash(pip install *)",
+      "Bash(py -3.11 -m pip install pyinstaller)",
+      "Bash(py *)",
+      "Read(//c/Program Files \\(x86\\)/Inno Setup 6/**)",
+      "Read(//c/Program Files/Inno Setup 6/**)",
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" CleanShotSetup.iss)",
+      "Bash(./cleanshot.exe --version)",
+      "Bash(dist/cleanshot.exe --version)",
+      "Bash(PYTHONPATH=/d/Documents/weather-cli/clean-shot py *)",
+      "Bash(PYTHONPATH=/d/Documents/weather-cli/clean-shot grep -i \"display\" /d/Documents/weather-cli/clean-shot/build/cleanshot/warn-cleanshot.txt)",
+      "Bash(cat)",
+      "Bash(cp /tmp/pyproject_cs.toml /d/Documents/weather-cli/clean-shot/pyproject.toml)",
+      "Bash(xxd)",
+      "Bash(echo \"EXE_EXIT:$?\")",
+      "Bash(PYTHONIOENCODING=utf-8 python tests/test_alerts.py)",
+      "Bash(echo \"INNO:$?\")",
+      "Bash(echo \"EXE:$?\")",
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" /d/Documents/weather-cli/clean-shot/CleanShotSetup.iss)"
+    ]
+  }
+}

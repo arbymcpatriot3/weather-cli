@@ -86,10 +86,32 @@ def severity_icon(severity: str) -> str:
 
 # ── Box drawing ───────────────────────────────────────────────────────────────
 
+def _wrap_text(text: str, max_len: int) -> list:
+    """Word-wrap plain text to at most max_len chars per line."""
+    if len(text) <= max_len:
+        return [text]
+    result, line = [], ""
+    for word in text.split():
+        if not line:
+            line = word[:max_len]
+            if len(word) > max_len:
+                result.append(line)
+                line = word[max_len:]
+        elif len(line) + 1 + len(word) <= max_len:
+            line = line + " " + word
+        else:
+            result.append(line)
+            line = word
+    if line:
+        result.append(line)
+    return result or [text[:max_len]]
+
+
 def _box(lines: list, severity: str = "CRITICAL", width: int = 0) -> str:
     """
     Build an ASCII box around the given lines.
-    Width defaults to actual terminal width (uncapped — supports 36-char phones).
+    Width comes from shutil.get_terminal_size() — supports 36-char phones.
+    Long lines are word-wrapped to fit inside the box.
     Returns the complete box as a single string (newlines included).
     """
     import re as _re
@@ -100,18 +122,15 @@ def _box(lines: list, severity: str = "CRITICAL", width: int = 0) -> str:
     color  = severity_color(severity)
     reset  = Style.RESET_ALL if _COLORAMA else ""
 
-    # EMERGENCY: add blink to the color codes when colorama is available
     if severity.upper() == "EMERGENCY" and _COLORAMA:
-        color = "\033[5m" + color   # ANSI blink prepended
+        color = "\033[5m" + color
 
     padded = []
     for line in lines:
         plain = _re.sub(r'\x1b\[[0-9;]*m', '', line)
-        if len(plain) > inner:
-            line  = plain[:max(1, inner - 1)] + "…"
-            plain = line
-        pad = max(0, inner - len(plain))
-        padded.append(f"║ {line}{' ' * pad} ║")
+        for wline in _wrap_text(plain, inner):
+            pad = max(0, inner - len(wline))
+            padded.append(f"║ {wline}{' ' * pad} ║")
 
     bar    = "═" * (w - 2)
     result = [f"{color}╔{bar}╗{reset}"]

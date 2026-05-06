@@ -82,7 +82,7 @@ def _save_local_store(reports: list) -> None:
     HAZARD_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = HAZARD_STORE_PATH.with_suffix(".tmp")
     tmp.write_text(json.dumps(reports))
-    tmp.rename(HAZARD_STORE_PATH)
+    tmp.replace(HAZARD_STORE_PATH)
 
 
 def clear_local_store() -> None:

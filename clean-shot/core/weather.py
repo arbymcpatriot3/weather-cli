@@ -252,10 +252,44 @@ def cmd_json(args, config, width):
 
 def cmd_alerts(args, config, width):
     lat, lon, city = resolve_location(args, config)
-    alerts = fetch_alerts(lat, lon)
-    if alerts:
-        display_alerts(alerts, width)
-    else:
+
+    # ── 1. NWS official alerts (network) ─────────────────────────────────────
+    nws_alerts = fetch_alerts(lat, lon)
+    if nws_alerts:
+        display_alerts(nws_alerts, width)
+
+    # ── 2. Offline road-condition detectors (always available) ────────────────
+    road_alerts = []
+    if _ALERTS_OK:
+        data_str, cache_age = get_weather_data(lat, lon, getattr(args, "fresh", False))
+        if data_str:
+            parsed = build_parsed(data_str, city, cache_age, config)
+            road_alerts = get_road_alerts(lat, lon, parsed, config) or []
+
+    if road_alerts:
+        print()
+        print("─" * width)
+        print("  Road Conditions  (offline detectors)")
+        print("─" * width)
+        try:
+            from colorama import Fore, Style as _Style
+            _SEV_COLOR = {"CRITICAL": Fore.RED, "WARNING": Fore.YELLOW, "INFO": Fore.CYAN}
+        except ImportError:
+            _SEV_COLOR = {}
+            _Style     = None
+        for a in road_alerts:
+            sev   = a.get("severity", "INFO")
+            atype = a.get("type", "").replace("_", " ").title()
+            msg   = a.get("message", "")
+            icon  = {"CRITICAL": "⛔", "WARNING": "⚠️", "INFO": "ℹ️"}.get(sev, "•")
+            clr   = _SEV_COLOR.get(sev, "")
+            rst   = (_Style.RESET_ALL if _Style else "")
+            print(f"  {icon} {clr}[{sev}]{rst} {atype}")
+            if msg:
+                print(f"      {msg}")
+
+    # ── All-clear only when both sources are empty ────────────────────────────
+    if not nws_alerts and not road_alerts:
         print(f"✓  No active weather alerts for {city}")
 
 
@@ -1181,14 +1215,36 @@ def _display_road_section(lat, lon, parsed, config, width):
         print("─" * width)
         print("  Road Conditions  (offline detectors)")
         print("─" * width)
+
+        try:
+            from colorama import Fore, Style as _Style
+            _SEV_COLOR = {"CRITICAL": Fore.RED, "WARNING": Fore.YELLOW, "INFO": Fore.CYAN}
+        except ImportError:
+            _SEV_COLOR = {}
+            _Style     = None
+
         for a in road_alerts:
             sev   = a.get("severity", "INFO")
             atype = a.get("type", "").replace("_", " ").title()
             msg   = a.get("message", "")
             icon  = {"CRITICAL": "⛔", "WARNING": "⚠️", "INFO": "ℹ️"}.get(sev, "•")
-            print(f"  {icon} [{sev}] {atype}")
+            clr   = _SEV_COLOR.get(sev, "")
+            rst   = (_Style.RESET_ALL if _Style else "")
+            print(f"  {icon} {clr}[{sev}]{rst} {atype}")
             if msg:
                 print(f"      {msg}")
+
+        # Speak WARNING and CRITICAL road alerts using the CB voice text
+        if config.get("tts_enabled", False):
+            try:
+                from core.tts import speak
+                for a in road_alerts:
+                    sev = a.get("severity", "INFO")
+                    cb  = a.get("cb_voice", "")
+                    if sev in ("CRITICAL", "WARNING") and cb:
+                        speak(cb, config)
+            except Exception:
+                pass
 
     # 7. DOT/511 advisories (solo_pro+)
     if incidents and _DOT511_OK:
@@ -1208,6 +1264,16 @@ def _display_road_section(lat, lon, parsed, config, width):
         print(f"  🟢  You've got a clean shot, good buddy!")
         print(f"      Road is clear — keep the shiny side up.")
         print(f"  {bar}")
+        if config.get("tts_enabled", False):
+            try:
+                from core.tts import speak
+                speak(
+                    "Welcome to Clean Shot. "
+                    "Your roads are clear and the weather is good, good buddy!",
+                    config,
+                )
+            except Exception:
+                pass
 
     # 9. Parking runway (solo_pro+)
     if _PARKING_OK:

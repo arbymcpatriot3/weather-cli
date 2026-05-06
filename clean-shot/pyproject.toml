@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cleanshot-local"
+version = "3.0.6"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["display*", "core*", "claude*", "platforms*"]
