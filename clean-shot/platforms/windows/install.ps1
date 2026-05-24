@@ -1,5 +1,5 @@
-# platforms/windows/install.ps1 — Clean Shot Windows Installer
-# Blue Collar Nation LLC — cleanshothq.com
+﻿# platforms/windows/install.ps1 â€” Clean Shot Windows Installer
+# Blue Collar Nation LLC â€” cleanshothq.com
 #
 # One-line install in PowerShell (no admin required):
 #   iwr -useb https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/windows/install.ps1 | iex
@@ -24,21 +24,21 @@ function Refresh-Path {
     $env:PATH = "$m;$u"
 }
 
-# ── Header ─────────────────────────────────────────────────────────────────────
+# â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
-Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
-Write-Host "  Clean Shot — Windows Installer       " -ForegroundColor Cyan
+Write-Host "  â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”" -ForegroundColor Cyan
+Write-Host "  Clean Shot â€” Windows Installer       " -ForegroundColor Cyan
 Write-Host "  Built for the road, not the boardroom"
-Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+Write-Host "  â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”" -ForegroundColor Cyan
 Write-Host ""
 
-# ── STEP 1: Safety check — never run from System32 ────────────────────────────
+# â”€â”€ STEP 1: Safety check â€” never run from System32 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $here = (Get-Location).Path
 if ($here -like "*System32*" -or $here -like "*system32*") {
     Set-Location "$env:USERPROFILE\Documents"
 }
 
-# ── STEP 2: Find or install Python ────────────────────────────────────────────
+# â”€â”€ STEP 2: Find or install Python â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 info "Checking Python..."
 $pyExe  = $null
 $pyArgs = @()
@@ -91,7 +91,7 @@ if (-not $pyExe) {
             $pyExe = $pyPath; $pyArgs = @()
             ok "Python 3.11 installed"
         } else {
-            warn "Python install pending — may need to reopen PowerShell and re-run"
+            warn "Python install pending â€” may need to reopen PowerShell and re-run"
         }
     }
 }
@@ -101,7 +101,7 @@ if ($pyExe) {
     ok "Python ready: $("$vShow".Trim())"
 }
 
-# ── STEP 3: Find or install Git ───────────────────────────────────────────────
+# â”€â”€ STEP 3: Find or install Git â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 info "Checking Git..."
 $git = Get-Command git -ErrorAction SilentlyContinue
 if (-not $git) {
@@ -113,13 +113,13 @@ if (-not $git) {
     if ($git) {
         ok "Git installed"
     } else {
-        warn "Git install pending — may need to reopen PowerShell and re-run"
+        warn "Git install pending â€” may need to reopen PowerShell and re-run"
     }
 } else {
     ok "Git ready"
 }
 
-# ── STEP 4: Clone or update repo ──────────────────────────────────────────────
+# â”€â”€ STEP 4: Clone or update repo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
 info "Setting up Clean Shot..."
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\Documents" | Out-Null
@@ -137,7 +137,7 @@ if (Test-Path "$INSTALL_DIR\.git") {
     ok "Clean Shot downloaded"
 }
 
-# ── STEP 5: Install Python packages ───────────────────────────────────────────
+# â”€â”€ STEP 5: Install Python packages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
 info "Installing Python packages..."
 if ($pyExe) {
@@ -153,11 +153,11 @@ if ($pyExe) {
         ok "Packages installed (requests, colorama, pywin32, pyttsx3)"
     } else {
         ok "Packages installed (requests, colorama, pywin32)"
-        warn "pyttsx3 install issue — run: py -3.11 -m pip install pyttsx3"
+        warn "pyttsx3 install issue â€” run: py -3.11 -m pip install pyttsx3"
     }
 }
 
-# ── STEP 6: Create cleanshot.bat launcher ─────────────────────────────────────
+# â”€â”€ STEP 6: Create cleanshot.bat launcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 New-Item -ItemType Directory -Force -Path $BIN_DIR | Out-Null
 $batPath = "$BIN_DIR\cleanshot.bat"
 $pyLine = if ($pyArgs.Count -gt 0) { "$pyExe $($pyArgs -join ' ')" } else { "$pyExe" }
@@ -165,7 +165,7 @@ $batLines = "@echo off", "cd /d `"$INSTALL_DIR\clean-shot`"", "$pyLine platforms
 [System.IO.File]::WriteAllText($batPath, ($batLines -join "`r`n") + "`r`n", [System.Text.Encoding]::ASCII)
 ok "Launcher: $batPath"
 
-# ── STEP 7: Add PowerShell function to profile ────────────────────────────────
+# â”€â”€ STEP 7: Add PowerShell function to profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $profilePath = $PROFILE
 if (-not $profilePath) {
     $profilePath = "$env:USERPROFILE\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
@@ -192,7 +192,7 @@ function cleanshot {
     ok "PowerShell profile ready"
 }
 
-# ── STEP 8: Run doctor ────────────────────────────────────────────────────────
+# â”€â”€ STEP 8: Run doctor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
 info "Checking Clean Shot..."
 if ($pyExe) {
@@ -202,17 +202,17 @@ if ($pyExe) {
     if ($doctor) { $doctor | ForEach-Object { info "$_" } }
 }
 
-# ── Success ────────────────────────────────────────────────────────────────────
+# â”€â”€ Success â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
-Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
+Write-Host "  â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”" -ForegroundColor Green
 Write-Host "  Clean Shot installed!               " -ForegroundColor Green
 Write-Host ""
 info "For help:  cleanshot help"
 info "Support:   support@cleanshothq.com"
-Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
+Write-Host "  â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”" -ForegroundColor Green
 Write-Host ""
 
-# ── Launch Clean Shot ──────────────────────────────────────────────────────────
+# â”€â”€ Launch Clean Shot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 info "Starting Clean Shot..."
 Write-Host ""
 if ($pyExe) {
@@ -220,3 +220,4 @@ if ($pyExe) {
     & $pyExe ($pyArgs + @("platforms\windows\main.py")) 2>&1
     Pop-Location
 }
+

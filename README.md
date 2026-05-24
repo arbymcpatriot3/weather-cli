@@ -9,7 +9,6 @@ Full-featured on a phone screen. Fast on 2G.
 ## What's in v3.0
 
 - Weather + 7 road alert detectors (black ice, bridge freeze, fog, flood, diesel gel, high wind, mudslide)
-- Community hazard reports with GPS geo-confirmation
 - DOT/511 feeds all 50 states
 - Smart parking runway (HOS-aware)
 - HOS guardian — FMCSA 11/14/70 hour advisory tracking
