@@ -11,11 +11,6 @@ import sys
 CONFIG_PATH = Path.home() / ".config" / "clean-shot.conf"
 VERSION     = "3.0.6"
 
-# 
-"road511_api_key": "r511_ce239b2c70f846b3da9c4949c6082f9d35422c5422d29bff95e2d963ad0a5d1a",
-"road511_enabled": True,
-"road511_radius_km": 80,   # ~50 miles — good for truckers
-
 _DEFAULTS = {
     # Location
     "latitude":          None,
