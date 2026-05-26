@@ -3,7 +3,8 @@
 # Blue Collar Nation LLC — cleanshothq.com
 #
 # One-line install in Termux:
-#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/android/install_termux.sh | bash
+#   curl -fsSL 
+curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/android/install_termux.sh \ | tr -d '\r' | bash
 
 INSTALL_DIR="$HOME/CleanShot"
 BIN_DIR="$HOME/bin"
