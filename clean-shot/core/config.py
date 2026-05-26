@@ -9,12 +9,7 @@ import json
 import sys
 
 CONFIG_PATH = Path.home() / ".config" / "clean-shot.conf"
-VERSION     = "3.0.6"
-
-# 
-"road511_api_key": "r511_ce239b2c70f846b3da9c4949c6082f9d35422c5422d29bff95e2d963ad0a5d1a",
-"road511_enabled": True,
-"road511_radius_km": 80,   # ~50 miles — good for truckers
+VERSION     = "3.0.9"
 
 _DEFAULTS = {
     # Location
@@ -26,9 +21,23 @@ _DEFAULTS = {
     "units":                 "imperial",
     "display_width_override": None,   # int or None — force a width (36–300)
     # Vehicle
-    "vehicle_height_ft": None,
+    "vehicle_height_ft": None,        # set during setup or via settings height
+    "vehicle_weight_lbs": 80000,      # gross vehicle weight (legal max)
+    "vehicle_length_ft":  75,         # total rig length
     "vehicle_type":      "semi",      # semi | box | flatbed | tanker | rv
     "fuel_type":         "diesel",    # diesel | gasoline | electric | hybrid | other
+    # Road511
+    "road511_api_key":   "r511_ce239b2c70f846b3da9c4949c6082f9d35422c5422d29bff95e2d963ad0a5d1a",
+    "road511_enabled":   True,
+    "road511_radius_km": 80,          # ~50 miles — good for truckers
+    # Route safety
+    "last_route_origin": None,        # "lat,lon"
+    "last_route_dest":   None,
+    # Feature display preferences
+    "show_cameras":         False,    # off by default — bandwidth concern
+    "show_weigh_stations":  True,
+    "show_bridge_warnings": True,
+    "show_truck_parking":   True,
     # Alerts
     "wind_alert_mph":    40,
     # Features
@@ -216,6 +225,22 @@ def first_run_setup(config: dict) -> dict:
             break
         print("     Enter 1–7")
 
+    # ── Q4: Vehicle height (for bridge clearance warnings) ────────────────────
+    print()
+    print("  4. Your vehicle height? (for bridge clearance warnings)")
+    print("     Press Enter for standard 13'6\" semi height:")
+    try:
+        height_str = input("     > ").strip()
+    except (EOFError, KeyboardInterrupt):
+        height_str = ""
+    if height_str:
+        try:
+            config["vehicle_height_ft"] = float(height_str)
+        except ValueError:
+            config["vehicle_height_ft"] = 13.5
+    else:
+        config["vehicle_height_ft"] = 13.5
+
     save_config(config)
 
     # ── Welcome screen ────────────────────────────────────────────────────────
@@ -311,6 +336,9 @@ def show_settings(config: dict, args: list):
     print("  cleanshot fix-voice                         Restore natural voice")
     print("  cleanshot settings location                 Change default location")
     print("  cleanshot settings vehicle semi|box|flatbed|tanker|rv")
+    print("  cleanshot settings weight 80000            Set GVW in pounds")
+    print("  cleanshot settings road511-key <key>       Set Road511 API key")
+    print("  cleanshot settings cameras on|off          Show live camera links")
     print()
 
     if len(args) < 2:
@@ -443,6 +471,28 @@ def show_settings(config: dict, args: list):
                     print("  Run: cleanshot voices  to see available voices")
             except ImportError:
                 print("Voice selection only available on Linux.")
+
+    elif key == "weight" and len(args) >= 3:
+        try:
+            w = int(args[2])
+            if 10000 <= w <= 200000:
+                config["vehicle_weight_lbs"] = w
+                save_config(config)
+                print(f"✓ GVW set to {w:,} lbs")
+            else:
+                print("Weight must be 10,000–200,000 lbs")
+        except ValueError:
+            print("Invalid weight. Example: cleanshot settings weight 80000")
+
+    elif key == "road511-key" and len(args) >= 3:
+        config["road511_api_key"] = args[2].strip()
+        save_config(config)
+        print(f"✓ Road511 API key set")
+
+    elif key == "cameras" and len(args) >= 3:
+        config["show_cameras"] = args[2].lower() in ("on", "yes", "true", "1")
+        save_config(config)
+        print(f"✓ Camera links {'enabled' if config['show_cameras'] else 'disabled'}")
 
     elif key == "location":
         from core.api import geocode_location

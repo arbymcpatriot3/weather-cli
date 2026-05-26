@@ -24,6 +24,13 @@ _CB_VOICE_ALERTS = {
     "hazard_reported": "Got a community report ahead — eyes up and slow your roll",
     "hos_warning":     "You're burning daylight on your clock good buddy — start looking for a spot",
     "parking_ahead":   "Got a truck stop in your runway — might be worth a look",
+    "bridge_clearance": "Watch your roof good buddy — low clearance bridge ahead, check your height",
+    "weigh_open":       "Chicken coop's open ahead driver — get your paperwork ready",
+    "road_closure":     "Road's shut down up there — find another way around",
+    "chain_control":    "Chain law in effect ahead good buddy — wrap up those tires",
+    "weight_restrict":  "Weight restriction on that road driver — check your gross before you roll",
+    "incident":         "Got a road incident ahead good buddy — eyes up and slow your roll",
+    "weather_advisory": "Weather advisory on your route driver — check conditions before you push",
 }
 
 # ── Hazard Parsing Prompt ────────────────────────────────────────────────────

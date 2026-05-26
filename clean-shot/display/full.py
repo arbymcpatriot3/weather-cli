@@ -464,3 +464,202 @@ def display_regional(cities: list, width: int):
             d  = _trunc(desc, max(8, w - name_w - 16))
             print(f"  {_trunc(name, name_w):<{name_w}}  {tc}{temp:>5.1f}°F{Style.RESET_ALL}  {d}")
     print()
+
+
+# ── Road511 Display Functions ─────────────────────────────────────────────────
+
+def display_route_safety(report: dict, config: dict, width: int) -> None:
+    """Display the full route safety report from check_route_safety()."""
+    w    = width
+    mode = display_mode(w)
+
+    print()
+    if mode == "ultra_compact":
+        print(separator(w, "━"))
+        print(_trunc("ROUTE SAFETY", w).center(w))
+        print(separator(w, "━"))
+    else:
+        inner = w - 4
+        print("  ┌" + "─" * inner + "┐")
+        label = _trunc("  ROUTE SAFETY CHECK", inner)
+        print(f"  │{label:<{inner}}│")
+        print("  └" + "─" * inner + "┘")
+
+    print()
+
+    if not report.get("available"):
+        reason = report.get("reason", "unavailable")
+        if reason == "no_api_key":
+            print(f"  Road511 not configured.")
+            print(f"  Run: cleanshot settings road511-key <your-key>")
+        else:
+            print(f"  Road511 unavailable: {reason}")
+        print()
+        return
+
+    safe = report.get("safe", True)
+    if safe:
+        status_color = Fore.GREEN
+        status_text  = "Route appears CLEAR"
+        status_icon  = "✅"
+    else:
+        status_color = Fore.RED
+        status_text  = "HAZARDS DETECTED"
+        status_icon  = "🚨"
+
+    print(f"  {status_color}{status_icon} {status_text}{Style.RESET_ALL}")
+
+    # Critical items
+    critical = report.get("critical", [])
+    if critical:
+        print()
+        for item in critical[:5]:
+            print(f"  {Fore.RED}⚠  {_trunc(item, w - 6)}{Style.RESET_ALL}")
+
+    # Bridge clearances
+    bridge_alerts = report.get("bridge_alerts", [])
+    if config.get("show_bridge_warnings", True):
+        print()
+        if mode != "ultra_compact":
+            print(f"  Bridge Clearances")
+            print("  " + separator(min(w - 4, 40), "─"))
+        if bridge_alerts:
+            for b in bridge_alerts[:5]:
+                road = b.get("road", "Unknown road")
+                clr  = b.get("clearance_ft", 0)
+                line = f"  ⚠  {road} — {clr:.1f} ft clearance  LOW CLEARANCE"
+                print(f"{Fore.RED}{_trunc(line, w)}{Style.RESET_ALL}")
+        else:
+            print(f"  {Fore.GREEN}✓  All bridges within radius: OK{Style.RESET_ALL}")
+
+    # Active incidents
+    incidents = report.get("incidents", [])
+    if incidents:
+        print()
+        if mode != "ultra_compact":
+            print(f"  Active Incidents")
+            print("  " + separator(min(w - 4, 40), "─"))
+        _SEV_COLOR = {"critical": Fore.RED, "high": Fore.RED,
+                      "medium": Fore.YELLOW, "low": Fore.WHITE}
+        for inc in incidents[:5]:
+            sev  = inc.get("severity", "low")
+            road = inc.get("road") or inc.get("highway") or ""
+            desc = inc.get("description", "")
+            col  = _SEV_COLOR.get(sev, Fore.WHITE)
+            sev_tag = {"critical": "[C]", "high": "[M]",
+                       "medium": "[m]", "low": "[-]"}.get(sev, "[-]")
+            road_str = f" {road}" if road else ""
+            line = f"  {sev_tag}{road_str} {desc}"
+            print(f"  {col}{_trunc(line.strip(), w - 2)}{Style.RESET_ALL}")
+
+    # Weigh stations
+    weigh = report.get("weigh_stations", [])
+    if weigh and config.get("show_weigh_stations", True):
+        display_weigh_stations(weigh, w)
+
+    # Truck parking
+    parking = report.get("truck_parking", [])
+    if parking and config.get("show_truck_parking", True):
+        print()
+        if mode != "ultra_compact":
+            print(f"  Truck Parking (nearest {len(parking)})")
+            print("  " + separator(min(w - 4, 40), "─"))
+        for stop in parking:
+            name = stop.get("name", "Truck Stop")
+            road = stop.get("road", "")
+            dist = stop.get("distance_miles", 0)
+            road_str = f" — {road}" if road else ""
+            line = f"  {_trunc(name, 30)}{road_str}  ({dist:.0f} mi)"
+            print(_trunc(line, w))
+
+    print()
+
+
+def display_bridge_alerts(bridges: list, vehicle_height_ft: float,
+                          width: int) -> None:
+    """Standalone display for bridge clearance alerts."""
+    w    = width
+    mode = display_mode(w)
+
+    print()
+    if mode == "ultra_compact":
+        print(separator(w, "─"))
+        print(_trunc("BRIDGE CLEARANCES", w).center(w))
+    else:
+        print(f"  Bridge Clearances (vehicle height: {vehicle_height_ft:.1f} ft)")
+        print("  " + separator(min(w - 4, 50), "─"))
+
+    if not bridges:
+        print(f"  {Fore.GREEN}✓  No bridge data available{Style.RESET_ALL}")
+        print()
+        return
+
+    flagged   = [b for b in bridges if b.get("flagged")]
+    ok_count  = len(bridges) - len(flagged)
+
+    for b in flagged:
+        road = b.get("road", "Unknown")
+        name = b.get("name", "")
+        clr  = b.get("clearance_ft", 0)
+        wlim = b.get("weight_limit_tons")
+        name_str = f" ({name})" if name else ""
+        wlim_str = f"  Weight limit: {wlim:.0f} tons" if wlim else ""
+        line1 = f"  ⚠  {road}{name_str} — {clr:.1f} ft clearance  LOW CLEARANCE"
+        print(f"{Fore.RED}{_trunc(line1, w)}{Style.RESET_ALL}")
+        if wlim_str and mode in ("standard", "full"):
+            print(f"{Fore.YELLOW}{_trunc('     ' + wlim_str.strip(), w)}{Style.RESET_ALL}")
+
+    if ok_count > 0:
+        plural = "s" if ok_count != 1 else ""
+        print(f"  {Fore.GREEN}✓  {ok_count} other bridge{plural} within radius: OK{Style.RESET_ALL}")
+
+    print()
+
+
+def display_weigh_stations(stations: list, width: int) -> None:
+    """Display weigh station open/closed status with distance."""
+    w    = width
+    mode = display_mode(w)
+
+    print()
+    if mode != "ultra_compact":
+        print(f"  Weigh Stations (next 50 mi)")
+        print("  " + separator(min(w - 4, 40), "─"))
+
+    if not stations:
+        print("  No weigh station data available")
+        print()
+        return
+
+    for ws in stations[:8]:
+        status  = ws.get("status", "unknown").upper()
+        name    = ws.get("name", "Weigh Station")
+        road    = ws.get("road", "")
+        dirn    = ws.get("direction", "")
+        dist    = ws.get("distance_miles", 0)
+
+        if status == "OPEN":
+            sc = Fore.GREEN
+        elif status == "CLOSED":
+            sc = Fore.RED
+        else:
+            sc = Fore.YELLOW
+
+        road_dir = ""
+        if road and dirn and dirn != "unknown":
+            road_dir = f"{road} {dirn.capitalize()}"
+        elif road:
+            road_dir = road
+
+        dist_str = f"  ({dist:.0f} mi)" if dist else ""
+        if mode == "ultra_compact":
+            line = f"{status[:1]} {_trunc(name, w - 8)}{dist_str}"
+        else:
+            line = f"  {sc}{status:<6}{Style.RESET_ALL}  {_trunc(name, 28)}"
+            if road_dir:
+                line += f" — {_trunc(road_dir, 16)}"
+            line += dist_str
+
+        print(_trunc(line, w))
+
+    print()

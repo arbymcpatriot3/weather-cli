@@ -17,6 +17,10 @@ CACHE_TIME        = 600    # 10 min — weather data
 ALERT_CACHE_TIME  = 300    # 5 min  — NOAA alerts refresh faster
 HAZARD_CACHE_TIME = 120    # 2 min  — community hazard reports
 DOT511_CACHE_TIME = 900    # 15 min — DOT/511 feeds (slow-changing)
+BRIDGE_CACHE_TIME = 86400  # 24h   — bridge clearances rarely change
+TRUCK_ROUTE_CACHE = 3600   # 1h    — truck routing
+CAMERA_CACHE_TIME = 120    # 2min  — cameras are near-live
+FEATURE_CACHE_TIME = 900   # 15min — weigh stations, parking features
 
 
 # ── Internal ──────────────────────────────────────────────────────────────────
@@ -73,3 +77,17 @@ def dot511_cache_path(lat: float, lon: float) -> Path:
 
 def parking_cache_path(lat: float, lon: float) -> Path:
     return _cache_path(lat, lon, "_parking")
+
+def bridge_cache_path(lat: float, lon: float) -> Path:
+    return _cache_path(lat, lon, "_bridges")
+
+def route_cache_path(origin_lat: float, origin_lon: float,
+                     dest_lat: float, dest_lon: float) -> Path:
+    key = hashlib.sha256(
+        f"{origin_lat:.3f},{origin_lon:.3f},{dest_lat:.3f},{dest_lon:.3f}".encode()
+    ).hexdigest()[:16]
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return CACHE_DIR / f"cs_{key}_route.json"
+
+def feature_cache_path(lat: float, lon: float, ftype: str) -> Path:
+    return _cache_path(lat, lon, f"_{ftype}")

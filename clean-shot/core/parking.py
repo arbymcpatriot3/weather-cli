@@ -363,6 +363,58 @@ def get_all_stops(lat: float, lon: float,
     return stops
 
 
+def _merge_parking_stops(base: list, extra: list) -> list:
+    """Merge two stop lists, deduplicating by proximity (< 0.1 mi = same stop)."""
+    merged = list(base)
+    for new_stop in extra:
+        nlat = new_stop.get("lat", 0)
+        nlon = new_stop.get("lon", 0)
+        duplicate = False
+        for existing in merged:
+            elat = existing.get("lat", 0)
+            elon = existing.get("lon", 0)
+            try:
+                if haversine(nlat, nlon, elat, elon) < 0.1:
+                    duplicate = True
+                    break
+            except Exception:
+                pass
+        if not duplicate:
+            merged.append(new_stop)
+    return merged
+
+
+def get_parking_options(lat: float, lon: float, config: dict = None) -> list:
+    """Return all parking stops, augmenting with Road511 data if available."""
+    if config is None:
+        config = {}
+
+    stops = get_all_stops(lat, lon, 50.0, config)
+
+    if config.get("road511_api_key") and config.get("road511_enabled"):
+        try:
+            from core.road511 import fetch_truck_parking
+            r511_stops = fetch_truck_parking(lat, lon, config)
+            if r511_stops:
+                stops = _merge_parking_stops(stops, r511_stops)
+        except Exception:
+            pass
+
+    nearby = []
+    for s in stops:
+        try:
+            dist = haversine(lat, lon, s["lat"], s["lon"])
+        except Exception:
+            continue
+        if dist <= 50.0:
+            entry = dict(s)
+            entry["distance_mi"] = round(dist, 1)
+            nearby.append(entry)
+
+    nearby.sort(key=lambda s: s.get("distance_mi", 999))
+    return nearby
+
+
 def get_nearby_stops(lat: float, lon: float,
                      radius_miles: float = 50.0,
                      config: dict = None) -> list:

@@ -26,7 +26,12 @@
       "Bash(PYTHONIOENCODING=utf-8 python tests/test_alerts.py)",
       "Bash(echo \"INNO:$?\")",
       "Bash(echo \"EXE:$?\")",
-      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" /d/Documents/weather-cli/clean-shot/CleanShotSetup.iss)"
+      "Bash(\"/c/Program Files \\(x86\\)/Inno Setup 6/ISCC.exe\" /d/Documents/weather-cli/clean-shot/CleanShotSetup.iss)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(cd \"D:\\\\weather-cli\\\\clean-shot\"; $env:PYTHONIOENCODING = \"utf-8\"; python tests/test_dot511.py 2>&1)",
+      "PowerShell(cd \"D:\\\\weather-cli\\\\clean-shot\"; $env:PYTHONIOENCODING = \"utf-8\"; $results = @\\(\\); foreach \\($t in @\\(\"test_alerts\",\"test_gps\",\"test_tts\",\"test_hazards\",\"test_parking\",\"test_hos\",\"test_dot511\",\"test_display_alerts\",\"test_referral\"\\)\\) { $out = python \"tests/$t.py\" 2>&1; $last = \\($out | Select-Object -Last 3\\) -join \" | \"; $results += \"$t`: $last\" }; $results)",
+      "PowerShell(cd \"D:\\\\weather-cli\\\\clean-shot\"; $env:PYTHONIOENCODING = \"utf-8\"; python tests/test_parking.py 2>&1 | Select-Object -Last 6)",
+      "PowerShell(cd \"D:\\\\weather-cli\\\\clean-shot\"; $env:PYTHONIOENCODING = \"utf-8\"; python tests/test_tones.py 2>&1 | Select-Object -Last 4)"
     ]
   }
 }

@@ -4,7 +4,7 @@
 # end up in the PYZ as compiled modules regardless of analysis path quirks.
 
 import sys, importlib.util
-sys.path.insert(0, 'D:\\Documents\\weather-cli\\clean-shot')
+sys.path.insert(0, 'D:\\weather-cli\\clean-shot')
 
 _LOCAL_MODULES = [
     'display', 'display.full', 'display.display_alerts', 'display.route',
@@ -21,7 +21,7 @@ _LOCAL_MODULES = [
 
 a = Analysis(
     ['platforms\\windows\\main.py'],
-    pathex=['D:\\Documents\\weather-cli\\clean-shot'],
+    pathex=['D:\\weather-cli\\clean-shot'],
     binaries=[],
     datas=[
         ('core/i18n/en.json', 'core/i18n'),

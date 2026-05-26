@@ -94,6 +94,13 @@ try:
 except ImportError:
     _HOS_OK = False
 
+try:
+    from core.road511 import check_route_safety, fetch_bridges, fetch_weigh_stations
+    from display.full import display_route_safety, display_bridge_alerts, display_weigh_stations
+    _ROAD511_OK = True
+except ImportError:
+    _ROAD511_OK = False
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -336,6 +343,107 @@ def cmd_route(args, config, width):
     height = config.get("vehicle_height_ft")
     if height:
         print(f"🚛 Vehicle height: {height} ft — check bridge clearances along route")
+
+
+def cmd_road_safety(args, config, width):
+    """cleanshot route (no dest) — full Road511 safety check at current location."""
+    if not _ROAD511_OK:
+        print("  Road511 module not available.")
+        return
+
+    lat, lon, city = resolve_location(args, config)
+    print(f"  Checking route safety near {city}...")
+    report = check_route_safety(lat, lon, config)
+    display_route_safety(report, config, width)
+
+    if config.get("tts_enabled") and report.get("bridge_alerts"):
+        try:
+            from core.tts import speak_alert
+            for b in report["bridge_alerts"][:2]:
+                speak_alert("bridge_clearance", "CRITICAL", config, force=True)
+        except Exception:
+            pass
+
+
+def cmd_truck_routing(dest_str: str, args, config, width):
+    """cleanshot route <dest> — truck-safe routing to destination."""
+    if not _ROAD511_OK:
+        print("  Road511 module not available.")
+        return
+
+    lat, lon, city = resolve_location(args, config)
+
+    from core.api import geocode_location
+    dest_lat, dest_lon, dest_city = geocode_location(dest_str)
+    if dest_lat is None:
+        print(f"  Can't find destination: '{dest_str}'")
+        sys.exit(1)
+
+    config["last_route_origin"] = f"{lat:.4f},{lon:.4f}"
+    config["last_route_dest"]   = f"{dest_lat:.4f},{dest_lon:.4f}"
+    save_config(config)
+
+    print(f"  Checking truck routing: {city} → {dest_city}...")
+
+    from core.road511 import fetch_truck_routing
+    routing = fetch_truck_routing(
+        {"lat": lat, "lon": lon},
+        {"lat": dest_lat, "lon": dest_lon},
+        config,
+    )
+
+    print()
+    safe_icon = "✅" if routing.get("safe") else "🚨"
+    print(f"  {safe_icon} Truck Route: {city} → {dest_city}")
+    dist  = routing.get("distance_miles", 0)
+    dur   = routing.get("duration_min", 0)
+    staa  = " (STAA route)" if routing.get("staa_route") else ""
+    print(f"  Distance: {dist:.0f} mi  |  Est. drive: {dur:.0f} min{staa}")
+    print()
+
+    warnings = routing.get("warnings", [])
+    if warnings:
+        print("  Warnings:")
+        for w in warnings[:5]:
+            print(f"    ⚠  {w}")
+        print()
+
+    report = check_route_safety(lat, lon, config)
+    display_route_safety(report, config, width)
+
+
+def cmd_bridges(args, config, width):
+    """cleanshot bridges — bridge clearances within 50 miles."""
+    if not _ROAD511_OK:
+        print("  Road511 module not available.")
+        return
+    if not config.get("road511_api_key"):
+        print("  Road511 API key not set.")
+        print(f"  Run: {_cmd()} settings road511-key <key>")
+        return
+
+    lat, lon, city = resolve_location(args, config)
+    height = config.get("vehicle_height_ft", 13.5) or 13.5
+
+    print(f"  Fetching bridge clearances near {city}...")
+    bridges = fetch_bridges(lat, lon, config)
+    display_bridge_alerts(bridges, height, width)
+
+
+def cmd_weigh(args, config, width):
+    """cleanshot weigh — weigh station status in the next 50 miles."""
+    if not _ROAD511_OK:
+        print("  Road511 module not available.")
+        return
+    if not config.get("road511_api_key"):
+        print("  Road511 API key not set.")
+        print(f"  Run: {_cmd()} settings road511-key <key>")
+        return
+
+    lat, lon, city = resolve_location(args, config)
+    print(f"  Fetching weigh station status near {city}...")
+    stations = fetch_weigh_stations(lat, lon, config)
+    display_weigh_stations(stations, width)
 
 
 def cmd_map(args, config, width):
@@ -1328,13 +1436,23 @@ def main():
         cmd_alerts(args, config, width)
 
     elif cmd in ("route", "r"):
-        extra = args.extra
-        if len(extra) >= 2:
+        extra = args.extra or []
+        if len(extra) == 0:
+            cmd_road_safety(args, config, width)
+        elif len(extra) == 1:
+            cmd_truck_routing(extra[0], args, config, width)
+        else:
             args.route = [extra[0], extra[1]]
             cmd_route(args, config, width)
-        else:
-            print(f'Usage: {_cmd()} route "Start City" "End City"')
-            sys.exit(1)
+
+    elif cmd == "bridges":
+        cmd_bridges(args, config, width)
+
+    elif cmd in ("weigh", "weigh-stations", "weighstation"):
+        cmd_weigh(args, config, width)
+
+    elif cmd == "safety":
+        cmd_road_safety(args, config, width)
 
     elif cmd == "map":
         cmd_map(args, config, width)

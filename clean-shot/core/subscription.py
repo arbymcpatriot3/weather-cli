@@ -38,6 +38,11 @@ _FEATURE_TIER = {
     "fleet_dashboard":  "fleet",
     "api_access":       "pro_plus",
     "white_label":      "enterprise",
+    "route_safety":     "solo_pro",
+    "bridge_clearances":"solo_pro",
+    "weigh_stations":   "solo_pro",
+    "road511_routing":  "solo_pro",
+    "live_cameras":     "solo_pro",
 }
 
 _TIER_ORDER = ["free", "solo_pro", "pro_plus", "fleet", "enterprise"]
