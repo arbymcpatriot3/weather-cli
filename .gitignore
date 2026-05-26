@@ -9,3 +9,9 @@ dist/
 
 # Archives
 *.zip
+
+# Internal planning docs — not for public repo
+cleanshot_backlog.md
+cleanshot_road511_spec.md
+cleanshot_prefetch_spec.md
+cleanshot_v309_spec.md
