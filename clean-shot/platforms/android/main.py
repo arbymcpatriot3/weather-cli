@@ -18,12 +18,12 @@ if not os.environ.get("TMPDIR"):
     os.environ["TMPDIR"] = f"{_prefix}/tmp"
 
 # ── sys.path: allow running from any working directory ─────────────────────────
-_REPO_ROOT  = Path(__file__).resolve().parent.parent.parent   # weather-cli-2.0.0/
-_CLEAN_SHOT = _REPO_ROOT / "clean-shot"
+# __file__ = clean-shot/platforms/android/main.py
+# parent.parent.parent = clean-shot/  ← package root where core/, display/, etc. live
+_CLEAN_SHOT_DIR = Path(__file__).resolve().parent.parent.parent
 
-for _p in [str(_REPO_ROOT), str(_CLEAN_SHOT)]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if str(_CLEAN_SHOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_CLEAN_SHOT_DIR))
 
 # ── Pre-flight: report any missing optional dependencies ───────────────────────
 _MISSING = []
@@ -36,6 +36,21 @@ try:
 except ImportError:
     _MISSING.append("requests")
 
+# ── Known CLI commands — checked BEFORE any location lookup ───────────────────
+# If a positional arg matches one of these it is routed as a command.
+# Anything else is passed as --location to avoid geocoding command names.
+_KNOWN_COMMANDS = {
+    "full", "simple", "compact", "watch", "json", "map",
+    "alerts", "test-alerts", "testalerts", "alerts-test",
+    "morning",
+    "parking", "fuel", "route", "pretrip",
+    "test-tts", "testtts", "tts-test", "fix-voice", "fixvoice", "voices",
+    "doctor", "help", "settings", "version", "--version", "-v",
+    "update", "setup", "replaces",
+    "quit", "exit",
+}
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main():
@@ -43,6 +58,12 @@ def main():
         print(f"  ℹ  Missing packages: {', '.join(_MISSING)}")
         print("     Run: pkg install python && pip install " + " ".join(_MISSING))
         print()
+
+    # Guard: if the first positional arg is not a known command, rewrite as --location
+    if len(sys.argv) >= 2:
+        first = sys.argv[1]
+        if not first.startswith("-") and first.lower() not in _KNOWN_COMMANDS:
+            sys.argv = [sys.argv[0], "--location", first] + sys.argv[2:]
 
     try:
         from core.weather import main as _weather_main

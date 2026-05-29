@@ -2,9 +2,12 @@
 # Clean Shot — PyInstaller spec
 # display.full etc. are injected into a.pure directly via importlib so they
 # end up in the PYZ as compiled modules regardless of analysis path quirks.
+#
+# Build: cd CleanShot && pyinstaller clean-shot/cleanshot.spec
 
-import sys, importlib.util
-sys.path.insert(0, 'D:\\weather-cli\\clean-shot')
+import sys, os, importlib.util
+# SPECPATH is the directory containing this spec file (clean-shot/)
+sys.path.insert(0, SPECPATH)
 
 _LOCAL_MODULES = [
     'display', 'display.full', 'display.display_alerts', 'display.route',
@@ -20,12 +23,12 @@ _LOCAL_MODULES = [
 ]
 
 a = Analysis(
-    ['platforms\\windows\\main.py'],
-    pathex=['D:\\weather-cli\\clean-shot'],
+    [os.path.join(SPECPATH, 'platforms', 'windows', 'main.py')],
+    pathex=[SPECPATH],
     binaries=[],
     datas=[
-        ('core/i18n/en.json', 'core/i18n'),
-        ('core/i18n/es.json', 'core/i18n'),
+        (os.path.join(SPECPATH, 'core', 'i18n', 'en.json'), 'core/i18n'),
+        (os.path.join(SPECPATH, 'core', 'i18n', 'es.json'), 'core/i18n'),
     ],
     hiddenimports=[
         'win32com.client', 'win32com.server.policy', 'colorama', 'requests',
@@ -60,7 +63,7 @@ exe = EXE(
     a.datas,
     [],
     name='cleanshot',
-    icon='D:\\Documents\\weather-cli\\assets\\cleanshot.ico',
+    icon=os.path.join(SPECPATH, '..', 'assets', 'cleanshot.ico'),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

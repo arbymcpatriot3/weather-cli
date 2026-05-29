@@ -490,8 +490,9 @@ def display_route_safety(report: dict, config: dict, width: int) -> None:
     if not report.get("available"):
         reason = report.get("reason", "unavailable")
         if reason == "no_api_key":
-            print(f"  Road511 not configured.")
-            print(f"  Run: cleanshot settings road511-key <your-key>")
+            print(f"  Road511 data requires a CleanShot account.")
+            print(f"  Register for your free 30-day trial: cleanshot register")
+            print(f"  (Existing key? cleanshot settings road511-key <key>)")
         else:
             print(f"  Road511 unavailable: {reason}")
         print()
@@ -537,7 +538,7 @@ def display_route_safety(report: dict, config: dict, width: int) -> None:
     if incidents:
         print()
         if mode != "ultra_compact":
-            print(f"  Active Incidents")
+            print(f"  Active Incidents  [DOT/511]")
             print("  " + separator(min(w - 4, 40), "─"))
         _SEV_COLOR = {"critical": Fore.RED, "high": Fore.RED,
                       "medium": Fore.YELLOW, "low": Fore.WHITE}

@@ -4,7 +4,7 @@
 # Blue Collar Nation LLC — cleanshothq.com
 #
 # One-line install:
-#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/install.sh | sh
 
 set -e
 
@@ -28,7 +28,7 @@ if [ -n "${TERMUX_VERSION:-}" ] || ([ -n "${PREFIX:-}" ] && echo "$PREFIX" | gre
         sh "$SCRIPT_DIR/clean-shot/platforms/android/install_termux.sh"
     else
         printf "  Repo not found. Clone the repo first:\n"
-        printf "  git clone https://github.com/arbymcpatriot3/weather-cli.git\n\n"
+        printf "  git clone https://github.com/arbymcpatriot3/CleanShot.git\n\n"
         exit 1
     fi
 
@@ -39,7 +39,7 @@ elif [ "$(uname)" = "Darwin" ]; then
         sh "$SCRIPT_DIR/clean-shot/platforms/macos/install.sh"
     else
         printf "  Repo not found. Clone the repo first:\n"
-        printf "  git clone https://github.com/arbymcpatriot3/weather-cli.git\n\n"
+        printf "  git clone https://github.com/arbymcpatriot3/CleanShot.git\n\n"
         exit 1
     fi
 
@@ -50,7 +50,7 @@ else
         sh "$SCRIPT_DIR/clean-shot/platforms/linux/install.sh"
     else
         printf "  Repo not found. Clone the repo first:\n"
-        printf "  git clone https://github.com/arbymcpatriot3/weather-cli.git\n\n"
+        printf "  git clone https://github.com/arbymcpatriot3/CleanShot.git\n\n"
         exit 1
     fi
 fi

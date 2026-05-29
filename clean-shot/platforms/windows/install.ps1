@@ -2,7 +2,7 @@
 # Blue Collar Nation LLC â€” cleanshothq.com
 #
 # One-line install in PowerShell (no admin required):
-#   iwr -useb https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/windows/install.ps1 | iex
+#   iwr -useb https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/windows/install.ps1 | iex
 
 $ErrorActionPreference = "SilentlyContinue"
 trap { }
@@ -133,7 +133,7 @@ if (Test-Path "$INSTALL_DIR\.git") {
     if (Test-Path "$INSTALL_DIR") {
         Remove-Item -Recurse -Force "$INSTALL_DIR" -ErrorAction SilentlyContinue
     }
-    git clone "https://github.com/arbymcpatriot3/weather-cli.git" "$INSTALL_DIR" --quiet 2>&1 | Out-Null
+    git clone "https://github.com/arbymcpatriot3/CleanShot.git" "$INSTALL_DIR" --quiet 2>&1 | Out-Null
     ok "Clean Shot downloaded"
 }
 

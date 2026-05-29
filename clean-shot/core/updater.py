@@ -21,21 +21,26 @@ from pathlib import Path
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 VERSION_URL        = (
-    "https://raw.githubusercontent.com/arbymcpatriot3/weather-cli"
+    "https://raw.githubusercontent.com/arbymcpatriot3/CleanShot"
     "/main/clean-shot/VERSION"
 )
 UPDATE_INTERVAL_SEC = 86_400   # 24 hours
 
 # clean-shot/core/updater.py → parent.parent = clean-shot/ → parent = repo root
 _CLEAN_SHOT_DIR = Path(__file__).resolve().parent.parent   # clean-shot/
-_REPO_ROOT      = _CLEAN_SHOT_DIR.parent                   # weather-cli/ (git root)
+_REPO_ROOT      = _CLEAN_SHOT_DIR.parent                   # CleanShot/ (git root)
 _VERSION_FILE   = _CLEAN_SHOT_DIR / "VERSION"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _local_version() -> str:
-    """Read local VERSION file. Returns '0.0.0' on any failure."""
+    """Return local version. Reads config.VERSION (always correct), falls back to VERSION file."""
+    try:
+        from core.config import VERSION
+        return VERSION
+    except Exception:
+        pass
     try:
         return _VERSION_FILE.read_text().strip()
     except Exception:

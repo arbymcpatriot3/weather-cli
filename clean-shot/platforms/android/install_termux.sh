@@ -3,12 +3,11 @@
 # Blue Collar Nation LLC — cleanshothq.com
 #
 # One-line install in Termux:
-#   curl -fsSL 
-curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/android/install_termux.sh \ | bash
+#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/android/install_termux.sh | bash
 
 INSTALL_DIR="$HOME/CleanShot"
 BIN_DIR="$HOME/bin"
-REPO_URL="https://github.com/arbymcpatriot3/weather-cli.git"
+REPO_URL="https://github.com/arbymcpatriot3/CleanShot.git"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RED='\033[0;31m'; NC='\033[0m'
 ok()   { printf "${GREEN}  [OK]  %s${NC}\n" "$1"; }

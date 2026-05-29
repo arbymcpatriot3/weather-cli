@@ -24,12 +24,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install -r clean-shot/requirements.txt
+          pip install pyinstaller pywin32 pyttsx3
 
       - name: Build exe with PyInstaller
         run: |
-          pyinstaller --onefile --windowed --name CleanShot api.py
+          pyinstaller clean-shot/cleanshot.spec
 
       - name: Log in to Azure (federated)
         uses: azure/login@v2
@@ -56,4 +56,4 @@ jobs:
       - name: Upload signed exe to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/CleanShot.exe
+          files: dist/cleanshot.exe

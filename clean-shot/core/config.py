@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # core/config.py — Clean Shot: configuration management
-# Enhanced from weather-cli v2.0.0 config.py
+# Enhanced from the original v2.0.0 config.py (weather-cli)
 # New fields: subscription_tier, driver_id, referral_code, vehicle_type,
 #             home_base, tts_enabled, voice_enabled, offline_mode
 
@@ -9,7 +9,7 @@ import json
 import sys
 
 CONFIG_PATH = Path.home() / ".config" / "clean-shot.conf"
-VERSION     = "3.0.9"
+VERSION     = "3.0.11"
 
 _DEFAULTS = {
     # Location
@@ -27,7 +27,7 @@ _DEFAULTS = {
     "vehicle_type":      "semi",      # semi | box | flatbed | tanker | rv
     "fuel_type":         "diesel",    # diesel | gasoline | electric | hybrid | other
     # Road511
-    "road511_api_key":   "r511_ce239b2c70f846b3da9c4949c6082f9d35422c5422d29bff95e2d963ad0a5d1a",
+    "road511_api_key":   None,               # set via: cleanshot settings road511-key <key>
     "road511_enabled":   True,
     "road511_radius_km": 80,          # ~50 miles — good for truckers
     # Route safety

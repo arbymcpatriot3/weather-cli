@@ -5,14 +5,14 @@
 # iSH is a free Alpine Linux shell for iPhone/iPad (App Store).
 #
 # One-line install inside iSH:
-#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/ios/install_ish.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/ios/install_ish.sh | sh
 
 # Note: iSH uses /bin/sh (ash), not bash. No pipefail, no [[ ]].
 set -e
 
 INSTALL_DIR="$HOME/CleanShot"
 BIN_DIR="$HOME/bin"
-REPO_URL="https://github.com/arbymcpatriot3/weather-cli.git"
+REPO_URL="https://github.com/arbymcpatriot3/CleanShot.git"
 
 ok()   { printf "  [OK]  %s\n" "$1"; }
 warn() { printf "  [!]   %s\n" "$1"; }

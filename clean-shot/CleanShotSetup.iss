@@ -1,9 +1,9 @@
 ; Clean Shot — Inno Setup Script
 ; Blue Collar Nation LLC — cleanshothq.com
-; Version 3.0.6
+; Version 3.0.9
 
 #define AppName "Clean Shot"
-#define AppVersion "3.0.6"
+#define AppVersion "3.0.9"
 #define AppPublisher "Blue Collar Nation LLC"
 #define AppURL "https://cleanshothq.com"
 #define AppExeName "cleanshot.exe"
@@ -23,9 +23,9 @@ AllowNoIcons=yes
 ; No admin required — installs to user's AppData
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=D:\Documents\weather-cli\dist
+OutputDir=dist
 OutputBaseFilename=CleanShotSetup
-SetupIconFile=D:\Documents\weather-cli\assets\cleanshot.ico
+SetupIconFile=..\assets\cleanshot.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -44,7 +44,7 @@ Name: "desktopicon"; Description: "Create a &Desktop shortcut"; GroupDescription
 Name: "addtopath";   Description: "Add cleanshot to &PATH (run from any terminal)"; GroupDescription: "Command line:"; Flags: checkedonce
 
 [Files]
-Source: "D:\Documents\weather-cli\clean-shot\dist\cleanshot.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\cleanshot.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

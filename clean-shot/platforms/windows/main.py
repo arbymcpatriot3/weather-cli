@@ -233,9 +233,22 @@ def _menu() -> None:
     print(_DIV)
 
 
+def _ensure_console_size(cols: int = 120, lines: int = 50) -> None:
+    """Grow the console window to at least cols×lines on first interactive launch."""
+    try:
+        import subprocess
+        subprocess.run(
+            ["mode", "con:", f"cols={cols}", f"lines={lines}"],
+            shell=True,
+            capture_output=True,
+        )
+    except Exception:
+        pass
+
+
 def _interactive_loop() -> None:
     """Show the full weather report, then keep the window open with a menu."""
-
+    _ensure_console_size()
     _run([])   # full report on startup
 
     while True:

@@ -1,200 +1,557 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Clean Shot — Road intelligence for truck drivers. Windows laptop, Android, iOS.">
-    <title>Clean Shot HQ | Road Intelligence for Truckers</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CleanShot — Road intelligence for truck drivers. Real-time hazards, HOS tracking, DOT feeds. No ads, ever." />
+  <title>CleanShot HQ | Road Intelligence for Truckers</title>
+  <style>
+    :root {
+      --bg: #0d0f12;
+      --surface: #161a1f;
+      --surface2: #1e2329;
+      --border: #2a3040;
+      --accent: #f0a500;
+      --accent2: #e07b00;
+      --text: #e8eaf0;
+      --muted: #8892a4;
+      --green: #2ecc71;
+      --red: #e74c3c;
+      --blue: #4a9eff;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
 
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='15' y='45' width='70' height='25' rx='5' fill='%23f97316'/%3E%3Ccircle cx='30' cy='75' r='12' fill='%231f2937'/%3E%3Ccircle cx='70' cy='75' r='12' fill='%231f2937'/%3E%3Ctext x='50' y='38' font-size='28' text-anchor='middle' fill='%23f97316'%3E%F0%9F%9A%9B%3C/text%3E%3C/svg%3E" type="image/svg+xml">
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,15,18,0.96); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px;
+    }
+    .nav-logo { font-weight: 800; font-size: 1.1rem; color: var(--accent); letter-spacing: 0.03em; }
+    .nav-links { display: flex; gap: 1.25rem; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 0.88rem; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .nav-subscribe { background: var(--accent); color: #000 !important; padding: 6px 16px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; }
+    .nav-subscribe:hover { background: var(--accent2) !important; text-decoration: none !important; }
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        .hero-bg {
-            background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)),
-                        url('https://images.unsplash.com/photo-1593689952882-babc725e730e') center/cover no-repeat fixed;
-            background-position: center 30%;
-        }
-        .terminal-img {
-            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
-            border: 3px solid #27272a;
-        }
-    </style>
+    /* HERO */
+    .hero { text-align: center; padding: 5rem 2rem 4rem; border-bottom: 1px solid var(--border); }
+    .hero-badge { display: inline-block; background: var(--surface2); border: 1px solid var(--border); color: var(--accent); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 14px; border-radius: 20px; margin-bottom: 1.5rem; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; line-height: 1.15; margin-bottom: 1rem; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { font-size: 1.1rem; color: var(--muted); max-width: 560px; margin: 0 auto 2.5rem; }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { background: var(--accent); color: #000; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s, transform 0.1s; }
+    .btn-primary:hover { background: var(--accent2); text-decoration: none; transform: translateY(-1px); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 1rem; transition: background 0.2s; }
+    .btn-secondary:hover { background: var(--border); text-decoration: none; }
+    .btn-green { background: var(--green); color: #000; padding: 14px 28px; border-radius: 8px; font-weight: 700; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s, transform 0.1s; }
+    .btn-green:hover { background: #27ae60; text-decoration: none; transform: translateY(-1px); }
+    .hero-meta { margin-top: 1rem; font-size: 0.82rem; color: var(--muted); }
+    .hero-meta .good { color: var(--green); }
+
+    /* NO ADS BANNER */
+    .no-ads-bar {
+      background: linear-gradient(90deg, #0f1a0a, #1a2a0f, #0f1a0a);
+      border-top: 1px solid #2a4a1a; border-bottom: 1px solid #2a4a1a;
+      padding: 0.75rem 2rem; text-align: center;
+      font-size: 0.9rem; color: var(--green); font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .no-ads-bar span { color: var(--muted); font-weight: 400; margin-left: 0.5rem; }
+
+    /* SECTIONS */
+    section { padding: 4rem 2rem; max-width: 1000px; margin: 0 auto; }
+    .section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
+    h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 1rem; }
+    .divider { border: none; border-top: 1px solid var(--border); }
+
+    /* FEATURES */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; cursor: pointer; transition: border-color 0.2s; }
+    .feature-card:hover { border-color: var(--accent); }
+    .feature-card.coming { border-color: #2a3a2a; background: #0f1a0f; }
+    .feature-card.coming:hover { border-color: var(--green); }
+    .feature-card.pipeline { border-color: #2a2a3a; background: #0f0f1a; }
+    .feature-card.pipeline:hover { border-color: var(--blue); }
+    .feature-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .feature-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .feature-summary { font-size: 0.88rem; color: var(--muted); }
+    .feature-detail { font-size: 0.85rem; color: var(--muted); margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); display: none; line-height: 1.6; }
+    .feature-card.open .feature-detail { display: block; }
+    .expand-icon { font-size: 0.75rem; color: var(--muted); transition: transform 0.2s; flex-shrink: 0; margin-top: 3px; }
+    .feature-card.open .expand-icon { transform: rotate(180deg); }
+    .tag { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; margin-bottom: 0.5rem; }
+    .tag-live { background: #1a3a1a; color: var(--green); }
+    .tag-soon { background: #3a2a00; color: var(--accent); }
+    .tag-pipeline { background: #1a1a3a; color: var(--blue); }
+
+    /* INSTALL */
+    .install-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .install-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; }
+    .install-card.featured { border-color: var(--accent); }
+    .install-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; }
+    .install-card.featured h3 { color: var(--accent); }
+    code { display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.8rem; font-size: 0.78rem; color: #a8d8a8; word-break: break-all; white-space: pre-wrap; font-family: 'Consolas', 'Courier New', monospace; }
+
+    /* PRICING */
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .price-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; text-align: center; display: flex; flex-direction: column; gap: 0.5rem; }
+    .price-card.featured { border-color: var(--accent); background: #1a1500; }
+    .price-card .plan { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .price-card.featured .plan { color: var(--accent); }
+    .price-card .amount { font-size: 2rem; font-weight: 800; }
+    .price-card .period { font-size: 0.8rem; color: var(--muted); }
+    .price-card .yearly { font-size: 0.82rem; color: var(--muted); }
+    .price-card .desc { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .subscribe-btn { display: block; width: 100%; padding: 10px; border-radius: 7px; font-weight: 700; font-size: 0.9rem; text-align: center; margin-top: auto; transition: background 0.2s, transform 0.1s; border: none; cursor: pointer; }
+    .subscribe-btn:hover { transform: translateY(-1px); text-decoration: none; }
+    .subscribe-btn-accent { background: var(--accent); color: #000; }
+    .subscribe-btn-accent:hover { background: var(--accent2); }
+    .subscribe-btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border) !important; }
+    .subscribe-btn-outline:hover { background: var(--surface2); }
+    .trial-note { text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--muted); }
+    .trial-note strong { color: var(--green); }
+    .referral-note { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.5rem; margin-top: 1rem; font-size: 0.9rem; color: var(--muted); }
+    .referral-note strong { color: var(--text); }
+
+    /* PROMISE */
+    .promise-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .promise-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+    .promise-card .p-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
+    .promise-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--green); }
+    .promise-card p { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+    /* SOCIAL */
+    .social-bar { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+    .social-bar p { color: var(--muted); font-size: 0.9rem; }
+    .social-link { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; transition: border-color 0.2s; }
+    .social-link:hover { border-color: var(--accent); text-decoration: none; }
+
+    /* CONTACT */
+    .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .contact-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; }
+    .contact-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .contact-card p { font-size: 0.85rem; color: var(--muted); }
+
+    /* FOOTER */
+    footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; font-size: 0.82rem; color: var(--muted); line-height: 2; }
+    footer strong { color: var(--text); }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 1rem; }
+      .nav-links { gap: 0.6rem; }
+      .nav-links a:not(.nav-subscribe) { display: none; }
+      .hero { padding: 3rem 1rem 2.5rem; }
+      section { padding: 2.5rem 1rem; }
+    }
+  </style>
 </head>
-<body class="font-sans bg-zinc-950 text-white">
+<body>
 
-    <!-- Navbar -->
-    <nav class="bg-black/90 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-truck text-3xl text-orange-500"></i>
-                <span class="text-2xl font-bold tracking-tighter">Clean Shot</span>
-            </div>
-            <div class="hidden md:flex gap-8 text-lg">
-                <a href="#install" class="hover:text-orange-500 transition">Windows</a>
-                <a href="#demo" class="hover:text-orange-500 transition">Screenshot</a>
-                <a href="#features" class="hover:text-orange-500 transition">Features</a>
-                <a href="https://github.com/arbymcpatriot3/weather-cli" target="_blank" class="hover:text-orange-500 transition">GitHub</a>
-            </div>
-            <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
-               class="bg-orange-600 hover:bg-orange-700 px-6 py-2.5 rounded-2xl font-semibold flex items-center gap-2 transition">
-                <i class="fa-solid fa-download"></i> Download
-            </a>
+<nav>
+  <span class="nav-logo">⚡ CleanShot HQ</span>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#install">Install</a>
+    <a href="#contact">Contact</a>
+    <a href="#pricing" class="nav-subscribe">Subscribe</a>
+  </div>
+</nav>
+
+<!-- NO ADS BANNER -->
+<div class="no-ads-bar">
+  🚫 No ads. Ever. <span>CleanShot is 100% subscription-funded. No banners, no sponsors, no promoted data. What you see is real.</span>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">v3.0.10 — Code Signed by CLEANSHOTHQ LLC</div>
+  <h1>Built for the road,<br><span>not the boardroom.</span></h1>
+  <p>Real-time road hazards, HOS guardian, DOT feeds, and weather intelligence — on your Windows laptop. Fast on 2G. Zero ads.</p>
+  <div class="hero-actions">
+    <a href="https://github.com/arbymcpatriot3/CleanShot/releases/latest/download/CleanShot.exe" class="btn-primary">⬇ Download Free Trial</a>
+    <a href="#pricing" class="btn-green">💳 Subscribe Now</a>
+    <a href="#features" class="btn-secondary">See Features</a>
+  </div>
+  <p class="hero-meta">
+    Windows 10/11 &nbsp;•&nbsp; <span class="good">✓ Signed — No SmartScreen warnings</span> &nbsp;•&nbsp; <span class="good">30-day free trial</span> &nbsp;•&nbsp; Cancel anytime
+  </p>
+</div>
+
+<hr class="divider" />
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-label">What's included</div>
+  <h2>Everything a trucker actually needs</h2>
+  <p style="color:var(--muted); font-size:0.9rem;">Click any feature to learn more.</p>
+
+  <div class="features-grid">
+
+    <div class="feature-card" onclick="toggleFeature(this)">
+      <span class="tag tag-live">Live Now</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">🌡️</div>
+          <h3>7 Road Hazard Detectors</h3>
+          <p class="feature-summary">Black ice, bridge freeze, fog, flood, diesel gel, high wind, mudslide.</p>
         </div>
-    </nav>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Real-time alerts calculated from live weather data before you reach the hazard. Each detector uses its own threshold model — bridge freeze triggers at different temps than black ice, diesel gel is tracked against your fuel type. All 7 run simultaneously on every query.</div>
+    </div>
 
-    <!-- Hero -->
-    <header class="hero-bg h-screen flex items-center relative">
-        <div class="max-w-4xl mx-auto px-6 text-center z-10">
-            <h1 class="text-5xl md:text-6xl font-bold leading-tight mb-6">
-                Built for the road,<br>not the boardroom.
-            </h1>
-            <p class="text-xl md:text-2xl max-w-2xl mx-auto mb-8 text-zinc-200">
-                Real-time weather, road hazards, HOS guardian, and DOT feeds.<br>
-                Runs perfectly on your Windows laptop — and your phone.
-            </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
-                   class="bg-orange-600 hover:bg-orange-700 px-8 py-4 rounded-2xl font-semibold flex items-center justify-center gap-3 text-lg transition">
-                    <i class="fa-solid fa-download"></i> Download for Windows — Free
-                </a>
-                <a href="https://github.com/arbymcpatriot3/weather-cli" target="_blank"
-                   class="border border-white/60 hover:bg-white/10 px-8 py-4 rounded-2xl font-semibold text-lg transition">
-                    GitHub Repo
-                </a>
-            </div>
-            <p class="text-zinc-400 text-sm mt-4">Windows 10 / 11 &nbsp;•&nbsp; 14.8 MB &nbsp;•&nbsp; No Python, no Git, no terminal</p>
+    <div class="feature-card" onclick="toggleFeature(this)">
+      <span class="tag tag-live">Live Now</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">📡</div>
+          <h3>DOT / 511 Live Feeds</h3>
+          <p class="feature-summary">Live data from all 50 states. Construction, closures, accidents.</p>
         </div>
-    </header>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">CleanShot pulls directly from state DOT 511 feeds — the same data source dispatchers use. Incidents, construction zones, road closures, and weather advisories from every state transportation department. Updated in real time, not cached hours-old data.</div>
+    </div>
 
-    <!-- Download / Install Section -->
-    <section id="install" class="py-20 bg-zinc-950">
-        <div class="max-w-4xl mx-auto px-6 text-center">
-            <h2 class="text-4xl font-bold mb-4">Download Clean Shot</h2>
-            <p class="text-zinc-400 text-lg mb-12">One file. Double-click. Everything installs automatically.<br>No Python. No Git. No terminal. Ever.</p>
-
-            <!-- Download card -->
-            <div class="bg-zinc-800 rounded-3xl p-10 border border-orange-500/40 max-w-sm mx-auto mb-12">
-                <i class="fa-brands fa-windows text-6xl text-orange-500 mb-5 block"></i>
-                <h3 class="text-2xl font-bold mb-1">Windows</h3>
-                <p class="text-zinc-400 mb-6">Windows 10 / 11 &nbsp;•&nbsp; 64-bit &nbsp;•&nbsp; 14.8 MB</p>
-                <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
-                   class="bg-orange-600 hover:bg-orange-700 px-8 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition w-full">
-                    <i class="fa-solid fa-download"></i> CleanShotSetup.exe
-                </a>
-                <p class="text-zinc-500 text-sm mt-4">Free 30-day trial &nbsp;•&nbsp; No credit card</p>
-            </div>
-
-            <!-- How to install steps -->
-            <div class="max-w-md mx-auto text-left">
-                <h4 class="text-xl font-semibold mb-5 text-center">How to install</h4>
-                <ol class="space-y-4">
-                    <li class="flex items-start gap-4">
-                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-                        <span class="text-zinc-300">Click the download button above</span>
-                    </li>
-                    <li class="flex items-start gap-4">
-                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                        <span class="text-zinc-300">Double-click <strong>CleanShotSetup.exe</strong></span>
-                    </li>
-                    <li class="flex items-start gap-4">
-                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                        <span class="text-zinc-300">Follow the installer — about 30 seconds</span>
-                    </li>
-                    <li class="flex items-start gap-4">
-                        <span class="bg-orange-600 text-white text-sm font-bold w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
-                        <span class="text-zinc-300">Clean Shot launches and asks for your location — you're on the road</span>
-                    </li>
-                </ol>
-            </div>
+    <div class="feature-card" onclick="toggleFeature(this)">
+      <span class="tag tag-live">Live Now</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">⏱️</div>
+          <h3>HOS Guardian</h3>
+          <p class="feature-summary">FMCSA 11/14/70-hour advisory tracking with smart alerts.</p>
         </div>
-    </section>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Tracks your available drive time against FMCSA 11-hour driving, 14-hour on-duty, and 70-hour/8-day limits simultaneously. Alerts you before you hit a limit — not after. Never get caught off guard by an inspection.</div>
+    </div>
 
-    <!-- Features Section -->
-    <section id="features" class="py-20 bg-zinc-900">
-        <div class="max-w-6xl mx-auto px-6">
-            <h2 class="text-4xl font-bold text-center mb-12">Key Features for Truckers</h2>
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div class="bg-zinc-800 p-6 rounded-3xl border border-orange-500/20 hover:border-orange-500 transition">
-                    <i class="fa-solid fa-cloud-sun-rain text-4xl text-orange-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold mb-2">Weather + Hazard Detection</h3>
-                    <p class="text-zinc-400">Black ice, bridge freeze, fog, flood, diesel gel, high wind, mudslide &amp; more — 7+ real-time detectors.</p>
-                </div>
-                <div class="bg-zinc-800/40 p-6 rounded-3xl border border-zinc-700">
-                    <div class="flex items-center gap-3 mb-4">
-                        <i class="fa-solid fa-users text-4xl text-zinc-500"></i>
-                        <span class="text-xs font-semibold bg-zinc-700 text-zinc-400 px-2.5 py-1 rounded-full uppercase tracking-wider">Coming Soon</span>
-                    </div>
-                    <h3 class="text-xl font-semibold mb-2 text-zinc-400">Community Hazard Reports</h3>
-                    <p class="text-zinc-500">GPS-verified reports from fellow drivers. Real eyes on the road ahead.</p>
-                </div>
-                <div class="bg-zinc-800 p-6 rounded-3xl border border-orange-500/20 hover:border-orange-500 transition">
-                    <i class="fa-solid fa-clock text-4xl text-orange-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold mb-2">HOS Guardian</h3>
-                    <p class="text-zinc-400">FMCSA 11/14/70-hour tracking with smart alerts. Never get caught off guard.</p>
-                </div>
-                <div class="bg-zinc-800 p-6 rounded-3xl border border-orange-500/20 hover:border-orange-500 transition">
-                    <i class="fa-solid fa-satellite-dish text-4xl text-orange-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold mb-2">DOT / 511 Feeds</h3>
-                    <p class="text-zinc-400">Live data from all 50 states. Construction, closures, accidents.</p>
-                </div>
-                <div class="bg-zinc-800 p-6 rounded-3xl border border-orange-500/20 hover:border-orange-500 transition">
-                    <i class="fa-solid fa-volume-high text-4xl text-orange-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold mb-2">CB-Style Voice Alerts</h3>
-                    <p class="text-zinc-400">Text-to-speech with critical beep + flash on high-severity hazards.</p>
-                </div>
-                <div class="bg-zinc-800 p-6 rounded-3xl border border-orange-500/20 hover:border-orange-500 transition">
-                    <i class="fa-solid fa-bolt text-4xl text-orange-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold mb-2">Fast &amp; Lightweight</h3>
-                    <p class="text-zinc-400">Works great on 2G, offline caching, no heavy GUI — built for the road.</p>
-                </div>
-            </div>
+    <div class="feature-card" onclick="toggleFeature(this)">
+      <span class="tag tag-live">Live Now</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">🅿️</div>
+          <h3>Smart Parking Runway</h3>
+          <p class="feature-summary">HOS-aware parking suggestions based on how far you can still drive.</p>
         </div>
-    </section>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Combines your remaining HOS with your current location to calculate your parking window — how far you can go before you legally need to stop. Shows truck stops and rest areas within that range so you're never scrambling at the last minute.</div>
+    </div>
 
-    <!-- Screenshots -->
-    <section id="demo" class="py-20 bg-zinc-900">
-        <div class="max-w-6xl mx-auto px-6">
-            <h2 class="text-4xl font-bold text-center mb-4">Screenshot</h2>
-            <p class="text-center text-zinc-400 mb-12">Real output from the Windows build</p>
-
-            <div class="grid md:grid-cols-2 gap-8">
-                <div>
-                    <p class="text-sm text-orange-400 mb-3 font-mono">↑ Top of output</p>
-                    <img src="assets/screenshot_windows_terminal_top.png" alt="Clean Shot Terminal - Current Conditions & Alerts" class="terminal-img w-full rounded-2xl">
-                </div>
-                <div>
-                    <p class="text-sm text-orange-400 mb-3 font-mono">↓ Bottom of output</p>
-                    <img src="assets/screenshot_windows_terminal_bottom.png" alt="Clean Shot Terminal - Rain Probability, Road Conditions & HOS Status" class="terminal-img w-full rounded-2xl">
-                </div>
-            </div>
-
-            <p class="text-center text-zinc-400 mt-8 text-sm">
-                Clean, fast, scannable — even on a small laptop screen at a truck stop.
-            </p>
+    <div class="feature-card" onclick="toggleFeature(this)">
+      <span class="tag tag-live">Live Now</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">📢</div>
+          <h3>CB-Style Voice Alerts</h3>
+          <p class="feature-summary">Text-to-speech with beep + flash on critical hazards.</p>
         </div>
-    </section>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">High-severity alerts are announced out loud in a CB radio style so you don't have to look at the screen. 5 severity levels — only the most critical ones trigger audio. Flash + beep on the highest severity so nothing gets missed even in a loud cab.</div>
+    </div>
 
-    <!-- Bottom CTA -->
-    <section class="py-16 bg-zinc-950 text-center">
-        <h2 class="text-3xl font-bold mb-4">Ready to roll?</h2>
-        <p class="text-zinc-400 mb-8">Free 30-day trial. No credit card. No nonsense.</p>
-        <a href="https://github.com/arbymcpatriot3/weather-cli/releases/latest/download/CleanShotSetup.exe"
-           class="bg-orange-600 hover:bg-orange-700 px-10 py-4 rounded-2xl font-bold text-lg inline-flex items-center gap-3 transition">
-            <i class="fa-solid fa-download"></i> Download Clean Shot — Free
-        </a>
-    </section>
-    <footer class="bg-black py-12 text-center text-zinc-500 border-t border-zinc-800">
-        <p>© 2026 CleanShotHQ LLC &bull; Built for truck drivers, not the boardroom.</p>
-        <p>
-            CleanShotHQ LLC &bull; 77 Market Street, Apt 5 &bull; Salem, NJ 08079<br>
-            (609) 202-1087 &bull; <a href="mailto:support@cleanshothq.com">support@cleanshothq.com</a> &bull; cleanshothq.com
-        </p>
-        <p style="font-size:0.85em; color:#888;">
-            CleanShotHQ LLC is a New Jersey limited liability company.
-        </p>
-    </footer>
+    <div class="feature-card" onclick="toggleFeature(this)">
+      <span class="tag tag-live">Live Now</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">🌐</div>
+          <h3>English + Spanish</h3>
+          <p class="feature-summary">Full bilingual support. Switch on the fly.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Every alert, label, and menu is available in both English and Spanish. Switch languages at any time without restarting the app. Voice alerts are also spoken in your selected language.</div>
+    </div>
+
+    <div class="feature-card" onclick="toggleFeature(this)">
+      <span class="tag tag-live">Live Now</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">📶</div>
+          <h3>Built for 2G</h3>
+          <p class="feature-summary">Kilobytes per query. Works in dead zones other apps won't.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Typical weather apps burn 50–200 MB/month in background data — even when you're not using them. CleanShot pulls data only when you ask, using kilobytes per query. Built to work on capped data plans and in low-signal areas where other apps give up.</div>
+    </div>
+
+    <div class="feature-card coming" onclick="toggleFeature(this)">
+      <span class="tag tag-soon">Coming Soon — v3.1</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">🚨</div>
+          <h3>Community Hazard Reports</h3>
+          <p class="feature-summary">GPS-verified reports from fellow drivers on your route.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Drivers can submit real-time hazard reports from the road — verified by GPS location. Reports are weighted by driver reputation and automatically expire when conditions clear. Real eyes from real truckers who just drove your route.</div>
+    </div>
+
+    <div class="feature-card coming" onclick="toggleFeature(this)">
+      <span class="tag tag-soon">Coming Soon — v3.1</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">👁️</div>
+          <h3>Glance Mode</h3>
+          <p class="feature-summary">2-second heads-up display. 6 lines max. Eyes forward.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">A minimal heads-up view showing only the most critical information — current hazards, HOS status, next parking window — in 6 lines or less. Designed to be readable in under 2 seconds so you spend as little time looking at the screen as possible.</div>
+    </div>
+
+    <div class="feature-card coming" onclick="toggleFeature(this)">
+      <span class="tag tag-soon">Coming Soon — v3.1</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">📊</div>
+          <h3>Fleet Dashboard</h3>
+          <p class="feature-summary">Manage multiple drivers from one screen.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Fleet managers get a single dashboard showing all active drivers, their HOS status, current route hazards, and parking runway. Built for Small and Mid Fleet plans. Replaces expensive ELD weather bundle add-ons.</div>
+    </div>
+
+    <div class="feature-card pipeline" onclick="toggleFeature(this)">
+      <span class="tag tag-pipeline">In the Pipeline</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">💬</div>
+          <h3>Trucker Comms</h3>
+          <p class="feature-summary">Location sharing and ETA updates for your family.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Send automated location updates, ETA home estimates, and voice-to-text messages to family via SMS or email — without picking up your phone. Text-to-speech reads incoming replies aloud. Your family always knows you're safe without you having to call.</div>
+    </div>
+
+    <div class="feature-card pipeline" onclick="toggleFeature(this)">
+      <span class="tag tag-pipeline">In the Pipeline</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">🍳</div>
+          <h3>Trucker Chow</h3>
+          <p class="feature-summary">Trucker-friendly diners with ratings, menus, and dietary search.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Find diners along your route that are trucker-friendly — big rig accessible parking, 24-hour hours, real food at real prices. Filter by dietary needs, price range, and rating. No tourist traps, no chains — real spots that real truckers actually eat at.</div>
+    </div>
+
+    <div class="feature-card pipeline" onclick="toggleFeature(this)">
+      <span class="tag tag-pipeline">In the Pipeline</span>
+      <div class="feature-top">
+        <div>
+          <div class="feature-icon">🔄</div>
+          <h3>Return Payload</h3>
+          <p class="feature-summary">Backhaul load matching to eliminate dead miles.</p>
+        </div>
+        <span class="expand-icon">▼</span>
+      </div>
+      <div class="feature-detail">Dead miles cost owner-operators thousands per year. Return Payload matches you with available backhaul loads on your return route so you're never running empty. Integrates with major load boards and shows estimated earnings per mile.</div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="section-label">Pricing</div>
+  <h2>Simple, honest pricing</h2>
+  <p style="color:var(--muted); font-size:0.9rem; margin-bottom: 0.5rem;">All plans include every feature. No feature tiers, no paywalled alerts. 30-day free trial on all plans — no credit card required.</p>
+
+  <div class="pricing-grid">
+
+    <div class="price-card featured">
+      <div class="plan">★ Founding Member</div>
+      <div class="amount">$4.99</div>
+      <div class="period">/month</div>
+      <div class="yearly" style="color:var(--accent);">Locked in for life</div>
+      <div class="desc">First subscribers get this rate forever, in exchange for feedback.</div>
+      <a href="https://buy.stripe.com/test/founding" class="subscribe-btn subscribe-btn-accent">Start Free Trial →</a>
+    </div>
+
+    <div class="price-card">
+      <div class="plan">Owner-Operator</div>
+      <div class="amount">$7.99</div>
+      <div class="period">/month</div>
+      <div class="yearly">or $69.99/year — save $26</div>
+      <div class="desc">1 driver, all Pro features.</div>
+      <a href="https://buy.stripe.com/test/owner_op_monthly" class="subscribe-btn subscribe-btn-accent">Start Free Trial →</a>
+      <a href="https://buy.stripe.com/test/owner_op_yearly" class="subscribe-btn subscribe-btn-outline" style="margin-top:6px; display:block; padding:8px; border-radius:7px; text-align:center; font-size:0.82rem; color:var(--muted); border:1px solid var(--border);">Yearly — $69.99</a>
+    </div>
+
+    <div class="price-card">
+      <div class="plan">Small Fleet</div>
+      <div class="amount">$19.99</div>
+      <div class="period">/month</div>
+      <div class="yearly">or $179.99/year — ~$2/truck at 10</div>
+      <div class="desc">2–10 trucks + dispatch dashboard.</div>
+      <a href="https://buy.stripe.com/test/small_fleet_monthly" class="subscribe-btn subscribe-btn-accent">Start Free Trial →</a>
+      <a href="https://buy.stripe.com/test/small_fleet_yearly" class="subscribe-btn subscribe-btn-outline" style="margin-top:6px; display:block; padding:8px; border-radius:7px; text-align:center; font-size:0.82rem; color:var(--muted); border:1px solid var(--border);">Yearly — $179.99</a>
+    </div>
+
+    <div class="price-card">
+      <div class="plan">Mid Fleet</div>
+      <div class="amount">$49.99</div>
+      <div class="period">/month</div>
+      <div class="yearly">or $449.99/year — cheaper than any ELD bundle</div>
+      <div class="desc">11–50 trucks, full fleet intelligence.</div>
+      <a href="https://buy.stripe.com/test/mid_fleet_monthly" class="subscribe-btn subscribe-btn-accent">Start Free Trial →</a>
+      <a href="https://buy.stripe.com/test/mid_fleet_yearly" class="subscribe-btn subscribe-btn-outline" style="margin-top:6px; display:block; padding:8px; border-radius:7px; text-align:center; font-size:0.82rem; color:var(--muted); border:1px solid var(--border);">Yearly — $449.99</a>
+    </div>
+
+  </div>
+
+  <p class="trial-note"><strong>30-day full-feature free trial</strong> on all plans. No credit card required to start. Cancel anytime in one click.</p>
+  <div class="referral-note">
+    🤝 <strong>Referral program:</strong> Refer a friend and get <strong>$1/month off</strong> for every active subscriber you refer — up to 5 referrals for a maximum of <strong>$5/month off</strong>, ongoing as long as they stay subscribed.
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- OUR PROMISE -->
+<section id="promise">
+  <div class="section-label">Our Promise</div>
+  <h2>What we will never do</h2>
+
+  <div class="promise-grid">
+    <div class="promise-card">
+      <div class="p-icon">🚫</div>
+      <h3>No Ads. Ever.</h3>
+      <p>CleanShot is 100% subscription-funded. No banners, no sponsored alerts, no promoted data. Every hazard you see is real.</p>
+    </div>
+    <div class="promise-card">
+      <div class="p-icon">💥</div>
+      <h3>No Crashes Accepted</h3>
+      <p>We test all 50 states before every release. A crash on the road isn't an inconvenience — it's a safety issue. We treat it that way.</p>
+    </div>
+    <div class="promise-card">
+      <div class="p-icon">🔒</div>
+      <h3>Your Data is Yours</h3>
+      <p>Invoices, HOS logs, route history — all backed up securely and exportable anytime. We never sell or share driver data.</p>
+    </div>
+    <div class="promise-card">
+      <div class="p-icon">💰</div>
+      <h3>No Bait and Switch</h3>
+      <p>The price you see is the price you pay. Founding Member rates are locked for life. If pricing ever changes, existing subscribers get 90 days notice.</p>
+    </div>
+    <div class="promise-card">
+      <div class="p-icon">📞</div>
+      <h3>We Answer</h3>
+      <p>Every support email gets a reply within 24 hours on business days. If we can't solve it immediately, we give you a timeline.</p>
+    </div>
+    <div class="promise-card">
+      <div class="p-icon">⚡</div>
+      <h3>Always Fast</h3>
+      <p>Under 3 seconds on any network we support. If data isn't available, we say so clearly — we never show stale data as live.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- INSTALL -->
+<section id="install">
+  <div class="section-label">Get started</div>
+  <h2>One click. You're on the road.</h2>
+
+  <div class="install-grid">
+    <div class="install-card featured">
+      <h3>⬇ Windows (Recommended)</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:0.75rem;">Windows 10/11 • Signed by CLEANSHOTHQ LLC • No Python required</p>
+      <a href="https://github.com/arbymcpatriot3/CleanShot/releases/latest/download/CleanShot.exe" class="btn-primary" style="font-size:0.9rem; padding:10px 20px; display:inline-flex; margin-bottom:0.75rem;">⬇ CleanShot.exe</a>
+      <p style="font-size:0.78rem; color:var(--muted);">No SmartScreen warnings • No antivirus false positives</p>
+    </div>
+    <div class="install-card">
+      <h3>Windows (PowerShell)</h3>
+      <code>iwr https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/windows/install.ps1 | iex</code>
+    </div>
+    <div class="install-card">
+      <h3>Linux</h3>
+      <code>curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/linux/install.sh | bash</code>
+    </div>
+    <div class="install-card">
+      <h3>macOS</h3>
+      <code>curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/macos/install.sh | bash</code>
+    </div>
+    <div class="install-card">
+      <h3>Android (Termux)</h3>
+      <code>curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/android/install_termux.sh | bash</code>
+    </div>
+    <div class="install-card">
+      <h3>iOS (iSH)</h3>
+      <code>wget -qO- https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/ios/install_ish.sh | sh</code>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- SOCIAL -->
+<div class="social-bar">
+  <p>Follow CleanShot HQ for road tips and updates</p>
+  <a href="https://x.com/CleanShotHQ" class="social-link" target="_blank">𝕏 @CleanShotHQ</a>
+</div>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="section-label">Get in touch</div>
+  <h2>We're here when you need us</h2>
+
+  <div class="contact-grid">
+    <div class="contact-card">
+      <h3>🛠️ Support</h3>
+      <p>Bug reports, billing, anything technical.</p>
+      <p style="margin-top:0.5rem;"><a href="mailto:support@cleanshothq.com">support@cleanshothq.com</a></p>
+    </div>
+    <div class="contact-card">
+      <h3>💡 Suggestions & Feature Requests</h3>
+      <p>Got an idea that would help truckers? We read every one.</p>
+      <p style="margin-top:0.5rem;"><a href="mailto:support@cleanshothq.com">support@cleanshothq.com</a></p>
+    </div>
+    <div class="contact-card">
+      <h3>🐙 GitHub</h3>
+      <p>Open source. File issues, track releases, submit PRs.</p>
+      <p style="margin-top:0.5rem;"><a href="https://github.com/arbymcpatriot3/CleanShot" target="_blank">github.com/arbymcpatriot3/CleanShot</a></p>
+    </div>
+    <div class="contact-card">
+      <h3>📞 Direct</h3>
+      <p>R. Bruce McCarthy, Founder</p>
+      <p style="margin-top:0.5rem;"><a href="tel:6092021087">(609) 202-1087</a></p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <strong>© 2026 CleanShotHQ LLC</strong> &nbsp;•&nbsp; Built for truck drivers, not the boardroom.<br>
+  77 Market Street, Apt 5 &nbsp;•&nbsp; Salem, NJ 08079 &nbsp;•&nbsp; (609) 202-1087<br>
+  <a href="mailto:support@cleanshothq.com">support@cleanshothq.com</a> &nbsp;•&nbsp; <a href="https://x.com/CleanShotHQ">@CleanShotHQ</a><br>
+  <span style="font-size:0.78rem; color:#555;">CleanShotHQ LLC is a New Jersey limited liability company. No ads. Ever.</span>
+</footer>
+
+<script>
+  function toggleFeature(card) {
+    card.classList.toggle('open');
+  }
+</script>
+
 </body>
 </html>

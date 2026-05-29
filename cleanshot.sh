@@ -13,7 +13,7 @@ case "$(uname -s)" in
         fi
         ;;
     Darwin)
-        exec ./weather-cli/clean-shot/platforms/macos/cleanshot.sh "$@"
+        exec ./clean-shot/platforms/macos/cleanshot.sh "$@"
         ;;
     *)
         echo "Unsupported platform!"

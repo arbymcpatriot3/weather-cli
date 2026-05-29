@@ -11,7 +11,7 @@
     5. Packages cleanshot.exe into CleanShotSetup.exe via Inno Setup
 
 .EXAMPLE
-    cd D:\weather-cli
+    cd D:\Documents\CleanShot
     .\build\build_installer.ps1
 #>
 
@@ -19,13 +19,13 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 # --- Paths -------------------------------------------------------------------
-$BuildDir  = $PSScriptRoot                         # D:\weather-cli\build
-$Root      = Split-Path -Parent $BuildDir          # D:\weather-cli
-$AppDir    = Join-Path $Root   "clean-shot"        # D:\weather-cli\clean-shot
-$AssetsDir = Join-Path $Root   "assets"            # D:\weather-cli\assets
-$DistDir   = Join-Path $Root   "dist"              # D:\weather-cli\dist
-$WorkDir   = Join-Path $Root   "build_work"        # D:\weather-cli\build_work
-$VenvDir   = Join-Path $Root   ".venv-build"       # D:\weather-cli\.venv-build
+$BuildDir  = $PSScriptRoot                         # CleanShot\build
+$Root      = Split-Path -Parent $BuildDir          # CleanShot\
+$AppDir    = Join-Path $Root   "clean-shot"        # CleanShot\clean-shot
+$AssetsDir = Join-Path $Root   "assets"            # CleanShot\assets
+$DistDir   = Join-Path $Root   "dist"              # CleanShot\dist
+$WorkDir   = Join-Path $Root   "build_work"        # CleanShot\build_work
+$VenvDir   = Join-Path $Root   ".venv-build"       # CleanShot\.venv-build
 
 $InnoExe = $null
 
@@ -51,7 +51,7 @@ if ([version]$pyVer -lt [version]"3.10") {
 Ok "Python $pyVer"
 
 if (-not (Test-Path $AppDir)) {
-    Fail "App source not found: $AppDir`nMake sure you are running from inside the weather-cli repo."
+    Fail "App source not found: $AppDir`nMake sure you are running from inside the CleanShot repo."
 }
 Ok "Source: $AppDir"
 

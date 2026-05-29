@@ -18,6 +18,9 @@
 # Discount is applied server-side; local config caches last known values.
 # TODO: implement backend integration in module sprint
 
+import sys
+from pathlib import Path
+
 
 TIERS = [
     (0,  "Road Scout"),
@@ -82,6 +85,53 @@ def get_referral_stats(config: dict) -> dict:
         "is_ambassador":is_ambassador(count),
         "link":         get_referral_link(config),
     }
+
+
+def capture_referral_code(config: dict) -> str | None:
+    """
+    Detect a referral code from the current launch and save it to config.
+
+    Sources checked in order:
+    1. --ref=CODE on the command line (e.g. from TikTok link: cleanshot --ref=chris42)
+    2. install.ref file next to the entry-point script (written by the installer)
+
+    Returns the captured code, or None if none found.
+    The code is stored in config["referral_code"] and saved by the caller.
+    """
+    if config.get("referral_code"):
+        return config["referral_code"]   # already captured
+
+    code: str | None = None
+
+    # 1. Check --ref= flag in sys.argv
+    for arg in sys.argv[1:]:
+        if arg.startswith("--ref="):
+            candidate = arg[6:].strip()
+            if candidate:
+                code = candidate
+                break
+
+    # 2. Check install.ref file (written by installer or link handler)
+    if not code:
+        # Look for install.ref next to the running script, then in clean-shot root
+        candidates = [
+            Path(sys.argv[0]).resolve().parent / "install.ref",
+            Path(__file__).resolve().parent.parent / "install.ref",
+        ]
+        for ref_file in candidates:
+            try:
+                if ref_file.exists():
+                    candidate = ref_file.read_text().strip()
+                    if candidate:
+                        code = candidate
+                        break
+            except Exception:
+                pass
+
+    if code:
+        config["referral_code"] = code
+
+    return code
 
 
 def display_referral_card(config: dict) -> None:

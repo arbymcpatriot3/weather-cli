@@ -5,9 +5,9 @@
 **Product:** Clean Shot — Driver Intelligence System (CSDIS)
 **Tagline:** Built for the road, not the boardroom.
 **Mission:** Truckers first. Everything else follows.
-**Version:** 3.0.3 (rewrite from weather-cli v2.0.0)
+**Version:** 3.0.11
 **Website:** cleanshothq.com (coming soon)
-**Repo:** https://github.com/arbymcpatriot3/weather-cli (branch: main)
+**Repo:** https://github.com/arbymcpatriot3/CleanShot (branch: main)
 **Root:** `clean-shot/` inside the repo
 
 ---
@@ -378,7 +378,7 @@ so `X | None` type hints work on Python 3.9. All other modules are 3.8+ compatib
 
 ---
 
-## Test Inventory — 357 Tests / 10 Suites
+## Test Inventory — 409 Tests / 11 Suites
 
 | Suite | File | Tests | Status |
 |---|---|---|---|
@@ -392,8 +392,9 @@ so `X | None` type hints work on Python 3.9. All other modules are 3.8+ compatib
 | Parking | tests/test_parking.py | 39 | ✅ |
 | Display Alerts | tests/test_display_alerts.py | 40 | ✅ |
 | HOS Guardian | tests/test_hos.py | 49 | ✅ |
+| Road511 | tests/test_road511.py | 52 | ✅ |
 
-Run all: `cd clean-shot && python3 tests/test_alerts.py && python3 tests/test_gps.py && python3 tests/test_tts.py && python3 tests/test_tones.py && python3 tests/test_referral.py && python3 tests/test_hazards.py && python3 tests/test_dot511.py && python3 tests/test_parking.py && python3 tests/test_display_alerts.py && python3 tests/test_hos.py`
+Run all: `cd clean-shot && python3 -X utf8 tests/test_alerts.py && python3 -X utf8 tests/test_gps.py && python3 -X utf8 tests/test_tts.py && python3 -X utf8 tests/test_tones.py && python3 -X utf8 tests/test_referral.py && python3 -X utf8 tests/test_hazards.py && python3 -X utf8 tests/test_dot511.py && python3 -X utf8 tests/test_parking.py && python3 -X utf8 tests/test_display_alerts.py && python3 -X utf8 tests/test_hos.py && python3 -X utf8 tests/test_road511.py`
 
 ---
 

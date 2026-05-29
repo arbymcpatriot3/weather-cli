@@ -64,19 +64,24 @@ def save_local_license(data: dict):
 
 # ── API calls ─────────────────────────────────────────────────────────────────
 
-def register(email: str, name: str = "") -> dict:
+def register(email: str, name: str = "", referral_code: str = "") -> dict:
     """
     Register a new user and start their 30-day trial.
+    referral_code credits the referrer in Stripe when provided.
     Returns API response dict.
     """
     if not _HAS_REQUESTS:
         return {"allowed": True, "error": "requests_not_installed"}
 
     machine_id = get_machine_id()
+    payload: dict = {"email": email, "name": name, "machine_id": machine_id}
+    if referral_code:
+        payload["ref"] = referral_code
+
     try:
         r = requests.post(
             f"{API_BASE}/register",
-            json={"email": email, "name": name, "machine_id": machine_id},
+            json=payload,
             timeout=10,
         )
         data = r.json()
@@ -124,10 +129,11 @@ def check_license(license_key: str | None = None) -> dict:
 
 # ── Startup gate ──────────────────────────────────────────────────────────────
 
-def enforce_license(version: str = ""):
+def enforce_license(version: str = "", config: dict | None = None):
     """
     Call at app startup. Prints status and exits if not allowed.
     Silently passes if network is unavailable (fail open).
+    Pass config to enable referral code capture on registration.
     """
     local = load_local_license()
 
@@ -142,7 +148,17 @@ def enforce_license(version: str = ""):
             return
 
         name = input("  Your name (optional): ").strip()
-        result = register(email, name)
+
+        # Pick up referral code from --ref= flag or install.ref file
+        ref_code = ""
+        if config is not None:
+            try:
+                from core.referral import capture_referral_code
+                ref_code = capture_referral_code(config) or ""
+            except Exception:
+                pass
+
+        result = register(email, name, referral_code=ref_code)
 
         status = result.get("status", "")
         if status == "registered":

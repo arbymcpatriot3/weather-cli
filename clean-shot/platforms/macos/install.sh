@@ -3,12 +3,12 @@
 # Blue Collar Nation LLC — cleanshothq.com
 #
 # One-line install:
-#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/weather-cli/main/clean-shot/platforms/macos/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/macos/install.sh | bash
 
 set -e
 
 INSTALL_DIR="$HOME/CleanShot"
-REPO_URL="https://github.com/arbymcpatriot3/weather-cli.git"
+REPO_URL="https://github.com/arbymcpatriot3/CleanShot.git"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 ok()   { printf "${GREEN}  [OK]  %s${NC}\n" "$1"; }

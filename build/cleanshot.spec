@@ -1,5 +1,5 @@
 # cleanshot.spec -- PyInstaller spec for Clean Shot Windows executable
-# Run from D:\weather-cli: pyinstaller build\cleanshot.spec
+# Run from repo root: pyinstaller build\cleanshot.spec
 # Output: dist\cleanshot.exe
 
 import sys
@@ -7,8 +7,8 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 # --- Paths -------------------------------------------------------------------
-SPEC_DIR  = Path(SPECPATH)                          # D:\weather-cli\build
-APP_ROOT  = str(SPEC_DIR.parent / 'clean-shot')    # D:\weather-cli\clean-shot
+SPEC_DIR  = Path(SPECPATH)                          # CleanShot/build
+APP_ROOT  = str(SPEC_DIR.parent / 'clean-shot')    # CleanShot/clean-shot
 ENTRY     = str(SPEC_DIR.parent / 'clean-shot' / 'platforms' / 'windows' / 'main.py')
 ICON_FILE = str(SPEC_DIR.parent / 'assets' / 'cleanshot.ico')
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# platforms/linux/main.py — Clean Shot: Linux unified entry point
+# platforms/linux/main.py — Clean Shot: Linux/macOS unified entry point
 #
 # Run:  python3 platforms/linux/main.py
 #       python3 platforms/linux/main.py watch
@@ -11,18 +11,20 @@
 #
 # Passes all command-line arguments through to core.weather.main()
 # so every cleanshot command is supported.
+#
+# Also used by macOS (install.sh runs this file directly).
 
 import sys
 import os
 from pathlib import Path
 
 # ── sys.path: allow running from any working directory ────────────────────────
-_REPO_ROOT   = Path(__file__).resolve().parent.parent.parent   # weather-cli-2.0.0/
-_CLEAN_SHOT  = _REPO_ROOT / "clean-shot"
+# __file__ = clean-shot/platforms/linux/main.py
+# parent.parent.parent  = clean-shot/   ← package root where core/, display/, etc. live
+_CLEAN_SHOT_DIR = Path(__file__).resolve().parent.parent.parent
 
-for _p in [str(_REPO_ROOT), str(_CLEAN_SHOT)]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if str(_CLEAN_SHOT_DIR) not in sys.path:
+    sys.path.insert(0, str(_CLEAN_SHOT_DIR))
 
 # ── Pre-flight: report any missing optional dependencies ──────────────────────
 _MISSING = []
@@ -34,6 +36,41 @@ try:
     import requests  # noqa: F401
 except ImportError:
     _MISSING.append("requests")
+
+# ── Console size: grow to 120×50 if the terminal is too small ────────────────
+def _ensure_console_size(min_cols: int = 120, min_rows: int = 50) -> None:
+    """
+    Attempt to grow the terminal to at least min_cols × min_rows.
+    Uses ANSI xterm resize sequence first (works in most terminal emulators),
+    then falls back to `resize` (xterm-utils), then `stty`.
+    Silently no-ops on Android/iOS where the terminal window is app-controlled.
+    """
+    # Skip on mobile — Termux/iSH users control window size through the app
+    if os.environ.get("TERMUX_VERSION") or "com.termux" in os.environ.get("PREFIX", ""):
+        return
+
+    try:
+        import shutil
+        current = shutil.get_terminal_size(fallback=(0, 0))
+        if current.columns >= min_cols and current.lines >= min_rows:
+            return   # already big enough
+
+        # ANSI xterm resize: ESC [ 8 ; rows ; cols t
+        sys.stdout.write(f"\033[8;{min_rows};{min_cols}t")
+        sys.stdout.flush()
+    except Exception:
+        pass
+
+    # stty fallback — sets kernel TTY size record (most terminals honour it)
+    try:
+        import subprocess
+        subprocess.run(
+            ["stty", f"cols {min_cols}", f"rows {min_rows}"],
+            capture_output=True,
+        )
+    except Exception:
+        pass
+
 
 # ── Known CLI commands — checked BEFORE any location lookup ───────────────────
 # If a positional arg matches one of these it is routed as a command.
@@ -60,6 +97,8 @@ _KNOWN_COMMANDS = {
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
+    _ensure_console_size()
+
     if _MISSING:
         print(f"  ℹ  Optional packages not installed: {', '.join(_MISSING)}")
         print("     Run: pip install " + " ".join(_MISSING))

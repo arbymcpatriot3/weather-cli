@@ -39,11 +39,11 @@ export default {
     <p class="tagline">Road Hazards • DOT 511 • Weather • HOS Guardian</p>
     <p>Built for truckers, by a trucker.</p>
     
-    <a href="https://github.com/arbymcpatriot3/weather-cli/releases" class="download" target="_blank">
+    <a href="https://github.com/arbymcpatriot3/CleanShot/releases" class="download" target="_blank">
         ⬇️ Download Latest Version
     </a><br><br>
     
-    <p><a href="https://github.com/arbymcpatriot3/weather-cli" target="_blank">View Full Project on GitHub</a></p>
+    <p><a href="https://github.com/arbymcpatriot3/CleanShot" target="_blank">View Full Project on GitHub</a></p>
     <p>Full dashboard and premium features coming soon.</p>
 </body>
 </html>`;
