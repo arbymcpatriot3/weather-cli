@@ -39,7 +39,7 @@ wrangler secret put STRIPE_SECRET_KEY
 wrangler secret put STRIPE_WEBHOOK_SECRET
 # Enter the webhook signing secret from Step 5 below: whsec_...
 
-wrangler secret put ROAD511_API_KEY
+wrangler secret put R511_API_KEY
 # Enter your road511.com API key: r511_...
 ```
 

@@ -86,13 +86,13 @@ def _fake_bridge(road="I-76", clearance_ft=12.0, lat=40.0, lon=-80.0,
 class TestResolveKey(unittest.TestCase):
 
     def setUp(self):
-        os.environ.pop("ROAD511_API_KEY", None)
+        os.environ.pop("R511_API_KEY", None)
 
     def tearDown(self):
-        os.environ.pop("ROAD511_API_KEY", None)
+        os.environ.pop("R511_API_KEY", None)
 
     def test_env_var_takes_priority(self):
-        os.environ["ROAD511_API_KEY"] = "env_key_123"
+        os.environ["R511_API_KEY"] = "env_key_123"
         cfg = _empty_config(road511_api_key="config_key_456")
         self.assertEqual(r511._resolve_key(cfg), "env_key_123")
 
@@ -474,11 +474,20 @@ class TestFetchWeighStations(unittest.TestCase):
 
     def test_stations_over_50_miles_filtered(self):
         # ~90 km ≈ 56 miles — should be filtered out
+        import math
+        def _haversine(lat1, lon1, lat2, lon2):
+            r = 3958.8
+            dlat = math.radians(lat2 - lat1)
+            dlon = math.radians(lon2 - lon1)
+            a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+            return r * 2 * math.asin(math.sqrt(max(0, a)))
+
         far_station = self._station("Far WS", "open", dist_km=90.0)
         with patch("core.road511._resolve_key", return_value="key"), \
              patch("core.road511.cache_load", return_value=(None, None)), \
              patch("core.road511._fetch",
                    return_value={"features": [far_station]}), \
+             patch("core.road511._hav", _haversine), \
              patch("core.road511.cache_save"):
             result = r511.fetch_weigh_stations(35.0, -90.0, _empty_config())
         self.assertEqual(result, [])

@@ -18,7 +18,7 @@
  *   ADMIN_KEY             — X-Admin-Key header value
  *   STRIPE_SECRET_KEY     — sk_live_... or sk_test_...
  *   STRIPE_WEBHOOK_SECRET — whsec_...
- *   ROAD511_API_KEY       — r511_...
+ *   R511_API_KEY          — r511_...
  */
 
 // ── Known Stripe price IDs ────────────────────────────────────────────────────
@@ -561,7 +561,7 @@ export default {
       try {
         const upstream = await fetch(r511Url, {
           headers: {
-            "X-API-Key":  env.ROAD511_API_KEY,
+            "X-API-Key":  env.R511_API_KEY,
             "User-Agent": "clean-shot/3.0 (cleanshothq@pm.me)",
             "Accept":     "application/json",
           },

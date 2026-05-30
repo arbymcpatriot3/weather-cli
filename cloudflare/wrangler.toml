@@ -12,7 +12,7 @@ database_id   = "f64707f2-c4dc-4403-ae53-384d4eca9ab3"
 
 # Secrets (set via CLI, never hardcode):
 #   wrangler secret put ADMIN_KEY
-#   wrangler secret put ROAD511_API_KEY
+#   wrangler secret put R511_API_KEY
 #   wrangler secret put STRIPE_SECRET_KEY
 #   wrangler secret put STRIPE_WEBHOOK_SECRET
 #

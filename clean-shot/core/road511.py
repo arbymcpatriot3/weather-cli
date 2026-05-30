@@ -5,7 +5,7 @@ from __future__ import annotations
 # Cache TTLs: incidents=15min, bridges=24h, route=1h, features=15min, cameras=2min
 #
 # Key resolution order:
-#   1. ROAD511_API_KEY env var (dev / CI)
+#   1. R511_API_KEY env var (dev / CI)
 #   2. ~/.config/cleanshot.credentials  (JSON: {"road511_api_key": "..."})
 #   3. config["road511_api_key"]  (set via: cleanshot settings road511-key <key>)
 #   4. CF proxy — api.cleanshothq.com/v1/road511/*  (license validated server-side)
@@ -35,12 +35,17 @@ _BASE    = "https://api.road511.com/api/v1"
 _PROXY   = "https://api.cleanshothq.com/v1/road511"
 _UA      = {"User-Agent": "clean-shot/3.0 (cleanshothq@pm.me)"}
 
+try:
+    from core.gps import haversine as _hav
+except ImportError:
+    _hav = None
+
 
 # ── Key / auth helpers ────────────────────────────────────────────────────────
 
 def _resolve_key(config: dict) -> str:
     """Return direct road511 API key, or '' to use proxy mode."""
-    key = os.environ.get("ROAD511_API_KEY", "").strip()
+    key = os.environ.get("R511_API_KEY", "").strip()
     if key:
         return key
     try:
@@ -356,11 +361,6 @@ def fetch_weigh_stations(lat: float, lon: float, config: dict) -> list:
     if data is None:
         return []
 
-    try:
-        from core.gps import haversine as _hav
-    except ImportError:
-        _hav = None
-
     features = data.get("features") or []
     stations = []
     for f in features:
@@ -435,11 +435,6 @@ def fetch_truck_parking(lat: float, lon: float, config: dict) -> list:
     }, key)
     if data is None:
         return []
-
-    try:
-        from core.gps import haversine as _hav
-    except ImportError:
-        _hav = None
 
     features = data.get("features") or []
     stops    = []
@@ -517,11 +512,6 @@ def fetch_cameras(lat: float, lon: float, config: dict) -> list:
     }, key)
     if data is None:
         return []
-
-    try:
-        from core.gps import haversine as _hav
-    except ImportError:
-        _hav = None
 
     features = data.get("features") or []
     cameras  = []

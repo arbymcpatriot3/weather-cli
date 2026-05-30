@@ -5,7 +5,7 @@
 **Product:** Clean Shot — Driver Intelligence System (CSDIS)
 **Tagline:** Built for the road, not the boardroom.
 **Mission:** Truckers first. Everything else follows.
-**Version:** 3.0.11
+**Version:** 3.0.12
 **Website:** cleanshothq.com (coming soon)
 **Repo:** https://github.com/arbymcpatriot3/CleanShot (branch: main)
 **Root:** `clean-shot/` inside the repo

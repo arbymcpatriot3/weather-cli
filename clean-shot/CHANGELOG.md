@@ -46,7 +46,7 @@ configure webhook at Stripe Dashboard → Developers → Webhooks → `api.clean
 
 **road511 API key security hardened — key no longer ships in binary:**
 - Hardcoded `road511_api_key` removed from `_DEFAULTS` in `core/config.py`
-- Key resolution order: `ROAD511_API_KEY` env var → `~/.config/cleanshot.credentials`
+- Key resolution order: `R511_API_KEY` env var → `~/.config/cleanshot.credentials`
   JSON file → `config["road511_api_key"]` (set via `cleanshot settings road511-key`)
 - Fallback: Cloudflare Worker proxy at `api.cleanshothq.com/v1/road511/*` —
   validates CleanShot license server-side, road511 key stays on the server
@@ -54,8 +54,8 @@ configure webhook at Stripe Dashboard → Developers → Webhooks → `api.clean
 **Cloudflare Worker: road511 proxy endpoint added (`/v1/road511/*`):**
 - CleanShot app calls the CF proxy instead of road511 directly when no local key exists
 - Worker validates `license_key` + `machine_id` against D1 (blocks expired trials, blocked machines)
-- Proxies GET to `api.road511.com/api/v1/*` with server-side `ROAD511_API_KEY` secret
-- Deploy: `wrangler secret put ROAD511_API_KEY` then `wrangler deploy`
+- Proxies GET to `api.road511.com/api/v1/*` with server-side `R511_API_KEY` secret
+- Deploy: `wrangler secret put R511_API_KEY` then `wrangler deploy`
 
 **core/road511.py — proxy fallback wired into all fetch functions:**
 - `fetch_events()`, `fetch_bridges()`, `fetch_weigh_stations()`,
