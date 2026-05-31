@@ -39,36 +39,6 @@ _REFERRAL_REMINDER_SHOWN = False
 
 # ── Window setup ──────────────────────────────────────────────────────────────
 
-def _ensure_full_window() -> None:
-    """Maximize the console window and set minimum buffer size."""
-    try:
-        # Set title
-        ctypes.windll.kernel32.SetConsoleTitleW(
-            f"CleanShot HQ v{VERSION} — Road Intelligence"
-        )
-    except Exception:
-        pass
-
-    try:
-        # SW_MAXIMIZE = 3 — maximizes the console window
-        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
-        if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 3)
-    except Exception:
-        pass
-
-    try:
-        # Ensure the buffer is large enough for the maximized window
-        subprocess.run(
-            ["mode", "con:", "cols=180", "lines=50"],
-            shell=True, capture_output=True,
-        )
-    except Exception:
-        pass
-
-    _set_console_icon()
-
-
 def _find_bundled_file(filename: str) -> str | None:
     """Locate a file that may be inside a PyInstaller bundle or beside the exe."""
     candidates = []
@@ -85,6 +55,93 @@ def _find_bundled_file(filename: str) -> str | None:
     return None
 
 
+def _ensure_full_window() -> None:
+    """
+    Set up the console window for CleanShot.
+
+    Correct behavior:
+    - Maximized on launch (fills the screen)
+    - Title bar visible with minimize / maximize / close buttons
+    - Scroll bar appears when content is taller than the visible area
+    - Window is freely resizable
+
+    Root cause of previous bugs:
+    - `mode con: cols=180 lines=50` set the window AND buffer to the same
+      size, which (a) prevented the scroll bar from appearing and (b) made
+      the window wider than the screen on many laptops, pushing the title-bar
+      buttons off-screen and breaking resize.
+
+    The fix:
+    - Use SetConsoleScreenBufferSize for a TALL buffer (scroll history).
+    - Let SW_MAXIMIZE set the window size — never hard-code it.
+    - Explicitly restore WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX so
+      the title-bar buttons are always present.
+    """
+    if sys.platform != "win32":
+        return
+
+    kernel32 = ctypes.windll.kernel32
+    user32    = ctypes.windll.user32
+
+    # 1. Console title
+    try:
+        kernel32.SetConsoleTitleW(f"CleanShot HQ v{VERSION} — Road Intelligence")
+    except Exception:
+        pass
+
+    hwnd = None
+    try:
+        hwnd = kernel32.GetConsoleWindow()
+    except Exception:
+        pass
+
+    # 2. Maximize — keeps the standard title bar and all buttons intact
+    if hwnd:
+        try:
+            user32.ShowWindow(hwnd, 3)  # SW_MAXIMIZE = 3
+        except Exception:
+            pass
+
+    # 3. Set a large console BUFFER for scrollback.
+    #    Buffer taller than the visible window → scroll bar appears automatically.
+    #    Buffer width wide enough for a maximized window on any common screen.
+    #    NOTE: never call `mode con:` here — that command changes BOTH buffer
+    #    AND window size, which removes the scroll bar and can overflow the screen.
+    try:
+        h_console = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+
+        class _COORD(ctypes.Structure):
+            _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
+
+        kernel32.SetConsoleScreenBufferSize(h_console, _COORD(220, 3000))
+    except Exception:
+        pass
+
+    # 4. Ensure the title-bar buttons (minimize / maximize / close) are present.
+    #    WS_SYSMENU     = 0x00080000  (close button + system menu)
+    #    WS_MAXIMIZEBOX = 0x00010000
+    #    WS_MINIMIZEBOX = 0x00020000
+    if hwnd:
+        try:
+            GWL_STYLE       = -16
+            SWP_FRAMECHANGED = 0x0020
+            SWP_NOMOVE      = 0x0002
+            SWP_NOSIZE      = 0x0001
+            SWP_NOZORDER    = 0x0004
+            style = user32.GetWindowLongW(hwnd, GWL_STYLE)
+            style = style | 0x00080000 | 0x00010000 | 0x00020000
+            user32.SetWindowLongW(hwnd, GWL_STYLE, style)
+            user32.SetWindowPos(
+                hwnd, None, 0, 0, 0, 0,
+                SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
+            )
+        except Exception:
+            pass
+
+    # 5. Set the truck icon in the title bar and taskbar
+    _set_console_icon()
+
+
 def _set_console_icon() -> None:
     """Set the console window's title-bar icon to cleanshot.ico."""
     try:
@@ -94,13 +151,14 @@ def _set_console_icon() -> None:
         hwnd = ctypes.windll.kernel32.GetConsoleWindow()
         if not hwnd:
             return
-        WM_SETICON    = 0x0080
-        LR_LOADFROMFILE = 0x0010
-        IMAGE_ICON    = 1
-        hicon = ctypes.windll.user32.LoadImageW(
-            None, icon_path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE
+        # ExtractIconW pulls the icon directly from the .ico file
+        hicon = ctypes.windll.shell32.ExtractIconW(
+            ctypes.windll.kernel32.GetModuleHandleW(None),
+            icon_path,
+            0,  # first icon in file
         )
-        if hicon:
+        if hicon and hicon != 1:  # ExtractIconW returns 1 on error
+            WM_SETICON = 0x0080
             ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 0, hicon)  # ICON_SMALL
             ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 1, hicon)  # ICON_BIG
     except Exception:

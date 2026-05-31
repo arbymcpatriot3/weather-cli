@@ -9,7 +9,7 @@ import json
 import sys
 
 CONFIG_PATH = Path.home() / ".config" / "clean-shot.conf"
-VERSION     = "3.0.15"
+VERSION     = "3.0.16"
 WORKER_URL  = "https://api.cleanshothq.com"
 
 _DEFAULTS = {

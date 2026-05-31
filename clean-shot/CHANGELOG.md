@@ -1,6 +1,37 @@
 # Clean Shot — Driver Intelligence System — Changelog
 # By Blue Collar Nation LLC | cleanshothq.com
 
+## v3.0.16 — May 2026
+
+### CRITICAL FIX — Window close/maximize/scroll restored
+
+**Root cause:** `mode con: cols=180 lines=50` was called during window setup.
+This command sets both the console BUFFER and WINDOW to the same 180×50 size,
+which: (a) prevents the scroll bar from appearing (buffer == window = no bar),
+(b) makes the window wider than the screen on many laptops, pushing the title-bar
+buttons off-screen so the X and maximize buttons could not be clicked.
+
+**What was fixed (`platforms/windows/main.py` — `_ensure_full_window()`):**
+- `mode con:` call completely removed — it must never set window size
+- Buffer set to 220×3000 via `SetConsoleScreenBufferSize` (scroll history preserved,
+  buffer taller than visible window → scroll bar appears automatically)
+- Window style explicitly set to include `WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX`
+  via `GetWindowLongW` + `SetWindowLongW` + `SetWindowPos(SWP_FRAMECHANGED)`
+  so close / maximize / minimize buttons are always visible
+- `SW_MAXIMIZE` unchanged — window still launches maximized, fills the screen
+- `_set_console_icon()` updated to use `ExtractIconW` (simpler, more reliable)
+
+**Result:**
+- Window opens maximized ✓
+- Title bar visible with all three buttons ✓
+- X button closes the program ✓
+- Maximize/restore works ✓
+- Minimize works ✓
+- Scroll bar appears when output exceeds visible area ✓
+- Window is freely resizable ✓
+
+---
+
 ## v3.0.15 — May 2026
 
 ### Flyer route fix, truck icon restored, D1 migrations applied, worker deployed
