@@ -1,6 +1,39 @@
 # Clean Shot — Driver Intelligence System — Changelog
 # By Blue Collar Nation LLC | cleanshothq.com
 
+## v3.0.15 — May 2026
+
+### Flyer route fix, truck icon restored, D1 migrations applied, worker deployed
+
+**Critical fix — `/flyer` now serves the PDF correctly:**
+- `_redirects` file created at repo root (Cloudflare Pages standard)
+- `cleanshothq.com/flyer` → `api.cleanshothq.com/flyer` (302)
+- `cleanshothq.com/download/*` → `api.cleanshothq.com/download/:splat` (302)
+- `cleanshothq.com/favicon.ico` → `api.cleanshothq.com/favicon.ico` (302)
+- Worker `/flyer` Cache-Control bumped to `max-age=86400` (24h)
+- Filename corrected: `CleanShotHQ_Flyer.pdf` in Content-Disposition
+
+**App icon fix — truck icon restored:**
+- `assets/cleanshot.ico.old` (15,960 bytes, original truck icon) restored as `cleanshot.ico` and `favicon.ico`
+- Previous 216-byte broken icon replaced
+- Correct icon uploaded to R2 remote: `favicon.ico`, `CleanShotHQ_Flyer_v9.pdf`
+
+**D1 remote database — migrations applied:**
+- Migration 001 (referrals, referral_discounts) — applied remotely
+- Migration 003 (hazard_log, session_log, rate_limits) — applied remotely
+- All 11 tables now live in remote D1
+
+**Worker deployed** — version 753553be, bindings confirmed (DB + RELEASES)
+
+**Session 7 items confirmed complete (no code changes needed):**
+- Welcome email via MailChannels on `subscription.created` webhook ✓
+- `POST /v1/account/recover` — forgot license key → email ✓
+- Recovery UI in dashboard.html with "Forgot your key?" link ✓
+- "Getting a new device?" message in dashboard login ✓
+- `POST /v1/account/resend-welcome` — Stripe last4 verification ✓
+
+---
+
 ## v3.0.14 — May 2026
 
 ### Privacy Policy, Terms of Service, CRLF Fix, Legal Pages

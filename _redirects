@@ -1,0 +1,7 @@
+# Cloudflare Pages _redirects
+# Routes asset endpoints to the API worker (api.cleanshothq.com)
+# so they can be served from R2 without conflicting with Pages HTML files.
+
+/flyer           https://api.cleanshothq.com/flyer           302
+/download/*      https://api.cleanshothq.com/download/:splat  302
+/favicon.ico     https://api.cleanshothq.com/favicon.ico      302

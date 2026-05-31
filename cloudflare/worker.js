@@ -1648,8 +1648,8 @@ export default {
       return new Response(obj.body, {
         headers: {
           "Content-Type":        "application/pdf",
-          "Content-Disposition": 'inline; filename="CleanShotHQ_Flyer_v9.pdf"',
-          "Cache-Control":       "public, max-age=3600",
+          "Content-Disposition": 'inline; filename="CleanShotHQ_Flyer.pdf"',
+          "Cache-Control":       "public, max-age=86400",
           ...CORS,
         },
       });
