@@ -1,0 +1,29 @@
+# .gitattributes — enforce consistent line endings
+* text=auto
+
+# Source and config: always LF
+*.sh   text eol=lf
+*.py   text eol=lf
+*.js   text eol=lf
+*.toml text eol=lf
+*.sql  text eol=lf
+*.md   text eol=lf
+*.html text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.css  text eol=lf
+*.txt  text eol=lf
+*.iss  text eol=lf
+*.spec text eol=lf
+
+# Binary: never modify
+*.ico  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.pdf  binary
+*.exe  binary
+*.zip  binary
+*.pyc  binary
+*.bmp  binary

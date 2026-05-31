@@ -1616,6 +1616,12 @@ export default {
       return json({ logged: true }, 201);
     }
 
+    // ── GET /privacy | /terms | /verify ─────────────────────────────────────
+    // Legal and verification pages — redirect to Cloudflare Pages-hosted HTML.
+    if (path === "/privacy" || path === "/terms" || path === "/verify") {
+      return Response.redirect(`https://cleanshothq.com${path}`, 301);
+    }
+
     // ── GET /favicon.ico ─────────────────────────────────────────────────────
     if (path === "/favicon.ico") {
       const obj = env.RELEASES ? await env.RELEASES.get("favicon.ico") : null;

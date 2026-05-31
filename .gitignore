@@ -10,6 +10,10 @@ dist/
 # Archives
 *.zip
 
+# Wrangler local state and cache
+.wrangler/
+cloudflare/.wrangler/
+
 # Internal planning docs — not for public repo
 cleanshot_backlog.md
 cleanshot_road511_spec.md

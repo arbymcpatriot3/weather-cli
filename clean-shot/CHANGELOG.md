@@ -1,6 +1,39 @@
 # Clean Shot — Driver Intelligence System — Changelog
 # By Blue Collar Nation LLC | cleanshothq.com
 
+## v3.0.14 — May 2026
+
+### Privacy Policy, Terms of Service, CRLF Fix, Legal Pages
+
+**CRLF fix — all shell scripts converted to LF-only:**
+- All 9 `.sh` files in `platforms/` and repo root fixed (were breaking on Android/Linux)
+- `.gitattributes` added to repo root — prevents future CRLF contamination
+- Shell scripts, Python, JS, TOML, SQL, HTML, CSS, YAML all enforced as LF
+- Binary files (ico, png, pdf, exe) marked as binary (never touched by git)
+
+**Legal pages — Privacy Policy, Terms of Service, Verification:**
+- `privacy.html` already in repo — wired up with footer links across all pages
+- `terms.html` created — full ToS covering safety disclaimer, HOS advisory,
+  billing terms, license grant, acceptable use, IP, liability, NJ governing law
+- `verify.html` created — company verification page for Microsoft SmartScreen,
+  Apple App Store, Google Play, and Windows Store reviews
+- All three accessible at `cleanshothq.com/privacy`, `/terms`, `/verify` via Cloudflare Pages
+- Routes added to `cloudflare/worker.js` for `api.cleanshothq.com` domain
+
+**Privacy + Terms links in all page footers:**
+- `index.html`, `privacy.html`, `terms.html`, `verify.html`, `dashboard.html`, `subscribe.html`
+
+**`subscribe.html` fine print updated:**
+- HOS Guardian advisory disclaimer added: "HOS Guardian is an advisory tool only
+  and is not a certified ELD device under FMCSA regulations."
+- Terms of Service and Privacy Policy links already active (no change needed)
+
+**Microsoft SmartScreen submission prep:**
+- `verify.html` at `cleanshothq.com/verify` provides company + signing info
+- Submit to SmartScreen: Privacy = `cleanshothq.com/privacy`, Verify = `cleanshothq.com/verify`
+
+---
+
 ## v3.0.13 — May 2026
 
 ### App Icon, Flyer Viewer, GPS-Speed-Aware Refresh, Website Flyer
