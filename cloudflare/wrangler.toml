@@ -2,8 +2,9 @@ name = "cleanshot-api"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# Custom domain — add this in Cloudflare dashboard under Workers > Triggers
-# routes = [{ pattern = "api.cleanshothq.com/*", zone_name = "cleanshothq.com" }]
+[[routes]]
+pattern = "api.cleanshothq.com"
+custom_domain = true
 
 [[d1_databases]]
 binding       = "DB"
@@ -20,12 +21,14 @@ bucket_name = "cleanshot-releases"
 #   wrangler secret put STRIPE_SECRET_KEY
 #   wrangler secret put STRIPE_WEBHOOK_SECRET
 #   wrangler secret put JWT_SECRET
+#   wrangler secret put MAILCHANNELS_API_KEY   (optional — needed if domain SPF not configured)
 #
 # To create the D1 database:
 #   wrangler d1 create cleanshot-db
 #   wrangler d1 execute cleanshot-db --file=schema.sql
 #   wrangler d1 execute cleanshot-db --file=migrations/001_referrals.sql
 #   wrangler d1 execute cleanshot-db --file=migrations/002_downloads.sql
+#   wrangler d1 execute cleanshot-db --file=migrations/003_hazard_log.sql
 #
 # To create the R2 bucket:
 #   wrangler r2 bucket create cleanshot-releases

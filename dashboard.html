@@ -159,11 +159,39 @@
     .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 1rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* RECOVERY PANEL */
+    .recovery-link { margin-top: 0.9rem; text-align: center; font-size: 0.84rem; color: var(--muted); }
+    .recovery-link a { color: var(--accent); cursor: pointer; }
+    #recovery-panel { display: none; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+    #recovery-panel h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.35rem; }
+    #recovery-panel p { font-size: 0.84rem; color: var(--muted); margin-bottom: 1rem; }
+    .recovery-success { background: #1a3a1a; border: 1px solid var(--green); border-radius: 7px; color: var(--green); font-size: 0.85rem; padding: 9px 12px; margin-top: 0.75rem; display: none; }
+    .btn-recovery { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: border-color 0.2s; }
+    .btn-recovery:hover { border-color: var(--accent); }
+
+    /* RICH SAVINGS CARD */
+    .roi-hero { text-align: center; padding: 1.1rem 0 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+    .roi-value { font-size: 2.4rem; font-weight: 800; color: var(--green); line-height: 1; }
+    .roi-label { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+    .roi-multiplier { display: inline-block; background: #1a3a1a; color: var(--green); font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; margin-top: 6px; }
+    .savings-row { display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .savings-row:last-child { border-bottom: none; }
+    .savings-row .s-label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .savings-row .s-value { font-weight: 700; }
+    .savings-row .s-value.green { color: var(--green); }
+    .hazard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.75rem; }
+    .hazard-chip { background: var(--surface2); border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; }
+    .hazard-chip .hc-count { font-weight: 700; color: var(--accent); }
+    .states-list { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
+    .no-data-hint { text-align: center; padding: 1.5rem 0; color: var(--muted); font-size: 0.88rem; }
+    .no-data-hint .big { font-size: 1.5rem; display: block; margin-bottom: 0.4rem; }
+
     @media (max-width: 600px) {
       nav { padding: 0 1rem; }
       .login-box { padding: 1.5rem 1.25rem; }
       .dash-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
+      .hazard-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -205,6 +233,24 @@
       <button type="submit" class="btn-login" id="btn-login-submit">Sign In</button>
     </form>
     <p class="login-hint">Don't have an account? <a href="/">Start your free 30-day trial →</a></p>
+    <p class="login-hint" style="margin-top:0.4rem;">Getting a new device? Just sign in with the same email and license key — works on any device.</p>
+
+    <!-- RECOVERY PANEL -->
+    <div class="recovery-link">
+      Forgot your license key? <a onclick="showRecovery()">Send it to my email →</a>
+    </div>
+    <div id="recovery-panel">
+      <h3>Send my license key</h3>
+      <p>Enter your email and we'll send your license key if it's registered.</p>
+      <div class="form-group">
+        <label for="recovery-email">Email address</label>
+        <input type="email" id="recovery-email" placeholder="you@example.com" />
+      </div>
+      <button class="btn-recovery" id="btn-recovery-submit" onclick="sendRecovery()">Send my license key</button>
+      <div class="recovery-success" id="recovery-success">
+        ✓ If that email is registered, you'll receive your license key shortly.
+      </div>
+    </div>
   </div>
 </div>
 
@@ -247,30 +293,47 @@
 
     <!-- SAVINGS STATS -->
     <div class="card">
-      <div class="card-title">CleanShot Advantage</div>
-      <div class="stats-grid">
-        <div class="stat-box">
-          <div class="stat-number" id="stat-data-saved">—</div>
-          <div class="stat-label">MB saved vs other apps</div>
+      <div class="card-title">What CleanShot Saved You</div>
+
+      <!-- ROI hero — shown once we have data -->
+      <div id="roi-hero" class="roi-hero" style="display:none;">
+        <div class="roi-value">$<span id="roi-total">0.00</span></div>
+        <div class="roi-label">estimated value delivered since you joined</div>
+        <div class="roi-multiplier" id="roi-badge">—</div>
+      </div>
+
+      <!-- No-data state -->
+      <div id="savings-no-data" class="no-data-hint">
+        <span class="big">🛡️</span>
+        No hazards logged yet. Once CleanShot detects hazards on your routes, your savings will appear here.
+      </div>
+
+      <!-- Savings breakdown -->
+      <div id="savings-breakdown" style="display:none;">
+        <div class="savings-row">
+          <span class="s-label">⛽ Fuel saved</span>
+          <span class="s-value green">$<span id="sv-fuel">0.00</span> (<span id="sv-fuel-gal">0.0</span> gal)</span>
         </div>
-        <div class="stat-box">
-          <div class="stat-number" id="stat-months">—</div>
-          <div class="stat-label">months on the road</div>
+        <div class="savings-row">
+          <span class="s-label">⏱ Time saved</span>
+          <span class="s-value green">$<span id="sv-time">0.00</span> (<span id="sv-time-hrs">0.0</span> hrs)</span>
         </div>
-        <div class="stat-box">
-          <div class="stat-number" style="font-size:1.1rem; color:var(--muted);">v3.1</div>
-          <div class="stat-label">hazard alerts tracked</div>
-          <div class="stat-soon">coming soon</div>
+        <div class="savings-row">
+          <span class="s-label">📶 Data saved</span>
+          <span class="s-value green">$<span id="sv-data">0.00</span> (<span id="sv-data-mb">0</span> MB)</span>
         </div>
-        <div class="stat-box">
-          <div class="stat-number" style="font-size:1.1rem; color:var(--muted);">v3.1</div>
-          <div class="stat-label">HOS advisories</div>
-          <div class="stat-soon">coming soon</div>
+        <div class="savings-row" style="margin-top:0.25rem;">
+          <span class="s-label" style="color:var(--text); font-weight:600;">Total value</span>
+          <span class="s-value green" style="font-size:1rem;">$<span id="sv-total-2">0.00</span></span>
         </div>
       </div>
-      <p style="font-size:0.78rem; color:var(--muted); margin-top:1rem;">
-        Estimated data savings vs typical trucking apps (100MB/mo background vs ~0.5MB for CleanShot).
-      </p>
+
+      <!-- Hazard breakdown -->
+      <div id="hazard-breakdown" style="display:none; margin-top:1rem;">
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;">Hazards detected</div>
+        <div class="hazard-grid" id="hazard-grid"></div>
+        <div class="states-list" id="states-list"></div>
+      </div>
     </div>
 
     <!-- REFERRALS -->
@@ -486,10 +549,86 @@
   }
 
   // ── Populate stats card ───────────────────────────────────────────────────
+  const HAZARD_ICONS = {
+    black_ice:     "🧊 Black ice",
+    bridge_freeze: "🌉 Bridge freeze",
+    fog:           "🌫️ Fog",
+    flood:         "🌊 Flood",
+    diesel_gel:    "🫙 Diesel gel",
+    high_wind:     "💨 High wind",
+    mudslide:      "⛰️ Mudslide",
+    dot_incident:  "🚧 DOT incident",
+  };
+
   function populateStats(stats) {
     if (!stats) return;
-    document.getElementById("stat-data-saved").textContent = stats.data_saved_mb ?? "—";
-    document.getElementById("stat-months").textContent     = stats.months_active  ?? "—";
+
+    const sv = stats.savings || {};
+    const hz = stats.hazards || {};
+    const sb = stats.subscription || {};
+
+    const totalValue = parseFloat(sv.total_value_saved || 0);
+    const roi        = parseFloat(sb.roi_multiplier || 0);
+    const totalHaz   = parseInt(hz.total_detected || 0, 10);
+
+    if (totalValue > 0 || totalHaz > 0) {
+      document.getElementById("savings-no-data").style.display  = "none";
+      document.getElementById("roi-hero").style.display         = "block";
+      document.getElementById("savings-breakdown").style.display = "block";
+
+      document.getElementById("roi-total").textContent   = totalValue.toFixed(2);
+      document.getElementById("roi-badge").textContent   = roi > 0 ? `${roi}× your subscription cost` : "earning value daily";
+      document.getElementById("sv-fuel").textContent     = (sv.fuel_cost_saved    || 0).toFixed(2);
+      document.getElementById("sv-fuel-gal").textContent = (sv.fuel_gallons_saved || 0).toFixed(1);
+      document.getElementById("sv-time").textContent     = (sv.time_value_saved   || 0).toFixed(2);
+      document.getElementById("sv-time-hrs").textContent = (sv.time_hours_saved   || 0).toFixed(1);
+      document.getElementById("sv-data").textContent     = (sv.data_cost_saved    || 0).toFixed(2);
+      document.getElementById("sv-data-mb").textContent  = (sv.data_mb_saved      || 0).toFixed(0);
+      document.getElementById("sv-total-2").textContent  = totalValue.toFixed(2);
+    }
+
+    const byType = hz.by_type || {};
+    if (Object.keys(byType).length > 0) {
+      document.getElementById("hazard-breakdown").style.display = "block";
+      const grid = document.getElementById("hazard-grid");
+      grid.innerHTML = "";
+      for (const [type, count] of Object.entries(byType)) {
+        const label = HAZARD_ICONS[type] || type;
+        const chip = document.createElement("div");
+        chip.className = "hazard-chip";
+        chip.innerHTML = `<span>${label}</span><span class="hc-count">${count}</span>`;
+        grid.appendChild(chip);
+      }
+    }
+
+    const states = hz.states_covered || [];
+    if (states.length > 0) {
+      document.getElementById("states-list").textContent = `States covered: ${states.join(", ")}`;
+    }
+  }
+
+  // ── Recovery UI ───────────────────────────────────────────────────────────
+  function showRecovery() {
+    const panel = document.getElementById("recovery-panel");
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+  }
+
+  async function sendRecovery() {
+    const email = (document.getElementById("recovery-email").value || "").trim();
+    if (!email) return;
+
+    const btn = document.getElementById("btn-recovery-submit");
+    btn.disabled = true;
+    btn.textContent = "Sending…";
+
+    await apiFetch("/v1/account/recover", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+
+    btn.disabled = false;
+    btn.textContent = "Send my license key";
+    document.getElementById("recovery-success").style.display = "block";
   }
 
   // ── Populate referral card ────────────────────────────────────────────────

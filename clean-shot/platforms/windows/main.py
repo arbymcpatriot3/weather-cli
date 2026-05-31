@@ -3,6 +3,11 @@
 
 import sys
 import ctypes
+import subprocess
+import os
+import time
+import json
+import hashlib
 from pathlib import Path
 
 # ── Windows console: force UTF-8 before any import triggers output ────────────
@@ -27,6 +32,79 @@ from core.weather import main, VERSION  # noqa: E402
 
 # ── Shared divider ────────────────────────────────────────────────────────────
 _DIV = "─" * 56
+
+# ── Session-level flags ───────────────────────────────────────────────────────
+_REFERRAL_REMINDER_SHOWN = False
+
+
+# ── Window setup ──────────────────────────────────────────────────────────────
+
+def _ensure_full_window() -> None:
+    """Maximize the console window and set minimum buffer size."""
+    try:
+        # Set title
+        ctypes.windll.kernel32.SetConsoleTitleW(
+            f"CleanShot HQ v{VERSION} — Road Intelligence"
+        )
+    except Exception:
+        pass
+
+    try:
+        # SW_MAXIMIZE = 3 — maximizes the console window
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd:
+            ctypes.windll.user32.ShowWindow(hwnd, 3)
+    except Exception:
+        pass
+
+    try:
+        # Ensure the buffer is large enough for the maximized window
+        subprocess.run(
+            ["mode", "con:", "cols=180", "lines=50"],
+            shell=True, capture_output=True,
+        )
+    except Exception:
+        pass
+
+    _set_console_icon()
+
+
+def _find_bundled_file(filename: str) -> str | None:
+    """Locate a file that may be inside a PyInstaller bundle or beside the exe."""
+    candidates = []
+    if getattr(sys, "_MEIPASS", None):
+        candidates.append(os.path.join(sys._MEIPASS, filename))
+    candidates.append(os.path.join(os.path.dirname(sys.executable), filename))
+    candidates.append(os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "..", "..", "assets", filename)
+    ))
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def _set_console_icon() -> None:
+    """Set the console window's title-bar icon to cleanshot.ico."""
+    try:
+        icon_path = _find_bundled_file("cleanshot.ico")
+        if not icon_path:
+            return
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if not hwnd:
+            return
+        WM_SETICON    = 0x0080
+        LR_LOADFROMFILE = 0x0010
+        IMAGE_ICON    = 1
+        hicon = ctypes.windll.user32.LoadImageW(
+            None, icon_path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE
+        )
+        if hicon:
+            ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 0, hicon)  # ICON_SMALL
+            ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 1, hicon)  # ICON_BIG
+    except Exception:
+        pass
 
 
 # ── Command runner ────────────────────────────────────────────────────────────
@@ -213,6 +291,325 @@ def _settings_menu() -> None:
             print("  Enter a number from the list above.")
 
 
+# ── Flyer viewer ─────────────────────────────────────────────────────────────
+
+def open_flyer() -> None:
+    """Open the CleanShot product flyer in the default PDF viewer."""
+    flyer = _find_bundled_file("CleanShotHQ_Flyer_v9.pdf")
+    if flyer:
+        try:
+            os.startfile(flyer)
+            print()
+            print("  ✅  Flyer opened in your PDF viewer.")
+            print("      Share it with dispatchers, fleet managers, or fellow drivers!")
+        except Exception as e:
+            print(f"  Could not open flyer: {e}")
+    else:
+        print()
+        print("  ⚠️   Flyer file not found in bundle.")
+        print("      Download it at: https://cleanshothq.com/flyer")
+    print()
+    try:
+        input("  Press Enter to return to menu...")
+    except (KeyboardInterrupt, EOFError):
+        pass
+    print()
+
+
+# ── GPS-speed-aware refresh ───────────────────────────────────────────────────
+
+def get_gps_speed_mph() -> float | None:
+    """
+    Return current GPS speed in mph, or None if unavailable.
+    Tries Windows Location API first, then gpsd (Linux/devices).
+    """
+    # Windows Location API via WinRT
+    try:
+        import asyncio
+        import winrt.windows.devices.geolocation as _geo
+
+        async def _get():
+            loc = _geo.Geolocator()
+            pos = await loc.get_geoposition_async()
+            spd = pos.coordinate.speed   # m/s or None
+            if spd is not None and spd >= 0:
+                return spd * 2.23694     # → mph
+            return None
+
+        return asyncio.run(_get())
+    except Exception:
+        pass
+
+    # gpsd (Linux daemon, or devices running gpsd)
+    try:
+        import gpsd as _gpsd
+        _gpsd.connect()
+        pkt = _gpsd.get_current()
+        if pkt.mode >= 2:
+            spd = getattr(pkt, "hspeed", None)
+            if spd is not None:
+                return spd * 2.23694
+    except Exception:
+        pass
+
+    return None
+
+
+def smart_refresh_interval(speed_mph: float | None,
+                            manual_minutes: int | None = None) -> int:
+    """Return refresh interval in SECONDS based on speed or manual setting."""
+    if manual_minutes is not None:
+        return manual_minutes * 60
+    if speed_mph is None:
+        return 5 * 60        # no GPS — default 5 min
+    if speed_mph < 5:
+        return 20 * 60       # parked
+    elif speed_mph < 30:
+        return 8 * 60        # city / slow traffic
+    elif speed_mph < 55:
+        return 4 * 60        # highway approach
+    else:
+        return 2 * 60        # highway speed
+
+
+# ── Referral reminder (once per session) ─────────────────────────────────────
+
+def _show_referral_reminder(config: dict) -> None:
+    global _REFERRAL_REMINDER_SHOWN
+    if _REFERRAL_REMINDER_SHOWN:
+        return
+    _REFERRAL_REMINDER_SHOWN = True
+
+    count = config.get("referral_count", 0)
+    if count >= 5:  # max discount already reached
+        return
+
+    ref_code = config.get("referral_code") or ""
+    url = (f"https://cleanshothq.com/?ref={ref_code}"
+           if ref_code else "https://cleanshothq.com/dashboard")
+
+    print()
+    print(f"  💰  Refer a friend → earn $1/mo off your subscription.")
+    print(f"      Share: {url}")
+
+
+# ── Continuous monitor helpers ────────────────────────────────────────────────
+
+def _get_cached_alerts(config: dict) -> list:
+    """
+    Load current road alerts from the local weather cache.
+    Returns [] gracefully if cache is missing or stale.
+    No network call — uses whatever _run([]) just wrote.
+    """
+    try:
+        lat = config.get("latitude")
+        lon = config.get("longitude")
+        if lat is None or lon is None:
+            return []
+        from core.cache  import cache_load, CACHE_TIME
+        from core.alerts import get_road_alerts
+        # weather_cache_path is an internal helper; replicate its logic
+        import hashlib as _hl, tempfile as _tmp
+        cache_dir = Path(_tmp.gettempdir()) / "clean-shot-cache"
+        key = _hl.sha256(f"{lat:.4f},{lon:.4f}".encode()).hexdigest()[:16]
+        path = cache_dir / f"cs_{key}.json"
+        data_str, _ = cache_load(path, CACHE_TIME)
+        if not data_str:
+            return []
+        data = json.loads(data_str)
+        return get_road_alerts(data, config) or []
+    except Exception:
+        return []
+
+
+def _alert_hash(alerts: list) -> str:
+    """Stable hash of alert type+severity combinations."""
+    pairs = sorted((a.get("type", ""), a.get("severity", "")) for a in alerts)
+    return hashlib.md5(json.dumps(pairs).encode()).hexdigest()
+
+
+def _speak_new_hazards(new_alerts: list, old_hash: str, config: dict) -> None:
+    """Speak and log any critical/high alerts that weren't in the previous cycle."""
+    if not new_alerts or not old_hash:
+        return
+    try:
+        from core.tts import speak_alert
+        lat = config.get("latitude")
+        lon = config.get("longitude")
+        for a in new_alerts:
+            sev   = a.get("severity", "low").lower()
+            atype = a.get("type", "hazard")
+            if sev not in ("critical", "high"):
+                continue
+            speak_alert(atype, sev.upper(), config, distance_mi=None, force=False)
+            # Log to Worker (fire-and-forget)
+            try:
+                from core.hazard_logger import log_hazard
+                log_hazard(config, atype, sev,
+                           lat=lat, lon=lon, acknowledged=1)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+# ── Continuous monitoring mode ────────────────────────────────────────────────
+
+_INTERVALS = [1, 2, 5, 10, 15, 30]  # allowed refresh intervals in minutes
+
+
+def continuous_monitor(config: dict | None = None,
+                       interval_minutes: int | None = 5,
+                       auto_mode: bool = False) -> None:
+    """
+    Auto-refresh the full dashboard on a timer.
+    auto_mode=True: interval adjusts automatically based on GPS speed.
+    Keys: Q=quit  R=refresh now  +=longer  -=shorter  A=toggle auto
+    """
+    try:
+        import msvcrt
+        _has_msvcrt = True
+    except ImportError:
+        _has_msvcrt = False
+
+    from core.config import get_config
+
+    if config is None:
+        config = get_config()
+
+    if interval_minutes not in _INTERVALS:
+        interval_minutes = 5
+
+    prev_hash     = ""
+    session_start = int(time.time())
+    refresh_count = 0
+
+    print()
+    print(f"  Starting Continuous Monitor — {'GPS-auto' if auto_mode else str(interval_minutes) + ' min'} refresh")
+    print("  Keys: Q quit  R refresh now  + longer  - shorter  A toggle auto")
+    time.sleep(1.2)
+
+    while True:
+        # ── GPS speed + smart interval ────────────────────────────────────
+        speed_mph = get_gps_speed_mph() if auto_mode else None
+        if auto_mode:
+            interval_secs = smart_refresh_interval(speed_mph)
+            interval_minutes = max(1, interval_secs // 60)
+        else:
+            interval_secs = (interval_minutes or 5) * 60
+
+        # ── Full dashboard refresh ────────────────────────────────────────
+        os.system("cls")
+        config = get_config()
+
+        # Build header line
+        if auto_mode and speed_mph is not None:
+            spd_str = f"🚗 {speed_mph:.0f} mph → {interval_minutes} min refresh"
+        elif auto_mode:
+            spd_str = f"🔄 GPS unavailable → {interval_minutes} min refresh"
+        else:
+            spd_str = f"🔄 CONTINUOUS MODE  [{interval_minutes} min]"
+
+        print(f"  {'═' * 56}")
+        print(f"  {spd_str}  —  Q quit  R now  +/- interval  A auto")
+        print(f"  {'═' * 56}")
+        print()
+
+        _run([])
+        refresh_count += 1
+
+        # ── New-hazard check (after cache is fresh from _run) ─────────────
+        new_alerts = _get_cached_alerts(config)
+        new_hash   = _alert_hash(new_alerts)
+
+        if prev_hash and new_hash != prev_hash:
+            _speak_new_hazards(new_alerts, prev_hash, config)
+
+        prev_hash = new_hash
+
+        # ── Countdown with non-blocking key input ─────────────────────────
+        end_time = time.time() + interval_secs
+        try:
+            while time.time() < end_time:
+                remaining = max(0, int(end_time - time.time()))
+                m, s = divmod(remaining, 60)
+                print(
+                    f"\r  Next refresh in {m:02d}:{s:02d}"
+                    f"  —  Q quit  R now  + longer  - shorter   ",
+                    end="", flush=True,
+                )
+
+                if _has_msvcrt and msvcrt.kbhit():
+                    raw = msvcrt.getch()
+                    # Special keys (arrows, F-keys) send 2 bytes; consume both
+                    if raw in (b"\x00", b"\xe0"):
+                        if msvcrt.kbhit():
+                            msvcrt.getch()
+                        time.sleep(0.1)
+                        continue
+
+                    try:
+                        k = raw.decode("utf-8", errors="ignore").lower()
+                    except Exception:
+                        k = ""
+
+                    if k in ("q", "\x1b", "\x03"):       # Q / Esc / Ctrl-C
+                        print("\n")
+                        _end_monitor_session(session_start, refresh_count, config)
+                        return
+
+                    elif k in ("r", "\r", "\n"):           # R or Enter → refresh now
+                        print()
+                        break
+
+                    elif k == "+":
+                        auto_mode = False
+                        idx = (_INTERVALS.index(interval_minutes)
+                               if interval_minutes in _INTERVALS else 2)
+                        interval_minutes = _INTERVALS[min(idx + 1, len(_INTERVALS) - 1)]
+                        end_time = time.time() + interval_minutes * 60
+                        print(f"\r  Interval set to {interval_minutes} min" + " " * 30,
+                              end="", flush=True)
+
+                    elif k == "-":
+                        auto_mode = False
+                        idx = (_INTERVALS.index(interval_minutes)
+                               if interval_minutes in _INTERVALS else 2)
+                        interval_minutes = _INTERVALS[max(idx - 1, 0)]
+                        end_time = time.time() + interval_minutes * 60
+                        print(f"\r  Interval set to {interval_minutes} min" + " " * 30,
+                              end="", flush=True)
+
+                    elif k == "a":
+                        auto_mode = not auto_mode
+                        mode_str = "GPS auto" if auto_mode else f"{interval_minutes} min manual"
+                        print(f"\r  Mode: {mode_str}" + " " * 30,
+                              end="", flush=True)
+
+                time.sleep(0.4)
+
+        except KeyboardInterrupt:
+            print("\n")
+            _end_monitor_session(session_start, refresh_count, config)
+            return
+
+
+def _end_monitor_session(session_start: int, refresh_count: int,
+                         config: dict) -> None:
+    """Log the completed session to the Worker and print goodbye."""
+    try:
+        from core.hazard_logger import log_session
+        log_session(
+            config,
+            queries=refresh_count,
+            session_start=session_start,
+        )
+    except Exception:
+        pass
+    print("  Continuous mode ended. Drive safe. 🛡️")
+    print()
+
+
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
 def _menu() -> None:
@@ -228,28 +625,27 @@ def _menu() -> None:
     print("  6  Regional map")
     print("  7  Settings")
     print("  8  Doctor  (system health check)")
-    print("  9  Help")
+    print("  C  Continuous Monitor  (auto-refresh)")
+    print("  F  View Flyer / Share Info")
+    print("  ?  Help & Icon Glossary")
     print("  0  Exit")
     print(_DIV)
 
 
-def _ensure_console_size(cols: int = 120, lines: int = 50) -> None:
-    """Grow the console window to at least cols×lines on first interactive launch."""
-    try:
-        import subprocess
-        subprocess.run(
-            ["mode", "con:", f"cols={cols}", f"lines={lines}"],
-            shell=True,
-            capture_output=True,
-        )
-    except Exception:
-        pass
-
+# ── Interactive loop ──────────────────────────────────────────────────────────
 
 def _interactive_loop() -> None:
     """Show the full weather report, then keep the window open with a menu."""
-    _ensure_console_size()
+    from core.config import get_config
+    _ensure_full_window()
     _run([])   # full report on startup
+
+    # Referral reminder — once per session, after first display
+    try:
+        config = get_config()
+        _show_referral_reminder(config)
+    except Exception:
+        pass
 
     while True:
         _menu()
@@ -299,8 +695,36 @@ def _interactive_loop() -> None:
         elif raw == "8":
             _run(["doctor"])
 
-        elif raw == "9":
-            _run(["help"])
+        elif raw.lower() in ("c", "monitor", "watch"):
+            try:
+                from core.config import get_config as _gc
+                _cfg = _gc()
+                mins_str = input(
+                    "  Refresh interval [1/2/5/10/15/30/A=GPS-auto] (Enter = 5 min): "
+                ).strip().lower()
+                if mins_str == "a":
+                    print()
+                    continuous_monitor(_cfg, interval_minutes=5, auto_mode=True)
+                else:
+                    mins = int(mins_str) if mins_str.isdigit() else 5
+                    if mins not in _INTERVALS:
+                        mins = min(_INTERVALS, key=lambda x: abs(x - mins))
+                        print(f"  Using {mins} min (nearest valid interval)")
+                    print()
+                    continuous_monitor(_cfg, interval_minutes=mins, auto_mode=False)
+            except (KeyboardInterrupt, EOFError):
+                print()
+
+        elif raw.lower() in ("f", "flyer"):
+            open_flyer()
+
+        elif raw in ("?", "help", "h"):
+            try:
+                from core.glossary import show_glossary
+                from core.config   import get_config as _gc
+                show_glossary(_gc())
+            except Exception as e:
+                print(f"  Glossary unavailable: {e}")
 
         else:
             # Treat unrecognised input as a location lookup

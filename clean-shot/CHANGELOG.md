@@ -1,6 +1,67 @@
 # Clean Shot — Driver Intelligence System — Changelog
 # By Blue Collar Nation LLC | cleanshothq.com
 
+## v3.0.13 — May 2026
+
+### App Icon, Flyer Viewer, GPS-Speed-Aware Refresh, Website Flyer
+
+**App icon integrated throughout:**
+- `cleanshot.ico` bundled inside exe via PyInstaller `datas` + `icon=` parameter
+- Console window title-bar icon set via `WM_SETICON` + `LoadImageW` at launch
+- `CleanShotSetup.iss` updated to version 3.0.13; `.ico` installed alongside exe for shortcut icons
+- `favicon.ico` at repo root; served from `cleanshothq.com/favicon.ico` via R2
+
+**Flyer viewer (`[F]` from main menu):**
+- Opens `CleanShotHQ_Flyer_v9.pdf` in default PDF viewer via `os.startfile()`
+- Finds file in PyInstaller bundle (`sys._MEIPASS`), exe directory, or dev assets path
+- PDF bundled into exe via `cleanshot.spec` datas
+- `cleanshothq.com/flyer` serves the PDF inline from R2
+
+**GPS-speed-aware continuous refresh:**
+- `get_gps_speed_mph()` — tries Windows WinRT Location API, then gpsd fallback
+- `smart_refresh_interval()` — parked=20min, city=8min, highway approach=4min, highway=2min
+- `[A]` in continuous monitor toggles GPS-auto mode; header shows "🚗 45 mph → 4 min refresh"
+- `+`/`-` keys switch to manual mode; `A` toggles back to GPS-auto
+
+**Website:**
+- `cleanshothq.com/flyer` — PDF served inline from R2 (Content-Disposition: inline)
+- Flyer link added to footer and contact section of `index.html`
+- `cloudflare/wrangler.toml` — custom domain route added (removes deploy warning)
+
+---
+
+### Full-Window Launch, Continuous Monitor, Icon Glossary
+
+**Windows: app now launches maximized (`SW_MAXIMIZE`):**
+- Console window maximized via `ctypes.windll.user32.ShowWindow(hwnd, 3)` on startup
+- Console title set: "CleanShot HQ v3.0.13 — Road Intelligence"
+- Buffer grows to 180×50 as fallback
+
+**Continuous monitoring mode (`[C]` from main menu):**
+- Auto-refreshes the full dashboard every 1/2/5/10/15/30 minutes
+- Non-blocking keyboard: Q=quit, R=refresh now, +/- to adjust interval
+- TTS speaks new critical/high hazards (compares hashes cycle-to-cycle)
+- New hazards logged to Worker via `hazard_logger.log_hazard()` automatically
+- Session logged to Worker on exit via `hazard_logger.log_session()`
+- Linux/macOS/Android: text-only continuous mode via `cleanshot monitor [minutes]`
+
+**Icon & symbol glossary (`[?]` from main menu):**
+- All hazard icons, severity levels, status symbols, truck stop amenities, HOS indicators
+- Paginated by section — press Enter to continue, Q to return to menu
+- `core/glossary.py` — `GLOSSARY` dict + `show_glossary()` function
+
+**Referral reminder on startup:**
+- One-line reminder shown once per session if referral_count < 5
+- Includes shareable URL (uses saved ref code if available)
+- Never shown when max $5/mo discount is already active
+
+**New modules:**
+- `core/glossary.py` — icon/symbol reference
+- `core/ui.py` — platform detection helpers (`is_mobile`, `clear_screen`, `supports_tts`, etc.)
+- `platforms/README.md` — platform support matrix and native app roadmap
+
+---
+
 ## v3.0.12 — May 2026
 
 ### Stripe Checkout & Referral System (Cloudflare Backend)

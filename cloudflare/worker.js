@@ -19,13 +19,18 @@
  *   GET  /v1/account/stats         — dashboard: usage stats (JWT)
  *   POST /v1/account/logout        — dashboard: invalidate session (client-side)
  *   POST /v1/billing/portal        — Stripe Customer Portal URL (JWT)
+ *   POST /v1/account/recover       — forgot license key → email recovery
+ *   POST /v1/account/resend-welcome — resend welcome (Stripe last4 verification)
+ *   POST /v1/hazard/log            — app reports a detected hazard (X-License-Key)
+ *   POST /v1/session/log           — app reports session summary (X-License-Key)
  *
  * Secrets (set via wrangler secret put):
- *   ADMIN_KEY             — X-Admin-Key header value
- *   STRIPE_SECRET_KEY     — sk_live_... or sk_test_...
- *   STRIPE_WEBHOOK_SECRET — whsec_...
- *   R511_API_KEY          — r511_...
- *   JWT_SECRET            — long random string for signing dashboard tokens
+ *   ADMIN_KEY              — X-Admin-Key header value
+ *   STRIPE_SECRET_KEY      — sk_live_... or sk_test_...
+ *   STRIPE_WEBHOOK_SECRET  — whsec_...
+ *   R511_API_KEY           — r511_...
+ *   JWT_SECRET             — long random string for signing dashboard tokens
+ *   MAILCHANNELS_API_KEY   — MailChannels API key (optional; required if domain SPF not set)
  */
 
 // ── Known Stripe price IDs ────────────────────────────────────────────────────
@@ -43,7 +48,7 @@ const VALID_PRICES = new Set([
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key, Authorization, X-License-Key",
 };
 
 // ── Basic response helpers ────────────────────────────────────────────────────
@@ -149,6 +154,238 @@ async function requireJWT(request, env) {
 }
 
 // ── Account helpers ───────────────────────────────────────────────────────────
+
+function getXLicenseKey(request) {
+  return (request.headers.get("X-License-Key") || "").trim();
+}
+
+/**
+ * D1-backed sliding-window rate limiter.
+ * Returns true if the request is allowed, false if rate-limited.
+ */
+async function checkRateLimit(key, maxCount, windowSecs, env) {
+  const now = nowSec();
+  try {
+    const row = await env.DB.prepare(
+      "SELECT count, window_start FROM rate_limits WHERE key = ?"
+    ).bind(key).first();
+
+    if (!row || (now - row.window_start) >= windowSecs) {
+      await env.DB.prepare(
+        `INSERT INTO rate_limits (key, count, window_start) VALUES (?, 1, ?)
+         ON CONFLICT(key) DO UPDATE SET count = 1, window_start = excluded.window_start`
+      ).bind(key, now).run();
+      return true;
+    }
+
+    if (row.count >= maxCount) return false;
+
+    await env.DB.prepare(
+      "UPDATE rate_limits SET count = count + 1 WHERE key = ?"
+    ).bind(key).run();
+    return true;
+  } catch { return true; } // fail open — never block on a DB error
+}
+
+/**
+ * Send an email via MailChannels transactional API.
+ * Requires SPF record "include:relay.mailchannels.net" on your domain,
+ * OR set MAILCHANNELS_API_KEY secret for authenticated sends.
+ */
+async function sendEmail(to, subject, htmlBody, textBody, env) {
+  const headers = { "Content-Type": "application/json" };
+  if (env.MAILCHANNELS_API_KEY) headers["X-Auth-API-Key"] = env.MAILCHANNELS_API_KEY;
+
+  try {
+    await fetch("https://api.mailchannels.net/tx/v1/send", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: "support@cleanshothq.com", name: "CleanShot HQ" },
+        subject,
+        content: [
+          { type: "text/plain", value: textBody },
+          { type: "text/html",  value: htmlBody },
+        ],
+      }),
+    });
+  } catch (e) {
+    console.error("sendEmail error:", e.message);
+  }
+}
+
+function buildWelcomeEmail(name, planName, licenseKey, refCode, refUrl, isTrialActive) {
+  const greeting  = name || "Fellow Trucker";
+  const trialNote = isTrialActive ? "Your 30-day free trial is active — no charge until it ends. " : "";
+  const refSection = refCode ? `
+    <tr>
+      <td style="padding:24px 32px;border-bottom:1px solid #2a3040;background:#0f1a0f;">
+        <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#2ecc71;margin-bottom:10px;">🤝 Your Referral Code</div>
+        <p style="margin:0 0 10px;font-size:0.88rem;color:#8892a4;line-height:1.6;">
+          Share your link — earn <strong style="color:#e8eaf0;">$1/mo off</strong> per active subscriber, up to <strong style="color:#e8eaf0;">$5/mo</strong>.
+        </p>
+        <div style="background:#0d0f12;border:1px solid #2a4a1a;border-radius:6px;padding:12px;margin-bottom:8px;text-align:center;">
+          <span style="font-family:monospace;font-size:1.1rem;font-weight:700;color:#2ecc71;letter-spacing:0.08em;">${refCode}</span>
+        </div>
+        <div style="text-align:center;font-size:0.85rem;">
+          <a href="${refUrl}" style="color:#4a9eff;">${refUrl}</a>
+        </div>
+      </td>
+    </tr>` : "";
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#0d0f12;font-family:'Segoe UI',Arial,sans-serif;color:#e8eaf0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0d0f12;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#161a1f;border:1px solid #2a3040;border-radius:12px;overflow:hidden;">
+  <tr><td style="background:#0d0f12;border-bottom:1px solid #2a3040;padding:24px 32px;text-align:center;">
+    <div style="font-size:1.3rem;font-weight:800;color:#f0a500;">⚡ CleanShot HQ</div>
+    <div style="font-size:0.8rem;color:#8892a4;margin-top:4px;">Built for the road, not the boardroom.</div>
+  </td></tr>
+  <tr><td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a3040;">
+    <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#f0a500;margin-bottom:8px;">Welcome aboard</div>
+    <h1 style="margin:0 0 12px;font-size:1.6rem;font-weight:800;">Hey ${greeting} 👋</h1>
+    <p style="margin:0;color:#8892a4;font-size:0.95rem;line-height:1.6;">
+      Your <strong style="color:#e8eaf0;">${planName}</strong> account is ready. ${trialNote}Save this email — your license key is your password.
+    </p>
+  </td></tr>
+  <tr><td style="padding:28px 32px;border-bottom:1px solid #2a3040;">
+    <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8892a4;margin-bottom:10px;">Your License Key</div>
+    <div style="background:#0d0f12;border:2px solid #f0a500;border-radius:8px;padding:16px;text-align:center;">
+      <div style="font-family:monospace;font-size:1.4rem;font-weight:800;color:#f0a500;letter-spacing:0.12em;">${licenseKey}</div>
+    </div>
+    <p style="margin:10px 0 0;font-size:0.82rem;color:#8892a4;text-align:center;">Works on any device. Enter it at cleanshothq.com/dashboard to sign in.</p>
+  </td></tr>
+  <tr><td style="padding:28px 32px;border-bottom:1px solid #2a3040;">
+    <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8892a4;margin-bottom:16px;">Get Started</div>
+    <p style="margin:0 0 10px;font-size:0.9rem;">
+      <strong>1.</strong> <a href="https://cleanshothq.com/download/CleanShot.exe" style="color:#4a9eff;">Download CleanShot.exe</a> — signed, no SmartScreen warnings
+    </p>
+    <p style="margin:0 0 10px;font-size:0.9rem;">
+      <strong>2.</strong> Run it, enter your city or ZIP when prompted
+    </p>
+    <p style="margin:0;font-size:0.9rem;">
+      <strong>3.</strong> <a href="https://cleanshothq.com/dashboard" style="color:#4a9eff;">Sign in to your dashboard</a> with your email + license key
+    </p>
+  </td></tr>
+  ${refSection}
+  <tr><td style="padding:24px 32px;border-bottom:1px solid #2a3040;">
+    <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8892a4;margin-bottom:10px;">Need Help?</div>
+    <p style="margin:0;font-size:0.88rem;color:#8892a4;line-height:1.7;">
+      Email: <a href="mailto:support@cleanshothq.com" style="color:#f0a500;">support@cleanshothq.com</a><br>
+      Phone: <a href="tel:6092021087" style="color:#f0a500;">(609) 202-1087</a> — we reply within 24 hours.
+    </p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;text-align:center;">
+    <p style="margin:0;font-size:0.78rem;color:#555;line-height:1.8;">
+      <strong style="color:#8892a4;">CleanShotHQ LLC</strong> • Salem, NJ 08079<br>
+      No ads. Ever. <a href="https://cleanshothq.com" style="color:#555;">cleanshothq.com</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+  const text = `Hey ${greeting},\n\nWelcome to CleanShot HQ! Your ${planName} account is ready.\n${trialNote}\n\nYOUR LICENSE KEY: ${licenseKey}\n\nSave this — it's your password on any device.\n\nGet started:\n1. Download: https://cleanshothq.com/download/CleanShot.exe\n2. Dashboard: https://cleanshothq.com/dashboard\n\n${refCode ? `Your referral code: ${refCode}\nShare: ${refUrl}\nEarn $1/mo off per active referral, up to $5/mo.\n\n` : ""}Need help? support@cleanshothq.com or (609) 202-1087\n\nCleanShotHQ LLC — Built for the road, not the boardroom.`;
+
+  return { html, text };
+}
+
+function buildRecoveryEmail(name, licenseKey) {
+  const greeting = name || "there";
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#0d0f12;font-family:'Segoe UI',Arial,sans-serif;color:#e8eaf0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0d0f12;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#161a1f;border:1px solid #2a3040;border-radius:12px;overflow:hidden;">
+  <tr><td style="background:#0d0f12;border-bottom:1px solid #2a3040;padding:24px 32px;text-align:center;">
+    <div style="font-size:1.3rem;font-weight:800;color:#f0a500;">⚡ CleanShot HQ</div>
+  </td></tr>
+  <tr><td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a3040;">
+    <h1 style="margin:0 0 12px;font-size:1.4rem;font-weight:800;">Your license key, ${greeting}</h1>
+    <p style="margin:0;color:#8892a4;font-size:0.95rem;">You requested a reminder. Here it is.</p>
+  </td></tr>
+  <tr><td style="padding:28px 32px;border-bottom:1px solid #2a3040;">
+    <div style="background:#0d0f12;border:2px solid #f0a500;border-radius:8px;padding:16px;text-align:center;">
+      <div style="font-family:monospace;font-size:1.4rem;font-weight:800;color:#f0a500;letter-spacing:0.12em;">${licenseKey}</div>
+    </div>
+    <p style="margin:10px 0 0;font-size:0.82rem;color:#8892a4;text-align:center;">
+      Sign in at <a href="https://cleanshothq.com/dashboard" style="color:#4a9eff;">cleanshothq.com/dashboard</a>
+    </p>
+  </td></tr>
+  <tr><td style="padding:20px 32px;text-align:center;">
+    <p style="margin:0;font-size:0.82rem;color:#555;">
+      Didn't request this? Ignore it — your key was not changed.<br>
+      Questions? <a href="mailto:support@cleanshothq.com" style="color:#8892a4;">support@cleanshothq.com</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+  const text = `Hey ${greeting},\n\nYour CleanShot license key:\n\n${licenseKey}\n\nSign in: https://cleanshothq.com/dashboard\n\nDidn't request this? Ignore it — your key was not changed.\nQuestions? support@cleanshothq.com\n\nCleanShotHQ LLC`;
+
+  return { html, text };
+}
+
+// ── Savings calculation constants ─────────────────────────────────────────────
+const HAZARD_SAVINGS = {
+  black_ice:     { fuel_gal: 0.8, time_min: 45 },
+  bridge_freeze: { fuel_gal: 0.8, time_min: 45 },
+  fog:           { fuel_gal: 0.4, time_min: 20 },
+  flood:         { fuel_gal: 0.4, time_min: 20 },
+  high_wind:     { fuel_gal: 0.3, time_min: 15 },
+  diesel_gel:    { fuel_gal: 0.5, time_min: 30 },
+  mudslide:      { fuel_gal: 0.6, time_min: 30 },
+  dot_incident:  { fuel_gal: 0.4, time_min: 20 },
+};
+const DIESEL_PER_GAL      = 3.90;
+const DRIVER_HOURLY_USD   = 25.00;
+const DATA_COST_PER_MB    = 0.05;
+const DATA_SAVED_MB_PER_MONTH = 99.5; // 100MB competitor - 0.5MB CleanShot
+const DEFAULT_MONTHLY_SUB = 7.99;
+
+function calcSavings(hazardRows, monthsActive) {
+  const byType     = {};
+  const bySeverity = { critical: 0, high: 0, moderate: 0, low: 0 };
+  let fuelGal = 0;
+  let timeMin = 0;
+
+  for (const row of hazardRows) {
+    byType[row.hazard_type] = (byType[row.hazard_type] || 0) + row.cnt;
+    const sev = row.severity || "low";
+    bySeverity[sev] = (bySeverity[sev] || 0) + row.cnt;
+    const s = HAZARD_SAVINGS[row.hazard_type] || { fuel_gal: 0.4, time_min: 20 };
+    fuelGal += s.fuel_gal * row.cnt;
+    timeMin += s.time_min * row.cnt;
+  }
+
+  const totalHazards   = hazardRows.reduce((s, r) => s + r.cnt, 0);
+  const fuelCostSaved  = parseFloat((fuelGal * DIESEL_PER_GAL).toFixed(2));
+  const timeHours      = parseFloat((timeMin / 60).toFixed(1));
+  const timeCostSaved  = parseFloat((timeHours * DRIVER_HOURLY_USD).toFixed(2));
+  const dataSavedMb    = parseFloat((monthsActive * DATA_SAVED_MB_PER_MONTH).toFixed(1));
+  const dataCostSaved  = parseFloat((dataSavedMb * DATA_COST_PER_MB).toFixed(2));
+  const totalValue     = parseFloat((fuelCostSaved + timeCostSaved + dataCostSaved).toFixed(2));
+  const totalPaid      = parseFloat((monthsActive * DEFAULT_MONTHLY_SUB).toFixed(2));
+  const roi            = totalPaid > 0 ? parseFloat((totalValue / totalPaid).toFixed(1)) : 0;
+
+  return {
+    byType,
+    bySeverity,
+    totalHazards,
+    fuelGal:      parseFloat(fuelGal.toFixed(2)),
+    fuelCostSaved,
+    timeHours,
+    timeCostSaved,
+    dataSavedMb,
+    dataCostSaved,
+    totalValue,
+    totalPaid,
+    roi,
+  };
+}
 
 function _planName(licType, sub) {
   if (sub?.status === "active") return "Subscriber";
@@ -850,6 +1087,46 @@ export default {
       if (event.type === "customer.subscription.created") {
         await upsertSubscription(sub, env);
 
+        // Send welcome email (fire-and-forget, never block the webhook response)
+        ctx.waitUntil((async () => {
+          try {
+            // Fetch subscriber details from Stripe
+            const customer = await stripeGet(`/customers/${sub.customer}`, env);
+            const toEmail  = customer.email;
+            if (!toEmail) return;
+
+            // Look up their license key from D1
+            const subRow = await env.DB.prepare(
+              "SELECT user_id FROM subscriptions WHERE stripe_customer_id = ? LIMIT 1"
+            ).bind(sub.customer).first();
+
+            let licenseKey = "";
+            let userName   = customer.name || "";
+            let refCode2   = "";
+            let refUrl2    = "";
+
+            if (subRow?.user_id) {
+              const licRow = await env.DB.prepare(
+                "SELECT key FROM licenses WHERE user_id = ? AND active = 1 ORDER BY rowid DESC LIMIT 1"
+              ).bind(subRow.user_id).first();
+              licenseKey = licRow?.key || "";
+
+              const refRow = await env.DB.prepare(
+                "SELECT ref_code FROM referrals WHERE referrer_email = ? AND status != 'expired' LIMIT 1"
+              ).bind(toEmail).first();
+              refCode2 = refRow?.ref_code || "";
+              if (refCode2) refUrl2 = `https://cleanshothq.com/?ref=${refCode2}`;
+            }
+
+            const planName = sub.items?.data?.[0]?.price?.nickname || "CleanShot Subscriber";
+            const isTrial  = (sub.trial_end ?? 0) > nowSec();
+            const { html, text } = buildWelcomeEmail(userName, planName, licenseKey, refCode2, refUrl2, isTrial);
+            await sendEmail(toEmail, "Welcome to CleanShot HQ — your account details inside", html, text, env);
+          } catch (e) {
+            console.error("welcome email error:", e.message);
+          }
+        })());
+
         const refCode = sub.metadata?.ref_code;
         if (refCode) {
           const referral = await env.DB.prepare(
@@ -1068,7 +1345,7 @@ export default {
     }
 
     // ── GET /v1/account/stats ────────────────────────────────────────────────
-    // Usage stats for the dashboard. App-side tracking added in v3.1.
+    // Full savings analytics for the dashboard.
     if (path === "/v1/account/stats" && method === "GET") {
       const jwt = await requireJWT(request, env);
       if (!jwt) return err("Authorization required", 401);
@@ -1080,15 +1357,54 @@ export default {
       const accountAgeDays = user ? Math.floor((nowSec() - user.created_at) / 86400) : 0;
       const monthsActive   = Math.max(1, Math.ceil(accountAgeDays / 30));
 
-      // Savings vs a typical trucking app (100MB/mo background vs 0.5MB for CleanShot)
-      const dataSavedMb = (monthsActive * 99.5).toFixed(1);
+      // Resolve license key to query hazard_log
+      const licRow = await env.DB.prepare(
+        "SELECT key FROM licenses WHERE user_id = ? AND active = 1 ORDER BY rowid DESC LIMIT 1"
+      ).bind(jwt.sub).first();
+      const licKey = licRow?.key ?? "";
+
+      // Hazard totals grouped by type + severity
+      const { results: hazardRows } = licKey
+        ? await env.DB.prepare(
+            `SELECT hazard_type, severity, COUNT(*) as cnt
+             FROM hazard_log WHERE license_key = ?
+             GROUP BY hazard_type, severity`
+          ).bind(licKey).all()
+        : { results: [] };
+
+      // States covered
+      const { results: stateRows } = licKey
+        ? await env.DB.prepare(
+            "SELECT DISTINCT state FROM hazard_log WHERE license_key = ? AND state IS NOT NULL"
+          ).bind(licKey).all()
+        : { results: [] };
+      const statesCovered = stateRows.map(r => r.state).filter(Boolean).sort();
+
+      const sv = calcSavings(hazardRows, monthsActive);
 
       return json({
-        data_saved_mb:       dataSavedMb,
-        months_active:       monthsActive,
-        hazard_alerts:       null,   // tracked in v3.1
-        hos_advisories:      null,   // tracked in v3.1
-        parking_suggestions: null,   // tracked in v3.1
+        hazards: {
+          total_detected: sv.totalHazards,
+          by_type:        sv.byType,
+          by_severity:    sv.bySeverity,
+          states_covered: statesCovered,
+        },
+        savings: {
+          data_mb_saved:      sv.dataSavedMb,
+          data_cost_saved:    sv.dataCostSaved,
+          fuel_gallons_saved: sv.fuelGal,
+          fuel_cost_saved:    sv.fuelCostSaved,
+          time_hours_saved:   sv.timeHours,
+          time_value_saved:   sv.timeCostSaved,
+          total_value_saved:  sv.totalValue,
+          vs_competitor_cost: parseFloat((monthsActive * 12.99).toFixed(2)),
+        },
+        subscription: {
+          months_active:          monthsActive,
+          total_paid:             sv.totalPaid,
+          total_value_delivered:  sv.totalValue,
+          roi_multiplier:         sv.roi,
+        },
       });
     }
 
@@ -1124,6 +1440,213 @@ export default {
       }
 
       return json({ url: portal.url });
+    }
+
+    // ── POST /v1/account/recover ─────────────────────────────────────────────
+    // Forgot license key — look up by email and send recovery email.
+    // Always returns the same message to prevent account enumeration.
+    if (path === "/v1/account/recover" && method === "POST") {
+      const body = await request.json().catch(() => null);
+      if (!body?.email) return err("email required");
+
+      const email = body.email.trim().toLowerCase();
+      const GENERIC = { message: "If that email is registered, you'll receive your license key shortly." };
+
+      const allowed = await checkRateLimit(`recover:${email}`, 3, 3600, env);
+      if (!allowed) return json(GENERIC); // silently rate-limit
+
+      const user = await env.DB.prepare(
+        `SELECT u.email, u.name, l.key as license_key
+         FROM users u
+         JOIN licenses l ON l.user_id = u.id
+         WHERE LOWER(u.email) = ? AND l.active = 1
+         ORDER BY l.rowid DESC LIMIT 1`
+      ).bind(email).first();
+
+      if (user) {
+        ctx.waitUntil((async () => {
+          const { html, text } = buildRecoveryEmail(user.name, user.license_key);
+          await sendEmail(user.email, "Your CleanShot license key", html, text, env);
+        })());
+      }
+
+      return json(GENERIC);
+    }
+
+    // ── POST /v1/account/resend-welcome ──────────────────────────────────────
+    // Resend welcome email — verified by Stripe payment card last4.
+    if (path === "/v1/account/resend-welcome" && method === "POST") {
+      const body = await request.json().catch(() => null);
+      if (!body?.email || !body?.stripe_last4) return err("email and stripe_last4 required");
+
+      const email    = body.email.trim().toLowerCase();
+      const last4    = String(body.stripe_last4).replace(/\D/g, "").slice(-4);
+      const GENERIC  = { message: "If we can verify your identity, you'll receive a welcome email shortly." };
+
+      const allowed = await checkRateLimit(`resend:${email}`, 3, 3600, env);
+      if (!allowed) return json(GENERIC);
+
+      ctx.waitUntil((async () => {
+        try {
+          // Find Stripe customer by email
+          const customers = await stripeGet(
+            `/customers?email=${encodeURIComponent(email)}&limit=1`, env
+          );
+          const customer = customers.data?.[0];
+          if (!customer) return;
+
+          // Verify card last4
+          const payMethods = await stripeGet(
+            `/customers/${customer.id}/payment_methods?type=card&limit=5`, env
+          );
+          const matched = payMethods.data?.some(pm => pm.card?.last4 === last4);
+          if (!matched) return;
+
+          // Log security audit
+          await env.DB.prepare(
+            `INSERT INTO rate_limits (key, count, window_start)
+             VALUES (?, 1, ?)
+             ON CONFLICT(key) DO UPDATE SET count = count + 1`
+          ).bind(`resend-audit:${email}`, nowSec()).run();
+
+          // Find license key
+          const subRow = await env.DB.prepare(
+            "SELECT user_id FROM subscriptions WHERE stripe_customer_id = ? LIMIT 1"
+          ).bind(customer.id).first();
+          if (!subRow) return;
+
+          const licRow = await env.DB.prepare(
+            "SELECT key FROM licenses WHERE user_id = ? AND active = 1 ORDER BY rowid DESC LIMIT 1"
+          ).bind(subRow.user_id).first();
+          if (!licRow) return;
+
+          // Get referral if any
+          const refRow = await env.DB.prepare(
+            "SELECT ref_code FROM referrals WHERE referrer_email = ? AND status != 'expired' LIMIT 1"
+          ).bind(email).first();
+          const refCode = refRow?.ref_code || "";
+          const refUrl  = refCode ? `https://cleanshothq.com/?ref=${refCode}` : "";
+
+          const { html, text } = buildWelcomeEmail(
+            customer.name || "", "CleanShot Subscriber",
+            licRow.key, refCode, refUrl, false
+          );
+          await sendEmail(email, "Welcome to CleanShot HQ — your account details inside", html, text, env);
+        } catch (e) {
+          console.error("resend-welcome error:", e.message);
+        }
+      })());
+
+      return json(GENERIC);
+    }
+
+    // ── POST /v1/hazard/log ───────────────────────────────────────────────────
+    // App reports a hazard detected and shown to a driver.
+    if (path === "/v1/hazard/log" && method === "POST") {
+      const licKey = getXLicenseKey(request);
+      if (!licKey) return err("X-License-Key header required", 401);
+
+      const lic = await env.DB.prepare(
+        "SELECT key, active, type, expires_at FROM licenses WHERE key = ?"
+      ).bind(licKey).first();
+      if (!lic || !lic.active) return err("invalid or revoked license", 403);
+      if (lic.type === "trial" && nowSec() > lic.expires_at) {
+        return err("trial expired", 402);
+      }
+
+      const body = await request.json().catch(() => null);
+      if (!body?.hazard_type || !body?.severity) {
+        return err("hazard_type and severity required");
+      }
+
+      const VALID_TYPES = new Set([
+        "black_ice","bridge_freeze","fog","flood","diesel_gel",
+        "high_wind","mudslide","dot_incident",
+      ]);
+      const VALID_SEVS = new Set(["low","moderate","high","critical"]);
+      if (!VALID_TYPES.has(body.hazard_type)) return err("unknown hazard_type");
+      if (!VALID_SEVS.has(body.severity))     return err("unknown severity");
+
+      await env.DB.prepare(
+        `INSERT INTO hazard_log
+           (license_key, hazard_type, severity, state, route, detected_at, lat, lon, acknowledged)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        licKey,
+        body.hazard_type,
+        body.severity,
+        body.state  ? String(body.state).slice(0, 2).toUpperCase()  : null,
+        body.route  ? String(body.route).slice(0, 20)               : null,
+        nowSec(),
+        body.lat != null ? parseFloat(body.lat) : null,
+        body.lon != null ? parseFloat(body.lon) : null,
+        body.acknowledged ? 1 : 0,
+      ).run();
+
+      return json({ logged: true }, 201);
+    }
+
+    // ── POST /v1/session/log ──────────────────────────────────────────────────
+    // App reports a session summary when closing.
+    if (path === "/v1/session/log" && method === "POST") {
+      const licKey = getXLicenseKey(request);
+      if (!licKey) return err("X-License-Key header required", 401);
+
+      const lic = await env.DB.prepare(
+        "SELECT key, active FROM licenses WHERE key = ?"
+      ).bind(licKey).first();
+      if (!lic || !lic.active) return err("invalid or revoked license", 403);
+
+      const body = await request.json().catch(() => null);
+
+      await env.DB.prepare(
+        `INSERT INTO session_log
+           (license_key, session_start, session_end, queries, hazards_detected, states_checked, miles_covered)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        licKey,
+        body?.session_start ?? nowSec(),
+        nowSec(),
+        Math.max(0, parseInt(body?.queries          || 0, 10)),
+        Math.max(0, parseInt(body?.hazards_detected || 0, 10)),
+        JSON.stringify(Array.isArray(body?.states_checked) ? body.states_checked : []),
+        body?.miles_covered != null ? parseFloat(body.miles_covered) : null,
+      ).run();
+
+      return json({ logged: true }, 201);
+    }
+
+    // ── GET /favicon.ico ─────────────────────────────────────────────────────
+    if (path === "/favicon.ico") {
+      const obj = env.RELEASES ? await env.RELEASES.get("favicon.ico") : null;
+      if (!obj) return new Response(null, { status: 204 });
+      return new Response(obj.body, {
+        headers: {
+          "Content-Type":  "image/x-icon",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    }
+
+    // ── GET /flyer ────────────────────────────────────────────────────────────
+    // Serve the CleanShot product flyer PDF inline in the browser.
+    if (path === "/flyer") {
+      if (!env.RELEASES) return err("flyer not available", 503);
+      const obj = await env.RELEASES.get("CleanShotHQ_Flyer_v9.pdf");
+      if (!obj) {
+        return new Response("Flyer not yet uploaded.", {
+          status: 404,
+          headers: { "Content-Type": "text/plain", ...CORS },
+        });
+      }
+      return new Response(obj.body, {
+        headers: {
+          "Content-Type":        "application/pdf",
+          "Content-Disposition": 'inline; filename="CleanShotHQ_Flyer_v9.pdf"',
+          "Cache-Control":       "public, max-age=3600",
+          ...CORS,
+        },
+      });
     }
 
     return err("Not found", 404);

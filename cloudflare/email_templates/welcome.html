@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!--
+  CleanShot HQ — Welcome Email Template
+  Reference file — the actual template is inlined as a JS string in worker.js.
+  Rendered by buildWelcomeEmail() in cloudflare/worker.js.
+
+  Variables (replaced at send time):
+    {{NAME}}        — subscriber name or "Fellow Trucker"
+    {{PLAN}}        — plan name, e.g. "Founding Member"
+    {{LICENSE_KEY}} — e.g. CS-XXXX-XXXX-XXXX-XXXX
+    {{REF_CODE}}    — referral code or empty
+    {{REF_URL}}     — full referral URL or empty
+    {{TRIAL_NOTE}}  — "Your 30-day free trial is active." or ""
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to CleanShot HQ</title>
+</head>
+<body style="margin:0;padding:0;background:#0d0f12;font-family:'Segoe UI',Arial,sans-serif;color:#e8eaf0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0d0f12;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#161a1f;border:1px solid #2a3040;border-radius:12px;overflow:hidden;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#0d0f12;border-bottom:1px solid #2a3040;padding:24px 32px;text-align:center;">
+      <div style="font-size:1.3rem;font-weight:800;color:#f0a500;letter-spacing:0.04em;">⚡ CleanShot HQ</div>
+      <div style="font-size:0.8rem;color:#8892a4;margin-top:4px;">Built for the road, not the boardroom.</div>
+    </td>
+  </tr>
+
+  <!-- HERO -->
+  <tr>
+    <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2a3040;">
+      <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#f0a500;margin-bottom:8px;">Welcome aboard</div>
+      <h1 style="margin:0 0 12px;font-size:1.6rem;font-weight:800;line-height:1.2;">Hey {{NAME}} 👋</h1>
+      <p style="margin:0;color:#8892a4;font-size:0.95rem;line-height:1.6;">
+        Your <strong style="color:#e8eaf0;">{{PLAN}}</strong> account is ready.
+        {{TRIAL_NOTE}}
+        Save this email — your license key is your password.
+      </p>
+    </td>
+  </tr>
+
+  <!-- LICENSE KEY -->
+  <tr>
+    <td style="padding:28px 32px;border-bottom:1px solid #2a3040;">
+      <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8892a4;margin-bottom:10px;">Your License Key</div>
+      <div style="background:#0d0f12;border:2px solid #f0a500;border-radius:8px;padding:16px;text-align:center;">
+        <div style="font-family:'Consolas','Courier New',monospace;font-size:1.4rem;font-weight:800;color:#f0a500;letter-spacing:0.12em;">{{LICENSE_KEY}}</div>
+      </div>
+      <p style="margin:10px 0 0;font-size:0.82rem;color:#8892a4;text-align:center;">
+        This key works on any device. Enter it on the login page at any time.
+      </p>
+    </td>
+  </tr>
+
+  <!-- GET STARTED -->
+  <tr>
+    <td style="padding:28px 32px;border-bottom:1px solid #2a3040;">
+      <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8892a4;margin-bottom:16px;">Get Started</div>
+
+      <!-- Step 1 -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+        <tr>
+          <td width="40" valign="top" style="padding-top:2px;">
+            <div style="width:28px;height:28px;background:#f0a500;border-radius:50%;text-align:center;line-height:28px;font-weight:800;color:#000;font-size:0.85rem;">1</div>
+          </td>
+          <td style="padding-left:12px;">
+            <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">Download CleanShot</div>
+            <a href="https://cleanshothq.com/download/CleanShot.exe" style="color:#4a9eff;font-size:0.88rem;">cleanshothq.com/download/CleanShot.exe</a>
+            <div style="font-size:0.8rem;color:#8892a4;margin-top:2px;">Windows 10/11 • Signed • No SmartScreen warnings</div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Step 2 -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+        <tr>
+          <td width="40" valign="top" style="padding-top:2px;">
+            <div style="width:28px;height:28px;background:#f0a500;border-radius:50%;text-align:center;line-height:28px;font-weight:800;color:#000;font-size:0.85rem;">2</div>
+          </td>
+          <td style="padding-left:12px;">
+            <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">Run it — no install needed</div>
+            <div style="font-size:0.88rem;color:#8892a4;">Double-click CleanShot.exe. Enter your city or ZIP when prompted.</div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Step 3 -->
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td width="40" valign="top" style="padding-top:2px;">
+            <div style="width:28px;height:28px;background:#f0a500;border-radius:50%;text-align:center;line-height:28px;font-weight:800;color:#000;font-size:0.85rem;">3</div>
+          </td>
+          <td style="padding-left:12px;">
+            <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">Access your dashboard</div>
+            <a href="https://cleanshothq.com/dashboard" style="color:#4a9eff;font-size:0.88rem;">cleanshothq.com/dashboard</a>
+            <div style="font-size:0.8rem;color:#8892a4;margin-top:2px;">Sign in with your email + license key above.</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- REFERRAL (conditional — only shown if ref_code exists) -->
+  {{#if REF_CODE}}
+  <tr>
+    <td style="padding:24px 32px;border-bottom:1px solid #2a3040;background:#0f1a0f;">
+      <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#2ecc71;margin-bottom:10px;">🤝 Your Referral Code</div>
+      <p style="margin:0 0 10px;font-size:0.88rem;color:#8892a4;line-height:1.6;">
+        Share your personal link and earn <strong style="color:#e8eaf0;">$1/mo off</strong> for every active subscriber
+        you refer — up to <strong style="color:#e8eaf0;">$5/mo off</strong>.
+      </p>
+      <div style="background:#0d0f12;border:1px solid #2a4a1a;border-radius:6px;padding:12px;margin-bottom:8px;text-align:center;">
+        <span style="font-family:'Consolas','Courier New',monospace;font-size:1.1rem;font-weight:700;color:#2ecc71;letter-spacing:0.08em;">{{REF_CODE}}</span>
+      </div>
+      <div style="text-align:center;">
+        <a href="{{REF_URL}}" style="color:#4a9eff;font-size:0.85rem;">{{REF_URL}}</a>
+      </div>
+    </td>
+  </tr>
+  {{/if REF_CODE}}
+
+  <!-- SUPPORT -->
+  <tr>
+    <td style="padding:24px 32px;border-bottom:1px solid #2a3040;">
+      <div style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#8892a4;margin-bottom:10px;">Need Help?</div>
+      <p style="margin:0;font-size:0.88rem;color:#8892a4;line-height:1.7;">
+        Email: <a href="mailto:support@cleanshothq.com" style="color:#f0a500;">support@cleanshothq.com</a><br>
+        Phone: <a href="tel:6092021087" style="color:#f0a500;">(609) 202-1087</a><br>
+        We reply within 24 hours on business days.
+      </p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="padding:20px 32px;text-align:center;">
+      <p style="margin:0;font-size:0.78rem;color:#555;line-height:1.8;">
+        <strong style="color:#8892a4;">CleanShotHQ LLC</strong> • 77 Market Street, Apt 5 • Salem, NJ 08079<br>
+        Built for truckers, not the boardroom. No ads. Ever.<br>
+        <a href="https://cleanshothq.com" style="color:#555;">cleanshothq.com</a>
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>

@@ -72,13 +72,66 @@ def _ensure_console_size(min_cols: int = 120, min_rows: int = 50) -> None:
         pass
 
 
+# ── Continuous monitor (text-only, no msvcrt — Ctrl+C to quit) ───────────────
+
+def _continuous_monitor_unix(interval_minutes: int = 5) -> None:
+    """
+    Continuous monitoring for Linux/macOS/Android.
+    No non-blocking key input — press Ctrl+C to exit.
+    """
+    import time as _time
+    import os as _os
+    import json as _json
+    import hashlib as _hl
+
+    try:
+        from core.config import get_config
+        from core.weather import main as _weather_main
+    except ImportError:
+        print("  Continuous mode unavailable — core modules not loaded.")
+        return
+
+    print()
+    print(f"  🔄 Continuous Monitor — refreshing every {interval_minutes} min")
+    print("  Press Ctrl+C to stop.")
+    _time.sleep(1)
+
+    while True:
+        try:
+            _os.system("clear")
+            print(f"  {'═' * 56}")
+            print(f"  🔄  CONTINUOUS MODE  [{interval_minutes} min]  —  Ctrl+C to quit")
+            print(f"  {'═' * 56}")
+            print()
+
+            import sys as _sys
+            saved = _sys.argv[:]
+            _sys.argv = ["cleanshot"]
+            try:
+                _weather_main()
+            except SystemExit:
+                pass
+            finally:
+                _sys.argv = saved
+
+            for remaining in range(interval_minutes * 60, 0, -1):
+                m, s = divmod(remaining, 60)
+                print(f"\r  Next refresh in {m:02d}:{s:02d}   ", end="", flush=True)
+                _time.sleep(1)
+            print()
+
+        except KeyboardInterrupt:
+            print("\n  Continuous mode ended. Drive safe.")
+            return
+
+
 # ── Known CLI commands — checked BEFORE any location lookup ───────────────────
 # If a positional arg matches one of these it is routed as a command.
 # Anything else is passed as --location to avoid geocoding command names
 # (e.g. "parking" → "Parking, EG" or "doctor" → "Doctor Mora, MX").
 _KNOWN_COMMANDS = {
     # Core display
-    "full", "simple", "compact", "watch", "json", "map",
+    "full", "simple", "compact", "watch", "monitor", "continuous", "json", "map",
     # Weather / alerts
     "alerts", "test-alerts", "testalerts", "alerts-test",
     "morning",
@@ -109,9 +162,15 @@ def main():
     # geocode fallback for command-like words.
     # Example: `cleanshot "Memphis TN"` → `cleanshot --location "Memphis TN"`
     if len(sys.argv) >= 2:
-        first = sys.argv[1]
-        if not first.startswith("-") and first.lower() not in _KNOWN_COMMANDS:
-            sys.argv = [sys.argv[0], "--location", first] + sys.argv[2:]
+        first = sys.argv[1].lower()
+        if first in ("monitor", "continuous", "watch"):
+            mins = 5
+            if len(sys.argv) >= 3 and sys.argv[2].isdigit():
+                mins = int(sys.argv[2])
+            _continuous_monitor_unix(mins)
+            return
+        if not sys.argv[1].startswith("-") and first not in _KNOWN_COMMANDS:
+            sys.argv = [sys.argv[0], "--location", sys.argv[1]] + sys.argv[2:]
 
     try:
         from core.weather import main as _weather_main

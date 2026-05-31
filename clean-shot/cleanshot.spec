@@ -16,6 +16,7 @@ _LOCAL_MODULES = [
     'core.alerts', 'core.tts', 'core.gps', 'core.parse', 'core.hazards',
     'core.dot511', 'core.parking', 'core.hos', 'core.subscription',
     'core.referral', 'core.updater', 'core.feedback', 'core.voice',
+    'core.glossary', 'core.ui', 'core.hazard_logger',
     'core.i18n', 'core.i18n.translator',
     'claude', 'claude.prompts', 'claude.parser', 'claude.patterns', 'claude.digest',
     'platforms', 'platforms.windows',
@@ -29,6 +30,8 @@ a = Analysis(
     datas=[
         (os.path.join(SPECPATH, 'core', 'i18n', 'en.json'), 'core/i18n'),
         (os.path.join(SPECPATH, 'core', 'i18n', 'es.json'), 'core/i18n'),
+        (os.path.join(SPECPATH, '..', 'assets', 'cleanshot.ico'), '.'),
+        (os.path.join(SPECPATH, '..', 'assets', 'CleanShotHQ_Flyer_v9.pdf'), '.'),
     ],
     hiddenimports=[
         'win32com.client', 'win32com.server.policy', 'colorama', 'requests',
