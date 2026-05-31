@@ -3,32 +3,50 @@
 
 ## v3.0.16 — May 2026
 
-### CRITICAL FIX — Window close/maximize/scroll restored
+### CRITICAL FIX — Window close/maximize/scroll (third and final)
 
-**Root cause:** `mode con: cols=180 lines=50` was called during window setup.
-This command sets both the console BUFFER and WINDOW to the same 180×50 size,
-which: (a) prevents the scroll bar from appearing (buffer == window = no bar),
-(b) makes the window wider than the screen on many laptops, pushing the title-bar
-buttons off-screen so the X and maximize buttons could not be clicked.
+**The actual root cause (Sessions 8 and 12 both missed this):**
 
-**What was fixed (`platforms/windows/main.py` — `_ensure_full_window()`):**
-- `mode con:` call completely removed — it must never set window size
-- Buffer set to 220×3000 via `SetConsoleScreenBufferSize` (scroll history preserved,
-  buffer taller than visible window → scroll bar appears automatically)
-- Window style explicitly set to include `WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX`
-  via `GetWindowLongW` + `SetWindowLongW` + `SetWindowPos(SWP_FRAMECHANGED)`
-  so close / maximize / minimize buttons are always visible
-- `SW_MAXIMIZE` unchanged — window still launches maximized, fills the screen
-- `_set_console_icon()` updated to use `ExtractIconW` (simpler, more reliable)
+On PyInstaller `console=True` apps, `GetConsoleWindow()` returns NULL
+until at least one write to stdout has occurred. Sleep() alone does not
+fix it — the handle stays NULL no matter how long you wait without I/O.
 
-**Result:**
-- Window opens maximized ✓
-- Title bar visible with all three buttons ✓
-- X button closes the program ✓
-- Maximize/restore works ✓
-- Minimize works ✓
-- Scroll bar appears when output exceeds visible area ✓
-- Window is freely resizable ✓
+Both Session 8 and Session 12 called window setup BEFORE any `print()`.
+The `if not hwnd: return` guard silently exited the function and nothing ran.
+
+**The one-line fix that actually matters:**
+```python
+print()          # force Windows to connect the console handle to this process
+_setup_window()  # now GetConsoleWindow() returns a valid hwnd
+```
+
+**All bugs now fixed (`_setup_window()` in `platforms/windows/main.py`):**
+- `print()` added before `_setup_window()` in `_interactive_loop()` — root cause fix
+- COORD struct used for `SetConsoleScreenBufferSize(h, COORD(220, 3000))`
+- All five style flags OR'd in: WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME
+- `SetWindowPos(SWP_FRAMECHANGED)` redraws the frame
+- `ShowWindow(SW_MAXIMIZE)` called AFTER style set
+- No `mode con:` calls anywhere
+- Icon loaded at 16px and 256px via `LoadImageW`
+
+| # | Session 12 bug | Consequence |
+|---|----------------|-------------|
+| 1 | `ShowWindow(SW_MAXIMIZE)` called BEFORE setting window style | Style applied after maximize had no visible effect on button presence |
+| 2 | `WS_CAPTION (0x00C00000)` missing from style flags | No title bar → no close/maximize/minimize buttons |
+| 3 | `WS_THICKFRAME (0x00040000)` missing from style flags | Resizable border absent → window could not be dragged to resize |
+| 4 | No `time.sleep()` before `GetConsoleWindow()` | PyInstaller onefile apps need ~100ms before the console hwnd is valid; function returned early (hwnd=NULL) and the entire setup was silently skipped |
+
+**All four bugs are fixed in this release (`_ensure_full_window()`):**
+1. Buffer (220×3000) set FIRST via packed DWORD to `SetConsoleScreenBufferSize`
+2. `time.sleep(0.15)` added so hwnd is valid before style changes
+3. Style OR-masks `WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME`
+4. `SetWindowPos(SWP_FRAMECHANGED)` redraws the frame with new style
+5. `ShowWindow(SW_MAXIMIZE)` called AFTER all style changes
+
+**Additional fixes:**
+- `cleanshot.spec` `name` changed from `cleanshot` to `CleanShot` (matches release.yml)
+- `release.yml` R2 upload: added `--remote` flag + `npm install -g wrangler` + `dir dist\` diagnostic
+- `_set_console_icon()` updated to load icon at explicit 16px and 256px via `LoadImageW`
 
 ---
 

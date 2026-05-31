@@ -65,7 +65,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='cleanshot',
+    name='CleanShot',
     icon=os.path.join(SPECPATH, '..', 'assets', 'cleanshot.ico'),
     debug=False,
     bootloader_ignore_signals=False,

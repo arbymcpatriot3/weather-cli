@@ -55,112 +55,100 @@ def _find_bundled_file(filename: str) -> str | None:
     return None
 
 
-def _ensure_full_window() -> None:
+def _setup_window() -> None:
     """
-    Set up the console window for CleanShot.
+    Set up the CleanShot console window on Windows.
 
-    Correct behavior:
-    - Maximized on launch (fills the screen)
-    - Title bar visible with minimize / maximize / close buttons
-    - Scroll bar appears when content is taller than the visible area
-    - Window is freely resizable
+    MUST be called AFTER at least one print() or sys.stdout.write().
+    Without prior I/O, GetConsoleWindow() returns NULL on PyInstaller
+    onefile apps and the entire function silently does nothing.
 
-    Root cause of previous bugs:
-    - `mode con: cols=180 lines=50` set the window AND buffer to the same
-      size, which (a) prevented the scroll bar from appearing and (b) made
-      the window wider than the screen on many laptops, pushing the title-bar
-      buttons off-screen and breaking resize.
-
-    The fix:
-    - Use SetConsoleScreenBufferSize for a TALL buffer (scroll history).
-    - Let SW_MAXIMIZE set the window size — never hard-code it.
-    - Explicitly restore WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX so
-      the title-bar buttons are always present.
+    This was the root cause of Sessions 8 and 12 both failing:
+    both called window setup before any console I/O had occurred.
     """
     if sys.platform != "win32":
         return
 
-    kernel32 = ctypes.windll.kernel32
-    user32    = ctypes.windll.user32
-
-    # 1. Console title
     try:
+        kernel32 = ctypes.windll.kernel32
+        user32   = ctypes.windll.user32
+
+        # Step 1: Set the console title
         kernel32.SetConsoleTitleW(f"CleanShot HQ v{VERSION} — Road Intelligence")
-    except Exception:
-        pass
 
-    hwnd = None
-    try:
+        # Step 2: Set buffer size — MUST be taller than the visible window
+        #         so the scroll bar appears and resize works.
+        #         Using COORD struct (two c_short fields).
+        INVALID_HANDLE = ctypes.c_void_p(-1).value
+        h = kernel32.GetStdHandle(-11)          # STD_OUTPUT_HANDLE
+        if h and h != INVALID_HANDLE:
+            class COORD(ctypes.Structure):
+                _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
+            kernel32.SetConsoleScreenBufferSize(h, COORD(220, 3000))
+
+        # Step 3: Wait for Windows to finish associating the window handle
+        time.sleep(0.15)
+
+        # Step 4: Get the window handle
         hwnd = kernel32.GetConsoleWindow()
+        if not hwnd:
+            return                  # give up gracefully — never crash
+
+        # Step 5: ONLY ADD style flags, never remove any
+        #   WS_CAPTION     = 0x00C00000  (title bar with three buttons)
+        #   WS_SYSMENU     = 0x00080000  (close button + system menu)
+        #   WS_MINIMIZEBOX = 0x00020000
+        #   WS_MAXIMIZEBOX = 0x00010000
+        #   WS_THICKFRAME  = 0x00040000  (resizable border)
+        GWL_STYLE      = -16
+        WS_CAPTION     = 0x00C00000
+        WS_SYSMENU     = 0x00080000
+        WS_MINIMIZEBOX = 0x00020000
+        WS_MAXIMIZEBOX = 0x00010000
+        WS_THICKFRAME  = 0x00040000
+        style = user32.GetWindowLongW(hwnd, GWL_STYLE)
+        style |= (WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX |
+                  WS_MAXIMIZEBOX | WS_THICKFRAME)
+        user32.SetWindowLongW(hwnd, GWL_STYLE, style)
+
+        # Step 6: Refresh the frame so buttons appear immediately
+        SWP_FLAGS = 0x0020 | 0x0002 | 0x0001 | 0x0004
+        # SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER
+        user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_FLAGS)
+
+        # Step 7: Maximize AFTER setting style — order matters
+        user32.ShowWindow(hwnd, 3)              # SW_MAXIMIZE = 3
+
+        # Step 8: Set truck icon
+        _set_icon(hwnd)
+
     except Exception:
-        pass
-
-    # 2. Maximize — keeps the standard title bar and all buttons intact
-    if hwnd:
-        try:
-            user32.ShowWindow(hwnd, 3)  # SW_MAXIMIZE = 3
-        except Exception:
-            pass
-
-    # 3. Set a large console BUFFER for scrollback.
-    #    Buffer taller than the visible window → scroll bar appears automatically.
-    #    Buffer width wide enough for a maximized window on any common screen.
-    #    NOTE: never call `mode con:` here — that command changes BOTH buffer
-    #    AND window size, which removes the scroll bar and can overflow the screen.
-    try:
-        h_console = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
-
-        class _COORD(ctypes.Structure):
-            _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
-
-        kernel32.SetConsoleScreenBufferSize(h_console, _COORD(220, 3000))
-    except Exception:
-        pass
-
-    # 4. Ensure the title-bar buttons (minimize / maximize / close) are present.
-    #    WS_SYSMENU     = 0x00080000  (close button + system menu)
-    #    WS_MAXIMIZEBOX = 0x00010000
-    #    WS_MINIMIZEBOX = 0x00020000
-    if hwnd:
-        try:
-            GWL_STYLE       = -16
-            SWP_FRAMECHANGED = 0x0020
-            SWP_NOMOVE      = 0x0002
-            SWP_NOSIZE      = 0x0001
-            SWP_NOZORDER    = 0x0004
-            style = user32.GetWindowLongW(hwnd, GWL_STYLE)
-            style = style | 0x00080000 | 0x00010000 | 0x00020000
-            user32.SetWindowLongW(hwnd, GWL_STYLE, style)
-            user32.SetWindowPos(
-                hwnd, None, 0, 0, 0, 0,
-                SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
-            )
-        except Exception:
-            pass
-
-    # 5. Set the truck icon in the title bar and taskbar
-    _set_console_icon()
+        pass                        # window setup failure must never crash the app
 
 
-def _set_console_icon() -> None:
-    """Set the console window's title-bar icon to cleanshot.ico."""
+# Keep the old name as an alias so nothing else breaks
+_ensure_full_window = _setup_window
+
+
+def _set_icon(hwnd: int) -> None:
+    """Set the console window's title-bar icon to the truck logo."""
     try:
         icon_path = _find_bundled_file("cleanshot.ico")
-        if not icon_path:
+        if not icon_path or not os.path.exists(icon_path):
             return
-        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
-        if not hwnd:
-            return
-        # ExtractIconW pulls the icon directly from the .ico file
-        hicon = ctypes.windll.shell32.ExtractIconW(
-            ctypes.windll.kernel32.GetModuleHandleW(None),
-            icon_path,
-            0,  # first icon in file
+        LR_LOADFROMFILE = 0x0010
+        IMAGE_ICON      = 1
+        WM_SETICON      = 0x0080
+        hicon_big = ctypes.windll.user32.LoadImageW(
+            None, icon_path, IMAGE_ICON, 256, 256, LR_LOADFROMFILE
         )
-        if hicon and hicon != 1:  # ExtractIconW returns 1 on error
-            WM_SETICON = 0x0080
-            ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 0, hicon)  # ICON_SMALL
-            ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 1, hicon)  # ICON_BIG
+        hicon_small = ctypes.windll.user32.LoadImageW(
+            None, icon_path, IMAGE_ICON, 16, 16, LR_LOADFROMFILE
+        )
+        if hicon_big:
+            ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 1, hicon_big)
+        if hicon_small:
+            ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 0, hicon_small)
     except Exception:
         pass
 
@@ -695,7 +683,13 @@ def _menu() -> None:
 def _interactive_loop() -> None:
     """Show the full weather report, then keep the window open with a menu."""
     from core.config import get_config
-    _ensure_full_window()
+
+    # A write to stdout MUST happen before _setup_window() is called.
+    # On PyInstaller onefile apps, GetConsoleWindow() returns NULL until
+    # at least one I/O operation has occurred — sleep() alone does not fix this.
+    # This was the root cause of Sessions 8 and 12 both silently failing.
+    print()
+    _setup_window()
     _run([])   # full report on startup
 
     # Referral reminder — once per session, after first display

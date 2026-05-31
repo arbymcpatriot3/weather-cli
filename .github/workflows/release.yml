@@ -40,6 +40,7 @@ jobs:
       - name: Build exe with PyInstaller
         run: |
           pyinstaller clean-shot/cleanshot.spec
+          dir dist\
 
       - name: Log in to Azure (federated OIDC)
         uses: azure/login@v2
@@ -83,6 +84,8 @@ jobs:
 
       - name: Upload signed exe to R2 (cleanshothq.com/download)
         if: startsWith(github.ref, 'refs/tags/v')
-        run: npx wrangler r2 object put cleanshot-releases/CleanShot.exe --file dist/CleanShot.exe --content-type application/octet-stream
+        run: |
+          npm install -g wrangler
+          wrangler r2 object put cleanshot-releases/CleanShot.exe --file dist/CleanShot.exe --content-type application/octet-stream --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
