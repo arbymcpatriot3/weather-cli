@@ -3,18 +3,22 @@
 **Built for the road, not the boardroom.**
 
 Weather and road intelligence for professional truck drivers.
-Full-featured on any screen. Fast on 2G.
+Full-featured on any screen. Fast on 2G. No ads — ever.
 
-> Questions or support: **support@cleanshothq.com** | **[cleanshothq.com](https://cleanshothq.com)**
+> Questions or support: **support@cleanshothq.com** | **[cleanshothq.com](https://cleanshothq.com)** | (609) 202-1087
 
 ---
 
 ## Download (Windows)
 
-**[⬇ Download CleanShot.exe (v3.0.9)](https://github.com/arbymcpatriot3/CleanShot/releases/latest)**
+**[⬇ Download CleanShot.exe (Latest)](https://cleanshothq.com/download/CleanShot.exe)**
 
 Signed and verified by CLEANSHOTHQ LLC via Microsoft Azure Artifact Signing.
-No SmartScreen warnings. No antivirus false positives.
+No SmartScreen warnings after reputation builds. No antivirus false positives.
+
+> **Windows may show "not commonly downloaded" the first time.**
+> Click the download → **Keep** → **Keep anyway**. This is normal for new software.
+> CleanShot is code-signed and safe. The warning goes away as more drivers download it.
 
 ---
 
@@ -27,6 +31,8 @@ No SmartScreen warnings. No antivirus false positives.
 - HOS guardian — FMCSA 11/14/70 hour advisory tracking
 - Text-to-speech voice alerts (CB radio style)
 - Flash + beep critical alerts, 5 severity levels
+- **Continuous monitoring mode** — leave it running for automatic alerts
+- Icon & symbol glossary built into the app menu
 - GPS navigation math
 - English + Spanish
 - Referral engine
@@ -36,40 +42,49 @@ No SmartScreen warnings. No antivirus false positives.
 
 ## Install (command-line / other platforms)
 
+> **Tip:** GitHub automatically adds a 📋 copy button to every code block — click it to copy the command instantly.
+
 ### Windows (PowerShell)
+
 ```powershell
 iwr https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/windows/install.ps1 | iex
 ```
 
 ### Linux
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/linux/install.sh | bash
 ```
 
 ### macOS
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/macos/install.sh | bash
 ```
 
 ### Android (Termux)
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/android/install_termux.sh | bash
 ```
 
 ### iOS (iSH)
+
 ```sh
 wget -qO- https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-shot/platforms/ios/install_ish.sh | sh
 ```
+
+> **Mobile & desktop apps coming soon** — macOS, iOS, and Android native apps are in development.
+> ⭐ Star this repo to get notified when they launch.
 
 ---
 
 ## Coming in v3.1
 
-- Driver feedback and savings tracker
+- Community hazard reports (GPS-verified from fellow drivers)
 - Glance mode (2-second heads-up, 6 lines max)
 - Fleet dashboard
-- Community hazard reports
-- cleanshothq.com full launch
+- Driver feedback and savings tracker
 
 ---
 
@@ -82,16 +97,33 @@ wget -qO- https://raw.githubusercontent.com/arbymcpatriot3/CleanShot/main/clean-
 | Mid Fleet | $49.99/mo | $449.99/yr |
 | Founding Member | $4.99/mo | — |
 
-All plans include a **30-day full-feature free trial.**
-Refer a friend and get **$1/month off** (up to 5 referrals = $5/month off).
+All plans include a **30-day full-feature free trial.** No credit card required to start.
+
+💰 **Referral program:** Refer a fellow driver and get **$1/month off** for as long as they stay subscribed — up to 5 referrals = **$5/month off**. Get your personal referral link at [cleanshothq.com/dashboard](https://cleanshothq.com/dashboard).
+
+---
+
+## Your Account & Dashboard
+
+Sign in at **[cleanshothq.com/dashboard](https://cleanshothq.com/dashboard)** to:
+- See your license key, plan, and billing info
+- View hazards avoided and money/data/time saved
+- Get your personal referral link — copy and share in one tap
+- Download the latest signed version
+- Manage your subscription
+
+**New device or lost your license key?**
+Go to [cleanshothq.com/dashboard](https://cleanshothq.com/dashboard) and click "Forgot license key" — we'll email it to you instantly.
 
 ---
 
 ## Support & Contact
 
 - Email: **support@cleanshothq.com**
+- Phone: **(609) 202-1087**
 - Website: **[cleanshothq.com](https://cleanshothq.com)**
+- Follow: **[@CleanShotHQ on X](https://x.com/CleanShotHQ)**
 
 ---
 
-*Built for the road, not the boardroom. — CLEANSHOTHQ LLC*
+*Built for the road, not the boardroom. — CLEANSHOTHQ LLC · Salem, NJ*

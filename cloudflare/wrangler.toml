@@ -6,20 +6,30 @@ compatibility_date = "2024-01-01"
 # routes = [{ pattern = "api.cleanshothq.com/*", zone_name = "cleanshothq.com" }]
 
 [[d1_databases]]
-binding     = "DB"
+binding       = "DB"
 database_name = "cleanshot-db"
 database_id   = "f64707f2-c4dc-4403-ae53-384d4eca9ab3"
+
+[[r2_buckets]]
+binding     = "RELEASES"
+bucket_name = "cleanshot-releases"
 
 # Secrets (set via CLI, never hardcode):
 #   wrangler secret put ADMIN_KEY
 #   wrangler secret put R511_API_KEY
 #   wrangler secret put STRIPE_SECRET_KEY
 #   wrangler secret put STRIPE_WEBHOOK_SECRET
+#   wrangler secret put JWT_SECRET
 #
 # To create the D1 database:
 #   wrangler d1 create cleanshot-db
 #   wrangler d1 execute cleanshot-db --file=schema.sql
 #   wrangler d1 execute cleanshot-db --file=migrations/001_referrals.sql
+#   wrangler d1 execute cleanshot-db --file=migrations/002_downloads.sql
+#
+# To create the R2 bucket:
+#   wrangler r2 bucket create cleanshot-releases
+#   (requires R2 to be enabled in Cloudflare dashboard first)
 #
 # To deploy:
 #   wrangler deploy

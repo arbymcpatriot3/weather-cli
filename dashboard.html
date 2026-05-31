@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CleanShot subscriber dashboard — manage your account, referrals, and subscription." />
+  <title>Dashboard — CleanShot HQ</title>
+  <style>
+    :root {
+      --bg: #0d0f12; --surface: #161a1f; --surface2: #1e2329;
+      --border: #2a3040; --accent: #f0a500; --accent2: #e07b00;
+      --text: #e8eaf0; --muted: #8892a4; --green: #2ecc71;
+      --red: #e74c3c; --blue: #4a9eff;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 16px; line-height: 1.6; min-height: 100vh; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,15,18,0.97); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px;
+    }
+    .nav-logo { font-weight: 800; font-size: 1.1rem; color: var(--accent); letter-spacing: 0.03em; text-decoration: none; }
+    .nav-right { display: flex; gap: 1rem; align-items: center; }
+    .nav-home { color: var(--muted); font-size: 0.88rem; }
+    #btn-logout {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      padding: 5px 14px; border-radius: 6px; font-size: 0.84rem; font-weight: 600;
+      cursor: pointer; transition: border-color 0.2s, color 0.2s;
+    }
+    #btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    /* LAYOUT */
+    .page { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+    /* LOGIN */
+    #section-login { display: flex; justify-content: center; padding: 3rem 1.5rem; }
+    .login-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 2rem 2.5rem; width: 100%; max-width: 420px;
+    }
+    .login-box h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .login-box p { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.75rem; }
+    .form-group { margin-bottom: 1.1rem; }
+    label { display: block; font-size: 0.84rem; font-weight: 600; margin-bottom: 5px; color: var(--muted); }
+    input[type=email], input[type=text], input[type=password] {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 7px; padding: 9px 12px; color: var(--text); font-size: 0.95rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--accent); }
+    .remember { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); margin-bottom: 1.4rem; cursor: pointer; }
+    .remember input { width: auto; }
+    .btn-login {
+      width: 100%; background: var(--accent); color: #000; border: none;
+      border-radius: 7px; padding: 11px; font-weight: 700; font-size: 0.95rem;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn-login:hover { background: var(--accent2); }
+    .login-hint { margin-top: 1rem; font-size: 0.82rem; color: var(--muted); text-align: center; }
+    .error-msg { background: #1a0a0a; border: 1px solid var(--red); border-radius: 7px; color: var(--red); font-size: 0.85rem; padding: 9px 12px; margin-bottom: 1rem; display: none; }
+
+    /* DASHBOARD */
+    #section-dashboard { display: none; }
+    .dash-greeting { margin-bottom: 1.75rem; }
+    .dash-greeting h1 { font-size: 1.5rem; font-weight: 700; }
+    .dash-greeting p { color: var(--muted); font-size: 0.9rem; }
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.1rem; }
+
+    /* CARDS */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .card-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 1rem; }
+
+    /* STATUS BADGES */
+    .badge { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; }
+    .badge-active  { background: #1a3a1a; color: var(--green); }
+    .badge-trial   { background: #3a2a00; color: var(--accent); }
+    .badge-expired { background: #2a0a0a; color: var(--red); }
+
+    /* ACCOUNT CARD */
+    .account-row { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .account-row:last-child { border-bottom: none; }
+    .account-row .label { color: var(--muted); }
+    .account-row .value { font-weight: 600; text-align: right; }
+    .trial-bar-wrap { margin-top: 1rem; }
+    .trial-bar-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; }
+    .trial-bar { background: var(--surface2); border-radius: 4px; height: 6px; overflow: hidden; }
+    .trial-bar-fill { background: var(--accent); height: 100%; border-radius: 4px; transition: width 0.4s; }
+
+    /* STATS CARD */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .stat-box { background: var(--surface2); border-radius: 8px; padding: 1rem; text-align: center; }
+    .stat-number { font-size: 1.6rem; font-weight: 800; color: var(--accent); line-height: 1; }
+    .stat-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+    .stat-soon { font-size: 0.75rem; color: var(--muted); font-style: italic; }
+
+    /* REFERRAL CARD */
+    .ref-code-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .ref-code-box {
+      flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+      padding: 9px 12px; font-size: 1rem; font-weight: 700; font-family: 'Consolas', monospace;
+      color: var(--accent); letter-spacing: 0.05em;
+    }
+    .btn-copy {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 9px 14px; border-radius: 7px; font-size: 0.84rem; font-weight: 600;
+      cursor: pointer; transition: border-color 0.2s, color 0.2s; white-space: nowrap;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-copy.copied { border-color: var(--green); color: var(--green); }
+    .share-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+    .share-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+      padding: 6px 13px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; transition: border-color 0.2s, color 0.2s; text-decoration: none; display: inline-block;
+    }
+    .share-btn:hover { border-color: var(--accent); color: var(--text); text-decoration: none; }
+    .disc-bar-wrap { margin-top: 1rem; }
+    .disc-meta { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 4px; }
+    .disc-meta .earned { font-weight: 700; color: var(--green); }
+    .disc-meta .cap { color: var(--muted); }
+    .disc-bar { background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
+    .disc-bar-fill { background: var(--green); height: 100%; border-radius: 4px; transition: width 0.4s; }
+    .disc-hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.6rem; }
+    .btn-gen-code {
+      width: 100%; margin-top: 1rem; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 7px; padding: 10px; font-weight: 600; font-size: 0.88rem;
+      cursor: pointer; transition: border-color 0.2s;
+    }
+    .btn-gen-code:hover { border-color: var(--accent); }
+
+    /* SUBSCRIPTION CARD */
+    .sub-actions { display: flex; flex-direction: column; gap: 0.65rem; }
+    .btn-manage {
+      width: 100%; background: var(--accent); color: #000; border: none;
+      border-radius: 7px; padding: 10px; font-weight: 700; font-size: 0.9rem;
+      cursor: pointer; transition: background 0.2s; text-align: center;
+    }
+    .btn-manage:hover { background: var(--accent2); }
+    .btn-upgrade {
+      width: 100%; background: transparent; border: 1px solid var(--green); color: var(--green);
+      border-radius: 7px; padding: 10px; font-weight: 700; font-size: 0.9rem;
+      cursor: pointer; transition: background 0.2s; text-align: center; text-decoration: none; display: block;
+    }
+    .btn-upgrade:hover { background: rgba(46,204,113,0.08); text-decoration: none; }
+    .btn-cancel {
+      text-align: center; font-size: 0.83rem; color: var(--muted);
+      padding: 8px; display: block; text-decoration: none; transition: color 0.2s;
+    }
+    .btn-cancel:hover { color: var(--red); text-decoration: none; }
+
+    /* LOADING */
+    #section-loading { display: none; text-align: center; padding: 5rem 1.5rem; color: var(--muted); }
+    .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 1rem; }
+      .login-box { padding: 1.5rem 1.25rem; }
+      .dash-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">⚡ CleanShot HQ</a>
+  <div class="nav-right">
+    <a href="/" class="nav-home">← Home</a>
+    <button id="btn-logout" style="display:none;" onclick="logout()">Sign Out</button>
+  </div>
+</nav>
+
+<!-- LOADING STATE -->
+<div id="section-loading">
+  <div class="spinner"></div>
+  <p>Checking your account…</p>
+</div>
+
+<!-- LOGIN FORM -->
+<div id="section-login">
+  <div class="login-box">
+    <h2>Sign in to your account</h2>
+    <p>Enter your email and license key to access your dashboard.</p>
+    <div id="login-error" class="error-msg"></div>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="input-email">Email address</label>
+        <input type="email" id="input-email" placeholder="you@example.com" required autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="input-key">License key</label>
+        <input type="text" id="input-key" placeholder="CS-XXXX-XXXX-XXXX-XXXX" required autocomplete="off" spellcheck="false" />
+      </div>
+      <label class="remember">
+        <input type="checkbox" id="remember-me" checked />
+        Remember me for 30 days
+      </label>
+      <button type="submit" class="btn-login" id="btn-login-submit">Sign In</button>
+    </form>
+    <p class="login-hint">Don't have an account? <a href="/">Start your free 30-day trial →</a></p>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="section-dashboard" class="page">
+
+  <div class="dash-greeting">
+    <h1>Welcome back, <span id="dash-name">there</span> 👋</h1>
+    <p id="dash-subtitle">Loading your account…</p>
+  </div>
+
+  <div class="dash-grid">
+
+    <!-- ACCOUNT CARD -->
+    <div class="card">
+      <div class="card-title">Account</div>
+      <div class="account-row">
+        <span class="label">Plan</span>
+        <span class="value" id="acc-plan">—</span>
+      </div>
+      <div class="account-row">
+        <span class="label">Status</span>
+        <span class="value" id="acc-status">—</span>
+      </div>
+      <div class="account-row">
+        <span class="label">Email</span>
+        <span class="value" id="acc-email" style="font-size:0.85rem; color:var(--muted)">—</span>
+      </div>
+      <div class="account-row" id="acc-billing-row">
+        <span class="label">Next billing</span>
+        <span class="value" id="acc-billing">—</span>
+      </div>
+      <div id="acc-trial-section" style="display:none;">
+        <div class="trial-bar-wrap">
+          <div class="trial-bar-label">Trial progress — <span id="trial-days-left">—</span> days remaining</div>
+          <div class="trial-bar"><div class="trial-bar-fill" id="trial-bar-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVINGS STATS -->
+    <div class="card">
+      <div class="card-title">CleanShot Advantage</div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-number" id="stat-data-saved">—</div>
+          <div class="stat-label">MB saved vs other apps</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="stat-months">—</div>
+          <div class="stat-label">months on the road</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" style="font-size:1.1rem; color:var(--muted);">v3.1</div>
+          <div class="stat-label">hazard alerts tracked</div>
+          <div class="stat-soon">coming soon</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" style="font-size:1.1rem; color:var(--muted);">v3.1</div>
+          <div class="stat-label">HOS advisories</div>
+          <div class="stat-soon">coming soon</div>
+        </div>
+      </div>
+      <p style="font-size:0.78rem; color:var(--muted); margin-top:1rem;">
+        Estimated data savings vs typical trucking apps (100MB/mo background vs ~0.5MB for CleanShot).
+      </p>
+    </div>
+
+    <!-- REFERRALS -->
+    <div class="card" id="ref-card">
+      <div class="card-title">Referral Program</div>
+
+      <!-- Has code -->
+      <div id="ref-has-code" style="display:none;">
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:0.9rem;">Share your link — earn $1/mo off for every active subscriber you refer, up to $5/mo.</p>
+        <div class="ref-code-row">
+          <div class="ref-code-box" id="ref-code-display">—</div>
+          <button class="btn-copy" id="btn-copy-code" onclick="copyCode()">Copy</button>
+        </div>
+        <div class="share-row">
+          <a id="share-sms"   class="share-btn" href="#">📱 SMS</a>
+          <a id="share-email" class="share-btn" href="#">✉️ Email</a>
+          <a id="share-x"     class="share-btn" href="#" target="_blank" rel="noopener">𝕏 Post</a>
+          <button class="share-btn" onclick="copyLink()">🔗 Copy link</button>
+        </div>
+        <div class="disc-bar-wrap">
+          <div class="disc-meta">
+            <span class="earned">$<span id="disc-earned">0.00</span>/mo earned</span>
+            <span class="cap">max $5.00/mo</span>
+          </div>
+          <div class="disc-bar"><div class="disc-bar-fill" id="disc-bar-fill" style="width:0%"></div></div>
+          <p class="disc-hint" id="disc-hint-text">Refer 5 subscribers to earn the maximum discount.</p>
+        </div>
+      </div>
+
+      <!-- No code yet -->
+      <div id="ref-no-code">
+        <p style="font-size:0.85rem; color:var(--muted); margin-bottom:0.9rem;">You don't have a referral code yet. Generate one to start earning discounts.</p>
+        <button class="btn-gen-code" onclick="generateCode()">Generate my referral code →</button>
+        <div id="ref-gen-error" style="display:none; margin-top:0.75rem; font-size:0.84rem; color:var(--red);"></div>
+      </div>
+    </div>
+
+    <!-- SUBSCRIPTION MANAGEMENT -->
+    <div class="card">
+      <div class="card-title">Subscription</div>
+      <div class="sub-actions">
+        <a href="/#pricing" class="btn-upgrade" id="btn-upgrade">⬆ Upgrade Plan</a>
+        <button class="btn-manage" id="btn-billing" onclick="openBillingPortal()">Manage Billing &amp; Payment →</button>
+        <a id="btn-cancel" class="btn-cancel"
+           href="mailto:support@cleanshothq.com?subject=Cancel%20Subscription&body=Hi%2C%20I%20would%20like%20to%20cancel%20my%20CleanShot%20subscription.%0A%0ALicense%20key%3A%20"
+        >Cancel subscription</a>
+      </div>
+      <p style="font-size:0.78rem; color:var(--muted); margin-top:1rem; line-height:1.5;">
+        Need help? Email <a href="mailto:support@cleanshothq.com">support@cleanshothq.com</a>
+        — we reply within 24 hours.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API = "https://api.cleanshothq.com";
+  const TOKEN_KEY = "cleanshot_token";
+
+  let _account = null;
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  async function init() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) { showLogin(); return; }
+
+    showLoading();
+    const data = await apiFetch("/v1/account/me", { method: "GET" }, token);
+    if (!data) { clearToken(); showLogin(); return; }
+
+    // Also fetch stats
+    const stats = await apiFetch("/v1/account/stats", { method: "GET" }, token);
+    showDashboard(data, stats);
+  }
+
+  // ── API helper ────────────────────────────────────────────────────────────
+  async function apiFetch(path, opts = {}, token = null) {
+    try {
+      const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+      if (token) headers["Authorization"] = "Bearer " + token;
+      const r = await fetch(API + path, { ...opts, headers });
+      if (!r.ok) return null;
+      return r.json();
+    } catch { return null; }
+  }
+
+  // ── Login ─────────────────────────────────────────────────────────────────
+  async function handleLogin(e) {
+    e.preventDefault();
+    const email      = document.getElementById("input-email").value.trim();
+    const licenseKey = document.getElementById("input-key").value.trim();
+    const remember   = document.getElementById("remember-me").checked;
+    const btn        = document.getElementById("btn-login-submit");
+    const errBox     = document.getElementById("login-error");
+
+    errBox.style.display = "none";
+    btn.disabled = true;
+    btn.textContent = "Signing in…";
+
+    const data = await apiFetch("/v1/account/login", {
+      method: "POST",
+      body: JSON.stringify({ email, license_key: licenseKey }),
+    });
+
+    btn.disabled = false;
+    btn.textContent = "Sign In";
+
+    if (!data?.token) {
+      errBox.textContent = "Invalid email or license key. Check your welcome email for your license key.";
+      errBox.style.display = "block";
+      return;
+    }
+
+    if (remember) {
+      localStorage.setItem(TOKEN_KEY, data.token);
+    } else {
+      sessionStorage.setItem(TOKEN_KEY, data.token);
+    }
+
+    const stats = await apiFetch("/v1/account/stats", { method: "GET" }, data.token);
+    showDashboard(data.account, stats);
+  }
+
+  function getToken() {
+    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+  }
+
+  function clearToken() {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+  }
+
+  // ── Logout ────────────────────────────────────────────────────────────────
+  async function logout() {
+    const token = getToken();
+    if (token) apiFetch("/v1/account/logout", { method: "POST" }, token);
+    clearToken();
+    _account = null;
+    showLogin();
+  }
+
+  // ── Show/hide sections ────────────────────────────────────────────────────
+  function showLoading() {
+    document.getElementById("section-loading").style.display = "block";
+    document.getElementById("section-login").style.display    = "none";
+    document.getElementById("section-dashboard").style.display = "none";
+    document.getElementById("btn-logout").style.display = "none";
+  }
+
+  function showLogin() {
+    document.getElementById("section-loading").style.display   = "none";
+    document.getElementById("section-login").style.display     = "flex";
+    document.getElementById("section-dashboard").style.display = "none";
+    document.getElementById("btn-logout").style.display        = "none";
+  }
+
+  function showDashboard(account, stats) {
+    _account = account;
+    document.getElementById("section-loading").style.display   = "none";
+    document.getElementById("section-login").style.display     = "none";
+    document.getElementById("section-dashboard").style.display = "block";
+    document.getElementById("btn-logout").style.display        = "inline-block";
+
+    populateAccount(account);
+    populateStats(stats);
+    populateReferral(account);
+    populateSubscription(account);
+  }
+
+  // ── Populate account card ─────────────────────────────────────────────────
+  function populateAccount(a) {
+    document.getElementById("dash-name").textContent    = a.name || a.email.split("@")[0];
+    document.getElementById("acc-email").textContent    = a.email;
+    document.getElementById("acc-plan").textContent     = a.plan;
+
+    const statusEl = document.getElementById("acc-status");
+    if (a.status === "active") {
+      statusEl.innerHTML = '<span class="badge badge-active">Active</span>';
+    } else if (a.status === "trial") {
+      statusEl.innerHTML = '<span class="badge badge-trial">Free Trial</span>';
+    } else if (a.status === "expired") {
+      statusEl.innerHTML = '<span class="badge badge-expired">Expired</span>';
+    } else {
+      statusEl.textContent = a.status;
+    }
+
+    const subtitle = document.getElementById("dash-subtitle");
+    if (a.status === "active") {
+      subtitle.textContent = "Your subscription is active. Thanks for supporting CleanShot!";
+    } else if (a.status === "trial") {
+      subtitle.textContent = `Free trial — ${a.days_remaining} day${a.days_remaining !== 1 ? "s" : ""} remaining.`;
+    } else if (a.status === "expired") {
+      subtitle.textContent = "Your trial has expired. Subscribe below to keep access.";
+    }
+
+    // Billing date
+    const billingRow = document.getElementById("acc-billing-row");
+    if (a.next_billing) {
+      document.getElementById("acc-billing").textContent = new Date(a.next_billing * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    } else {
+      billingRow.style.display = "none";
+    }
+
+    // Trial progress bar
+    if (a.status === "trial" && a.days_remaining !== null) {
+      const pct = Math.min(100, Math.round((a.days_remaining / 30) * 100));
+      document.getElementById("acc-trial-section").style.display = "block";
+      document.getElementById("trial-days-left").textContent = a.days_remaining;
+      document.getElementById("trial-bar-fill").style.width = pct + "%";
+      document.getElementById("trial-bar-fill").style.background = pct <= 20 ? "var(--red)" : pct <= 40 ? "var(--accent)" : "var(--green)";
+    }
+  }
+
+  // ── Populate stats card ───────────────────────────────────────────────────
+  function populateStats(stats) {
+    if (!stats) return;
+    document.getElementById("stat-data-saved").textContent = stats.data_saved_mb ?? "—";
+    document.getElementById("stat-months").textContent     = stats.months_active  ?? "—";
+  }
+
+  // ── Populate referral card ────────────────────────────────────────────────
+  function populateReferral(a) {
+    if (a.ref_code) {
+      document.getElementById("ref-has-code").style.display = "block";
+      document.getElementById("ref-no-code").style.display  = "none";
+      document.getElementById("ref-code-display").textContent = a.ref_code;
+
+      const url = a.referral_url || `https://cleanshothq.com/?ref=${a.ref_code}`;
+      const msg = encodeURIComponent(`I've been using CleanShot for real-time road hazards, HOS tracking, and DOT feeds. Try it free: ${url}`);
+
+      document.getElementById("share-sms").href   = `sms:?body=${msg}`;
+      document.getElementById("share-email").href = `mailto:?subject=${encodeURIComponent("Check out CleanShot HQ")}&body=${msg}`;
+      document.getElementById("share-x").href     = `https://x.com/intent/tweet?text=${msg}`;
+
+      // Discount bar
+      const earned = parseFloat(a.monthly_discount || 0);
+      const refs   = a.active_referrals || 0;
+      document.getElementById("disc-earned").textContent = earned.toFixed(2);
+      document.getElementById("disc-bar-fill").style.width = Math.min(100, (earned / 5) * 100) + "%";
+
+      if (earned >= 5) {
+        document.getElementById("disc-hint-text").textContent = "🎉 Maximum discount achieved! You earn $5.00/mo off your subscription.";
+      } else {
+        const toMax = (5 - earned).toFixed(2);
+        const refsNeeded = 5 - refs;
+        document.getElementById("disc-hint-text").textContent =
+          `Refer ${refsNeeded} more subscriber${refsNeeded !== 1 ? "s" : ""} to reach maximum discount ($${toMax}/mo away).`;
+      }
+    } else {
+      document.getElementById("ref-has-code").style.display = "none";
+      document.getElementById("ref-no-code").style.display  = "block";
+    }
+  }
+
+  // ── Populate subscription card ────────────────────────────────────────────
+  function populateSubscription(a) {
+    const upgradeBtn = document.getElementById("btn-upgrade");
+    const manageBtn  = document.getElementById("btn-billing");
+    const cancelLink = document.getElementById("btn-cancel");
+
+    if (a.status !== "active") {
+      manageBtn.style.display  = "none";
+      upgradeBtn.textContent   = "⚡ Subscribe Now →";
+      upgradeBtn.style.background = "var(--accent)";
+      upgradeBtn.style.color      = "#000";
+      upgradeBtn.style.border     = "none";
+      cancelLink.style.display    = "none";
+    }
+
+    // Pre-fill license key in cancel email
+    cancelLink.href = cancelLink.href + encodeURIComponent(_account?.license_key || "");
+  }
+
+  // ── Copy referral code ────────────────────────────────────────────────────
+  function copyCode() {
+    const code = document.getElementById("ref-code-display").textContent;
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.getElementById("btn-copy-code");
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+    });
+  }
+
+  function copyLink() {
+    if (!_account?.referral_url) return;
+    navigator.clipboard.writeText(_account.referral_url).then(() => {
+      alert("Referral link copied to clipboard!");
+    });
+  }
+
+  // ── Generate referral code ────────────────────────────────────────────────
+  async function generateCode() {
+    const token = getToken();
+    if (!token) { showLogin(); return; }
+
+    const btn = document.querySelector(".btn-gen-code");
+    const errEl = document.getElementById("ref-gen-error");
+    btn.disabled = true;
+    btn.textContent = "Generating…";
+    errEl.style.display = "none";
+
+    const data = await apiFetch("/v1/referral/generate", { method: "POST" }, token);
+    btn.disabled = false;
+    btn.textContent = "Generate my referral code →";
+
+    if (!data?.ref_code) {
+      errEl.textContent = "Could not generate code. Please try again.";
+      errEl.style.display = "block";
+      return;
+    }
+
+    _account.ref_code     = data.ref_code;
+    _account.referral_url = data.referral_url;
+    populateReferral(_account);
+  }
+
+  // ── Stripe billing portal ─────────────────────────────────────────────────
+  async function openBillingPortal() {
+    const token = getToken();
+    if (!token) { showLogin(); return; }
+
+    const btn = document.getElementById("btn-billing");
+    btn.disabled = true;
+    btn.textContent = "Opening portal…";
+
+    const data = await apiFetch("/v1/billing/portal", { method: "POST" }, token);
+    btn.disabled = false;
+    btn.textContent = "Manage Billing & Payment →";
+
+    if (!data?.url) {
+      alert("Could not open billing portal. Contact support@cleanshothq.com for help.");
+      return;
+    }
+    window.location.href = data.url;
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+</script>
+
+</body>
+</html>

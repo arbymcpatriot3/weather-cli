@@ -1,5 +1,5 @@
 /**
- * CleanShot License, Checkout & Referral API
+ * CleanShot API — License, Checkout, Referral, Dashboard & Download
  * Cloudflare Worker — deploy with: wrangler deploy
  *
  * Endpoints:
@@ -13,12 +13,19 @@
  *   POST /v1/referral/generate     — generate a referral code (requires license)
  *   GET  /v1/referral/status       — get referral stats (requires license)
  *   POST /v1/webhooks/stripe       — Stripe webhook handler
+ *   GET  /download/CleanShot.exe   — serve signed exe from R2 + log download
+ *   POST /v1/account/login         — dashboard login (email + license key → JWT)
+ *   GET  /v1/account/me            — dashboard: full account info (JWT)
+ *   GET  /v1/account/stats         — dashboard: usage stats (JWT)
+ *   POST /v1/account/logout        — dashboard: invalidate session (client-side)
+ *   POST /v1/billing/portal        — Stripe Customer Portal URL (JWT)
  *
  * Secrets (set via wrangler secret put):
  *   ADMIN_KEY             — X-Admin-Key header value
  *   STRIPE_SECRET_KEY     — sk_live_... or sk_test_...
  *   STRIPE_WEBHOOK_SECRET — whsec_...
  *   R511_API_KEY          — r511_...
+ *   JWT_SECRET            — long random string for signing dashboard tokens
  */
 
 // ── Known Stripe price IDs ────────────────────────────────────────────────────
@@ -77,6 +84,86 @@ function isAdminAuthorized(request, env) {
 function getLicenseKey(request) {
   const auth = request.headers.get("Authorization") || "";
   return auth.replace(/^Bearer\s+/i, "").trim();
+}
+
+// ── JWT helpers ───────────────────────────────────────────────────────────────
+// Tokens expire in 30 days. Signed with HMAC-SHA256 using env.JWT_SECRET.
+
+function _b64url(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function _bytesToB64url(bytes) {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function _b64urlToStr(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  return atob(s);
+}
+
+async function signJWT(payload, secret) {
+  const header = _b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body   = _b64url(JSON.stringify(payload));
+  const msg    = `${header}.${body}`;
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
+  return `${msg}.${_bytesToB64url(new Uint8Array(sig))}`;
+}
+
+async function verifyJWT(token, secret) {
+  if (!token || !secret) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [header, body, sig] = parts;
+  const msg = `${header}.${body}`;
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["verify"]
+  );
+  let sigPad = sig.replace(/-/g, "+").replace(/_/g, "/");
+  while (sigPad.length % 4) sigPad += "=";
+  const sigBytes = Uint8Array.from(atob(sigPad), c => c.charCodeAt(0));
+  const valid = await crypto.subtle.verify("HMAC", key, sigBytes, new TextEncoder().encode(msg));
+  if (!valid) return null;
+  try {
+    const payload = JSON.parse(_b64urlToStr(body));
+    if (payload.exp && nowSec() > payload.exp) return null;
+    return payload;
+  } catch { return null; }
+}
+
+async function requireJWT(request, env) {
+  const token = getLicenseKey(request);
+  if (!token) return null;
+  return verifyJWT(token, env.JWT_SECRET);
+}
+
+// ── Account helpers ───────────────────────────────────────────────────────────
+
+function _planName(licType, sub) {
+  if (sub?.status === "active") return "Subscriber";
+  if (licType === "tester")     return "Beta Tester";
+  return "Free Trial";
+}
+
+function _accountStatus(user, sub) {
+  if (!user.active)              return "revoked";
+  if (sub?.status === "active")  return "active";
+  if (user.type === "tester")    return "active";
+  if (user.type === "trial") {
+    return nowSec() > user.expires_at ? "expired" : "trial";
+  }
+  return "inactive";
 }
 
 // ── Stripe helpers ────────────────────────────────────────────────────────────
@@ -251,7 +338,7 @@ async function updateReferrerDiscount(referrerStripeId, delta, env) {
       "SELECT active_referral_count FROM referral_discounts WHERE referrer_stripe_id = ?"
     ).bind(referrerStripeId).first();
 
-    const newCount     = Math.max(0, Math.min(5, (current?.active_referral_count ?? 0) + delta));
+    const newCount      = Math.max(0, Math.min(5, (current?.active_referral_count ?? 0) + delta));
     const discountCents = newCount * 100; // $1 per referral, max $5
 
     // Find referrer's active Stripe subscription
@@ -330,7 +417,7 @@ async function upsertSubscription(sub, env) {
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url    = new URL(request.url);
     const path   = url.pathname;
     const method = request.method;
@@ -744,7 +831,7 @@ export default {
     // ── POST /v1/webhooks/stripe ─────────────────────────────────────────────
     // Stripe sends signed events here. Verify signature before trusting any data.
     if (path === "/v1/webhooks/stripe" && method === "POST") {
-      const rawBody = await request.text();
+      const rawBody   = await request.text();
       const sigHeader = request.headers.get("Stripe-Signature") || "";
 
       const valid = await verifyStripeWebhook(rawBody, sigHeader, env.STRIPE_WEBHOOK_SECRET);
@@ -811,6 +898,232 @@ export default {
       }
 
       return json({ received: true });
+    }
+
+    // ── GET /download/CleanShot.exe ──────────────────────────────────────────
+    // Serve signed CleanShot.exe from R2 and log the download.
+    if (path === "/download/CleanShot.exe" && method === "GET") {
+      if (!env.RELEASES) return err("file hosting not configured", 503);
+
+      const obj = await env.RELEASES.get("CleanShot.exe");
+      if (!obj) {
+        return new Response("CleanShot.exe not yet uploaded.", {
+          status: 404,
+          headers: { "Content-Type": "text/plain", ...CORS },
+        });
+      }
+
+      // Hash the IP for privacy — store only first 16 hex chars
+      const ip = request.headers.get("CF-Connecting-IP") || "";
+      const ua = (request.headers.get("User-Agent") || "").slice(0, 256);
+      let ipHash = null;
+      try {
+        const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip));
+        ipHash = Array.from(new Uint8Array(hashBuf))
+          .map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+      } catch { /* best-effort */ }
+
+      // Log download asynchronously — don't block the file response
+      ctx.waitUntil(
+        env.DB.batch([
+          env.DB.prepare(
+            "INSERT INTO downloads (filename, downloaded_at, ip_hash, user_agent, version) VALUES (?, ?, ?, ?, ?)"
+          ).bind("CleanShot.exe", nowSec(), ipHash, ua, "3.0.12"),
+          env.DB.prepare(
+            `INSERT INTO download_stats (filename, total_downloads, last_downloaded)
+             VALUES (?, 1, ?)
+             ON CONFLICT(filename) DO UPDATE SET
+               total_downloads = total_downloads + 1,
+               last_downloaded = excluded.last_downloaded`
+          ).bind("CleanShot.exe", nowSec()),
+        ]).catch(e => console.error("download log error:", e.message))
+      );
+
+      return new Response(obj.body, {
+        headers: {
+          "Content-Type":        "application/octet-stream",
+          "Content-Disposition": 'attachment; filename="CleanShot.exe"',
+          "Cache-Control":       "public, max-age=3600",
+          ...CORS,
+        },
+      });
+    }
+
+    // ── POST /v1/account/login ───────────────────────────────────────────────
+    // Dashboard login: email + license key → signed JWT (30-day expiry).
+    if (path === "/v1/account/login" && method === "POST") {
+      const body = await request.json().catch(() => null);
+      if (!body?.email || !body?.license_key) {
+        return err("email and license_key required");
+      }
+
+      const user = await env.DB.prepare(
+        `SELECT l.key, l.type, l.expires_at, l.active,
+                u.id, u.email, u.name, u.role
+         FROM licenses l
+         JOIN users u ON l.user_id = u.id
+         WHERE l.key = ? AND LOWER(u.email) = LOWER(?)`
+      ).bind(body.license_key.trim(), body.email.trim()).first();
+
+      if (!user) return err("invalid email or license key", 401);
+      if (!user.active) return err("license revoked", 403);
+
+      if (!env.JWT_SECRET) return err("JWT not configured", 503);
+
+      const payload = {
+        sub:   user.id,
+        email: user.email,
+        name:  user.name,
+        role:  user.role,
+        iat:   nowSec(),
+        exp:   nowSec() + 30 * 86400,
+      };
+      const token = await signJWT(payload, env.JWT_SECRET);
+
+      // Fetch account details for the response
+      const sub = await env.DB.prepare(
+        "SELECT status, stripe_customer_id, current_period_end FROM subscriptions WHERE user_id = ? ORDER BY rowid DESC LIMIT 1"
+      ).bind(user.id).first();
+
+      const discount = sub?.stripe_customer_id
+        ? await env.DB.prepare(
+            "SELECT active_referral_count, monthly_discount_cents FROM referral_discounts WHERE referrer_stripe_id = ?"
+          ).bind(sub.stripe_customer_id).first()
+        : null;
+
+      const referral = await env.DB.prepare(
+        "SELECT ref_code FROM referrals WHERE referrer_email = ? AND status != 'expired' LIMIT 1"
+      ).bind(user.email).first();
+
+      const daysLeft = user.type === "trial"
+        ? Math.max(0, Math.floor((user.expires_at - nowSec()) / 86400))
+        : null;
+
+      return json({
+        token,
+        account: {
+          email:            user.email,
+          name:             user.name || "",
+          plan:             _planName(user.type, sub),
+          status:           _accountStatus(user, sub),
+          trial_ends:       user.type === "trial" ? user.expires_at : null,
+          days_remaining:   daysLeft,
+          next_billing:     sub?.current_period_end ?? null,
+          active_referrals: discount?.active_referral_count ?? 0,
+          monthly_discount: ((discount?.monthly_discount_cents ?? 0) / 100).toFixed(2),
+          ref_code:         referral?.ref_code ?? null,
+          referral_url:     referral?.ref_code ? `https://cleanshothq.com/?ref=${referral.ref_code}` : null,
+        },
+      });
+    }
+
+    // ── GET /v1/account/me ───────────────────────────────────────────────────
+    // Return full account info for the authenticated dashboard user.
+    if (path === "/v1/account/me" && method === "GET") {
+      const jwt = await requireJWT(request, env);
+      if (!jwt) return err("Authorization required", 401);
+
+      const user = await env.DB.prepare(
+        `SELECT l.key, l.type, l.expires_at, l.active,
+                u.id, u.email, u.name, u.role
+         FROM licenses l
+         JOIN users u ON l.user_id = u.id
+         WHERE u.id = ? AND l.active = 1
+         ORDER BY l.rowid DESC LIMIT 1`
+      ).bind(jwt.sub).first();
+
+      if (!user) return err("account not found", 404);
+
+      const sub = await env.DB.prepare(
+        "SELECT status, stripe_customer_id, current_period_end FROM subscriptions WHERE user_id = ? ORDER BY rowid DESC LIMIT 1"
+      ).bind(user.id).first();
+
+      const discount = sub?.stripe_customer_id
+        ? await env.DB.prepare(
+            "SELECT active_referral_count, monthly_discount_cents FROM referral_discounts WHERE referrer_stripe_id = ?"
+          ).bind(sub.stripe_customer_id).first()
+        : null;
+
+      const referral = await env.DB.prepare(
+        "SELECT ref_code FROM referrals WHERE referrer_email = ? AND status != 'expired' LIMIT 1"
+      ).bind(user.email).first();
+
+      const daysLeft = user.type === "trial"
+        ? Math.max(0, Math.floor((user.expires_at - nowSec()) / 86400))
+        : null;
+
+      return json({
+        email:            user.email,
+        name:             user.name || "",
+        plan:             _planName(user.type, sub),
+        status:           _accountStatus(user, sub),
+        trial_ends:       user.type === "trial" ? user.expires_at : null,
+        days_remaining:   daysLeft,
+        next_billing:     sub?.current_period_end ?? null,
+        active_referrals: discount?.active_referral_count ?? 0,
+        monthly_discount: ((discount?.monthly_discount_cents ?? 0) / 100).toFixed(2),
+        ref_code:         referral?.ref_code ?? null,
+        referral_url:     referral?.ref_code ? `https://cleanshothq.com/?ref=${referral.ref_code}` : null,
+      });
+    }
+
+    // ── GET /v1/account/stats ────────────────────────────────────────────────
+    // Usage stats for the dashboard. App-side tracking added in v3.1.
+    if (path === "/v1/account/stats" && method === "GET") {
+      const jwt = await requireJWT(request, env);
+      if (!jwt) return err("Authorization required", 401);
+
+      const user = await env.DB.prepare(
+        "SELECT created_at FROM users WHERE id = ?"
+      ).bind(jwt.sub).first();
+
+      const accountAgeDays = user ? Math.floor((nowSec() - user.created_at) / 86400) : 0;
+      const monthsActive   = Math.max(1, Math.ceil(accountAgeDays / 30));
+
+      // Savings vs a typical trucking app (100MB/mo background vs 0.5MB for CleanShot)
+      const dataSavedMb = (monthsActive * 99.5).toFixed(1);
+
+      return json({
+        data_saved_mb:       dataSavedMb,
+        months_active:       monthsActive,
+        hazard_alerts:       null,   // tracked in v3.1
+        hos_advisories:      null,   // tracked in v3.1
+        parking_suggestions: null,   // tracked in v3.1
+      });
+    }
+
+    // ── POST /v1/account/logout ──────────────────────────────────────────────
+    // Stateless JWT — logout is handled client-side by clearing localStorage.
+    // This endpoint exists for future server-side session invalidation.
+    if (path === "/v1/account/logout" && method === "POST") {
+      return json({ ok: true });
+    }
+
+    // ── POST /v1/billing/portal ──────────────────────────────────────────────
+    // Generate a Stripe Customer Portal URL for the authenticated user.
+    if (path === "/v1/billing/portal" && method === "POST") {
+      const jwt = await requireJWT(request, env);
+      if (!jwt) return err("Authorization required", 401);
+
+      const sub = await env.DB.prepare(
+        "SELECT stripe_customer_id FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY rowid DESC LIMIT 1"
+      ).bind(jwt.sub).first();
+
+      if (!sub?.stripe_customer_id) {
+        return err("no active subscription found", 404);
+      }
+
+      const portal = await stripePost("/billing_portal/sessions", {
+        customer:   sub.stripe_customer_id,
+        return_url: "https://cleanshothq.com/dashboard",
+      }, env);
+
+      if (!portal.url) {
+        const msg = portal.error?.message || "billing portal unavailable";
+        return err(msg, 502);
+      }
+
+      return json({ url: portal.url });
     }
 
     return err("Not found", 404);
