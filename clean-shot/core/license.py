@@ -170,7 +170,16 @@ def enforce_license(version: str = "", config: dict | None = None):
         elif status in ("trial_expired", "existing_trial"):
             print(f"\n  ℹ {result.get('message', '')}")
             if status == "trial_expired":
-                print("    Visit cleanshothq.com to subscribe.")
+                print()
+                print("  Subscribe to keep access: cleanshothq.com/subscribe")
+                try:
+                    import webbrowser
+                    webbrowser.open("https://cleanshothq.com/subscribe")
+                    print("  (Browser opened to subscription page)")
+                except Exception:
+                    pass
+                print()
+                input("  Press Enter to exit...")
                 sys.exit(1)
         elif "error" in result:
             # Network error — let them through
@@ -187,8 +196,19 @@ def enforce_license(version: str = "", config: dict | None = None):
 
     if not allowed:
         print(f"\n  ✗ CleanShot: {result.get('message', 'License invalid.')}")
-        print("    Visit cleanshothq.com to subscribe.")
         print()
+        print("  To subscribe and keep access:")
+        print("    cleanshothq.com/subscribe")
+        print()
+        print("  Or open in browser now:")
+        try:
+            import webbrowser
+            webbrowser.open("https://cleanshothq.com/subscribe")
+            print("    (Browser opened to subscription page)")
+        except Exception:
+            pass
+        print()
+        input("  Press Enter to exit...")
         sys.exit(1)
 
     # Show warnings for expiring trials
