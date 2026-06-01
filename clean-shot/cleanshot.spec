@@ -34,7 +34,11 @@ a = Analysis(
         (os.path.join(SPECPATH, '..', 'assets', 'CleanShotHQ_Flyer_v9.pdf'), '.'),
     ],
     hiddenimports=[
-        'win32com.client', 'win32com.server.policy', 'colorama', 'requests',
+        'win32com.client', 'win32com.server.policy',
+        'colorama', 'colorama.initialise', 'colorama.ansitowin32',
+        'requests',
+        'pyttsx3', 'pyttsx3.drivers', 'pyttsx3.drivers.sapi5',
+        'pyttsx3.drivers.nsss', 'pyttsx3.drivers.espeak',
     ] + _LOCAL_MODULES,
     hookspath=[],
     hooksconfig={},

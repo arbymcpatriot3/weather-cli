@@ -55,30 +55,73 @@ def _find_bundled_file(filename: str) -> str | None:
     return None
 
 
+def _do_relaunch(cmd: list) -> None:
+    """Launch cmd maximized with its own console, then exit this process."""
+    si = subprocess.STARTUPINFO()
+    si.dwFlags    |= subprocess.STARTF_USESHOWWINDOW
+    si.wShowWindow = 3              # SW_MAXIMIZE
+
+    env = os.environ.copy()
+    env["CLEANSHOT_MAXIMIZED"] = "1"
+
+    try:
+        subprocess.Popen(
+            cmd,
+            startupinfo=si,
+            env=env,
+            shell=False,
+            # CREATE_NEW_CONSOLE gives the child its own console window.
+            # Without this, child inherits the parent's console — when the
+            # parent exits the shared console closes and takes the child with it.
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+        )
+        time.sleep(0.3)             # let the new process start before we exit
+        sys.exit(0)
+    except Exception:
+        os.environ["CLEANSHOT_MAXIMIZED"] = "1"   # degrade gracefully
+
+
+def _relaunch_maximized() -> None:
+    """
+    Re-launch this exe maximized via STARTUPINFO.
+    The second instance sees CLEANSHOT_MAXIMIZED=1 and skips this function.
+
+    Two previous bugs (now fixed):
+      1. [sys.executable] + sys.argv doubled the exe path as an arg, so the
+         second process had len(sys.argv) > 1 and tried to geocode the exe
+         filename as a location, then exited immediately.
+      2. No CREATE_NEW_CONSOLE — child shared the parent's console, so when
+         the parent exited the shared console closed and killed the child too.
+    """
+    if sys.platform != "win32":
+        return
+    if os.environ.get("CLEANSHOT_MAXIMIZED") == "1":
+        return                      # already the maximized instance
+
+    if getattr(sys, "frozen", False):
+        # PyInstaller .exe — re-launch the exe itself, no extra argv
+        _do_relaunch([sys.executable])
+    else:
+        # Dev mode (python main.py) — include script args
+        _do_relaunch([sys.executable] + sys.argv)
+
+
 def _setup_window() -> None:
     """
-    Set up the CleanShot console window on Windows.
-
-    MUST be called AFTER at least one print() or sys.stdout.write().
-    Without prior I/O, GetConsoleWindow() returns NULL on PyInstaller
-    onefile apps and the entire function silently does nothing.
-
-    This was the root cause of Sessions 8 and 12 both failing:
-    both called window setup before any console I/O had occurred.
+    Set the console title and scroll buffer.
+    Maximization is handled by _relaunch_maximized() via STARTUPINFO —
+    no ShowWindow / SetWindowLong / SetWindowPos needed here.
     """
     if sys.platform != "win32":
         return
 
     try:
         kernel32 = ctypes.windll.kernel32
-        user32   = ctypes.windll.user32
 
-        # Step 1: Set the console title
+        # Console title
         kernel32.SetConsoleTitleW(f"CleanShot HQ v{VERSION} — Road Intelligence")
 
-        # Step 2: Set buffer size — MUST be taller than the visible window
-        #         so the scroll bar appears and resize works.
-        #         Using COORD struct (two c_short fields).
+        # Buffer: MUST be taller than the visible window so the scroll bar appears.
         INVALID_HANDLE = ctypes.c_void_p(-1).value
         h = kernel32.GetStdHandle(-11)          # STD_OUTPUT_HANDLE
         if h and h != INVALID_HANDLE:
@@ -86,48 +129,101 @@ def _setup_window() -> None:
                 _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
             kernel32.SetConsoleScreenBufferSize(h, COORD(220, 3000))
 
-        # Step 3: Wait for Windows to finish associating the window handle
-        time.sleep(0.15)
+        # Icon (needs hwnd — best-effort, no window manipulation)
+        hwnd = kernel32.GetConsoleWindow()
+        if hwnd:
+            _set_icon(hwnd)
 
-        # Step 4: Get the window handle
+    except Exception:
+        pass
+
+
+_ensure_full_window = _setup_window   # backward-compat alias
+
+
+def _maximize_window() -> None:
+    """
+    Convert the console window from WS_POPUP to a proper overlapped window,
+    then maximize it.
+
+    Diagnosis: GetWindowLongW returns 0x94000000 = WS_POPUP | WS_VISIBLE |
+    WS_CLIPSIBLINGS.  WS_POPUP means no title bar, no buttons, no resize border.
+    Simply OR-ing in WS_CAPTION does nothing while WS_POPUP is present —
+    it must be removed first.
+
+    Windows Terminal note: WT_SESSION env var means we're inside Windows Terminal.
+    GetConsoleWindow() returns a hidden pseudo-console HWND in that case —
+    style manipulation has no visible effect.  We skip it and show a tip instead.
+    """
+    if sys.platform != "win32":
+        return
+
+    # Windows Terminal hosts the console internally — we can't resize/maximize
+    # the WT window from code.  Advise the user instead.
+    if os.environ.get("WT_SESSION"):
+        print("  Tip: Press Alt+Enter to maximize this Windows Terminal window.")
+        return
+
+    try:
+        kernel32 = ctypes.windll.kernel32
+        user32   = ctypes.windll.user32
+
         hwnd = kernel32.GetConsoleWindow()
         if not hwnd:
-            return                  # give up gracefully — never crash
+            return
 
-        # Step 5: ONLY ADD style flags, never remove any
-        #   WS_CAPTION     = 0x00C00000  (title bar with three buttons)
-        #   WS_SYSMENU     = 0x00080000  (close button + system menu)
-        #   WS_MINIMIZEBOX = 0x00020000
-        #   WS_MAXIMIZEBOX = 0x00010000
-        #   WS_THICKFRAME  = 0x00040000  (resizable border)
-        GWL_STYLE      = -16
+        GWL_STYLE  = -16
+        WS_POPUP   = 0x80000000   # must be REMOVED
         WS_CAPTION     = 0x00C00000
         WS_SYSMENU     = 0x00080000
         WS_MINIMIZEBOX = 0x00020000
         WS_MAXIMIZEBOX = 0x00010000
         WS_THICKFRAME  = 0x00040000
+
         style = user32.GetWindowLongW(hwnd, GWL_STYLE)
-        style |= (WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX |
-                  WS_MAXIMIZEBOX | WS_THICKFRAME)
-        user32.SetWindowLongW(hwnd, GWL_STYLE, style)
 
-        # Step 6: Refresh the frame so buttons appear immediately
-        SWP_FLAGS = 0x0020 | 0x0002 | 0x0001 | 0x0004
-        # SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER
-        user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_FLAGS)
+        # Strip WS_POPUP, add full overlapped-window chrome
+        new_style = (style & ~WS_POPUP) | (WS_CAPTION | WS_SYSMENU |
+                                           WS_MINIMIZEBOX | WS_MAXIMIZEBOX |
+                                           WS_THICKFRAME)
+        user32.SetWindowLongW(hwnd, GWL_STYLE, new_style)
 
-        # Step 7: Maximize AFTER setting style — order matters
-        user32.ShowWindow(hwnd, 3)              # SW_MAXIMIZE = 3
+        # Force Windows to recalculate and redraw the frame
+        user32.SetWindowPos(hwnd, None, 0, 0, 0, 0,
+                            0x0020 | 0x0002 | 0x0001 | 0x0004)
+                            # SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER
 
-        # Step 8: Set truck icon
-        _set_icon(hwnd)
+        # Brief pause so Windows processes the style change before maximize
+        time.sleep(0.1)
+
+        # Try three different maximize methods — use whichever works
+        # Method 1: ShowWindow
+        user32.ShowWindow(hwnd, 3)          # SW_MAXIMIZE = 3
+
+        # Method 2: WM_SYSCOMMAND SC_MAXIMIZE (what clicking maximize button sends)
+        user32.PostMessageW(hwnd, 0x0112, 0xF030, 0)
+
+        # Method 3: SetWindowPlacement
+        class WINDOWPLACEMENT(ctypes.Structure):
+            _fields_ = [
+                ("length", ctypes.c_uint), ("flags", ctypes.c_uint),
+                ("showCmd", ctypes.c_uint),
+                ("ptMin_x", ctypes.c_int), ("ptMin_y", ctypes.c_int),
+                ("ptMax_x", ctypes.c_int), ("ptMax_y", ctypes.c_int),
+                ("rcNorm_l", ctypes.c_int), ("rcNorm_t", ctypes.c_int),
+                ("rcNorm_r", ctypes.c_int), ("rcNorm_b", ctypes.c_int),
+            ]
+        wp = WINDOWPLACEMENT()
+        wp.length = ctypes.sizeof(WINDOWPLACEMENT)
+        user32.GetWindowPlacement(hwnd, ctypes.byref(wp))
+        wp.showCmd = 3
+        user32.SetWindowPlacement(hwnd, ctypes.byref(wp))
+
+        user32.InvalidateRect(hwnd, None, True)
+        user32.UpdateWindow(hwnd)
 
     except Exception:
-        pass                        # window setup failure must never crash the app
-
-
-# Keep the old name as an alias so nothing else breaks
-_ensure_full_window = _setup_window
+        pass
 
 
 def _set_icon(hwnd: int) -> None:
@@ -434,9 +530,10 @@ def _show_referral_reminder(config: dict) -> None:
     url = (f"https://cleanshothq.com/?ref={ref_code}"
            if ref_code else "https://cleanshothq.com/dashboard")
 
+    from core.i18n.strings import t as _t
     print()
-    print(f"  💰  Refer a friend → earn $1/mo off your subscription.")
-    print(f"      Share: {url}")
+    print(f"  💰  {_t('referral_line1')}")
+    print(f"      {_t('referral_line2')} {url}")
 
 
 # ── Continuous monitor helpers ────────────────────────────────────────────────
@@ -659,22 +756,24 @@ def _end_monitor_session(session_start: int, refresh_count: int,
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
 def _menu() -> None:
+    from core.i18n.translator import t
     print()
     print(_DIV)
-    print(f"  Clean Shot v{VERSION} — What would you like to do?")
+    print(f"  Clean Shot v{VERSION} — {t('menu.header')}")
     print(_DIV)
-    print("  1  Refresh weather report")
-    print("  2  Simple one-line summary")
-    print("  3  Compact view")
-    print("  4  Active weather alerts")
-    print("  5  Route weather  (enter two cities)")
-    print("  6  Regional map")
-    print("  7  Settings")
-    print("  8  Doctor  (system health check)")
-    print("  C  Continuous Monitor  (auto-refresh)")
-    print("  F  View Flyer / Share Info")
-    print("  ?  Help & Icon Glossary")
-    print("  0  Exit")
+    print(f"  1  {t('menu.item.1')}")
+    print(f"  2  {t('menu.item.2')}")
+    print(f"  3  {t('menu.item.3')}")
+    print(f"  4  {t('menu.item.4')}")
+    print(f"  5  {t('menu.item.5')}")
+    print(f"  6  {t('menu.item.6')}")
+    print(f"  7  {t('menu.item.7')}")
+    print(f"  8  {t('menu.item.8')}")
+    print(f"  C  {t('menu.item.C')}")
+    print(f"  F  {t('menu.item.F')}")
+    print(f"  L  {t('menu.item.L')}")
+    print(f"  ?  {t('menu.item.help')}")
+    print(f"  0  {t('menu.item.exit')}")
     print(_DIV)
 
 
@@ -683,18 +782,25 @@ def _menu() -> None:
 def _interactive_loop() -> None:
     """Show the full weather report, then keep the window open with a menu."""
     from core.config import get_config
+    from core.i18n.translator import set_language, t
 
-    # A write to stdout MUST happen before _setup_window() is called.
-    # On PyInstaller onefile apps, GetConsoleWindow() returns NULL until
-    # at least one I/O operation has occurred — sleep() alone does not fix this.
-    # This was the root cause of Sessions 8 and 12 both silently failing.
-    print()
-    _setup_window()
-    _run([])   # full report on startup
+    config = get_config()
+    set_language(config.get("language", "en"))   # restore saved language at startup
+
+    _setup_window()        # title + buffer only (no ShowWindow yet)
+    _run([])               # full dashboard renders — window now has content
+    _maximize_window()     # maximize AFTER content is visible — no black screen
+
+    # Audible greeting
+    try:
+        if config.get("tts_enabled", True):
+            from core.tts import speak
+            speak(t("tts.startup"), config, bypass_quiet=True)
+    except Exception:
+        pass
 
     # Referral reminder — once per session, after first display
     try:
-        config = get_config()
         _show_referral_reminder(config)
     except Exception:
         pass
@@ -703,7 +809,7 @@ def _interactive_loop() -> None:
         _menu()
 
         try:
-            raw = input("  Choice (or Enter to refresh): ").strip()
+            raw = input(f"  {t('menu.prompt')}").strip()
         except (KeyboardInterrupt, EOFError):
             print("\n  Drive safe.")
             break
@@ -769,6 +875,25 @@ def _interactive_loop() -> None:
 
         elif raw.lower() in ("f", "flyer"):
             open_flyer()
+
+        elif raw.lower() in ("l", "lang", "language", "idioma"):
+            try:
+                from core.config     import get_config as _gc, save_config
+                from core.i18n.translator import set_language, t
+                _cfg = _gc()
+                cur      = _cfg.get("language", "en")
+                new_lang = "es" if cur == "en" else "en"
+                _cfg["language"] = new_lang
+                save_config(_cfg)
+                set_language(new_lang)
+                if new_lang == "es":
+                    print(f"  {t('menu.lang.es')}")
+                    print(f"  {t('menu.lang.es.sub')}")
+                else:
+                    print(f"  {t('menu.lang.en')}")
+                    print(f"  {t('menu.lang.en.sub')}")
+            except Exception as e:
+                print(f"  Language switch unavailable: {e}")
 
         elif raw in ("?", "help", "h"):
             try:

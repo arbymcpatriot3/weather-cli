@@ -1310,11 +1310,12 @@ def _display_road_section(lat, lon, parsed, config, width):
 
     # All-clear banner — shown only when every road-intelligence source is quiet
     if not road_alerts and not incidents and not hazards:
+        from core.i18n.strings import t as _t
         bar = "═" * min(width - 2, 58)
         print()
         print(f"  {bar}")
-        print(f"  🟢  You've got a clean shot, good buddy!")
-        print(f"      Road is clear — keep the shiny side up.")
+        print(f"  🟢  {_t('road_clear_title')}")
+        print(f"      {_t('road_clear_sub')}")
         print(f"  {bar}")
 
     # 9. Parking runway (solo_pro+)

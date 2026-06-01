@@ -77,7 +77,7 @@ def _h(key: str) -> dict:
     return {"X-API-Key": key, **_UA}
 
 
-def _get(url: str, key: str, timeout: int = 10) -> dict | None:
+def _get(url: str, key: str, timeout: int = 10, quiet: bool = False) -> dict | None:
     """Direct GET to road511. Returns parsed JSON or None on any error."""
     if not _REQUESTS_AVAILABLE or not key:
         return None
@@ -86,7 +86,8 @@ def _get(url: str, key: str, timeout: int = 10) -> dict | None:
         r.raise_for_status()
         return r.json()
     except Exception as e:
-        print(f"⚠ Road511 error: {e}", file=sys.stderr)
+        if not quiet:
+            print(f"⚠ Road511 error: {e}", file=sys.stderr)
         return None
 
 
@@ -114,7 +115,7 @@ def _fetch(path: str, params: dict, key: str) -> dict | None:
     """Try direct road511 first; fall back to CF proxy when no direct key."""
     if key:
         url = f"{_BASE}{path}?" + "&".join(f"{k}={v}" for k, v in params.items())
-        data = _get(url, key)
+        data = _get(url, key, quiet=True)   # silent — proxy handles any failure
         if data is not None:
             return data
     return _get_proxy(path, params)

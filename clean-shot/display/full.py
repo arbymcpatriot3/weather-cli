@@ -12,6 +12,7 @@
 import shutil
 from colorama import Fore, Style, init
 from core.parse import degrees_to_dir
+from core.i18n.strings import t, translate_weather_desc, translate_day_label
 
 init(autoreset=True)
 
@@ -181,8 +182,8 @@ def display_current(parsed: dict, width: int):
         print(separator(w))
         print(_trunc(f"📍 {city}{cache_str}", w))
         tc = temp_color(cur["temp"])
-        _cond = _trunc(cur['desc_short'], max(1, w - 27))
-        print(f"  {tc}{cur['temp']:.1f}°F{Style.RESET_ALL} (feels {cur['feels']:.1f}) — {_cond}")
+        _cond = _trunc(translate_weather_desc(cur['desc_short']), max(1, w - 27))
+        print(f"  {tc}{cur['temp']:.1f}°F{Style.RESET_ALL} ({t('feels_like')} {cur['feels']:.1f}) — {_cond}")
         ws  = cur["wind_speed"]
         wc  = wind_color(ws, parsed.get("wind_alert_mph", 40))
         wg  = cur["wind_gust"]
@@ -192,29 +193,35 @@ def display_current(parsed: dict, width: int):
         return
 
     # ── Standard / Full ───────────────────────────────────────────────────────
-    print(f"Location: {_trunc(city, w - 10)}")
-    print(f"Updated:  {ts}{cache_str}")
+    print(f"{t('location')}: {_trunc(city, w - 12)}")
+    print(f"{t('updated')}:  {ts}{cache_str}")
     print()
-    print("Current Conditions")
+    print(t('current_conditions'))
     print(separator(w))
 
+    # Label column — wide enough for "Amanecer / Atardecer" (Spanish sunrise label)
+    _lw = max(
+        len(t('temperature')), len(t('condition')), len(t('humidity')),
+        len(t('wind')), len(t('sunrise_sunset'))
+    ) + 2
+
     tc = temp_color(cur["temp"])
-    print(f"Temperature     : {tc}{cur['temp']:.1f}°F{Style.RESET_ALL}  "
-          f"(feels like {cur['feels']:.1f}°F)")
-    print(f"Condition       : {cur['desc_short']}")
-    print(f"Humidity        : {cur['humidity']:.0f}%")
+    print(f"{t('temperature'):<{_lw}}: {tc}{cur['temp']:.1f}°F{Style.RESET_ALL}  "
+          f"({t('feels_like')} {cur['feels']:.1f}°F)")
+    print(f"{t('condition'):<{_lw}}: {translate_weather_desc(cur['desc_short'])}")
+    print(f"{t('humidity'):<{_lw}}: {cur['humidity']:.0f}%")
 
     ws = cur["wind_speed"]
     wd = degrees_to_dir(cur["wind_dir"])
     wg = cur["wind_gust"]
     wc = wind_color(ws, parsed.get("wind_alert_mph", 40))
     if ws < 1:
-        print("Wind            : Calm")
+        print(f"{t('wind'):<{_lw}}: {t('calm')}")
     else:
-        gust_str = f"  (gusts {wg:.1f} mph)" if wg > ws + 5 else ""
-        print(f"Wind            : {wc}{ws:.1f} mph  {wd}{Style.RESET_ALL}{gust_str}")
+        gust_str = f"  ({t('gust').lower()} {wg:.1f} mph)" if wg > ws + 5 else ""
+        print(f"{t('wind'):<{_lw}}: {wc}{ws:.1f} mph  {wd}{Style.RESET_ALL}{gust_str}")
 
-    print(f"Sunrise / Sunset: {fc['sunrise']}  /  {fc['sunset']}")
+    print(f"{t('sunrise_sunset'):<{_lw}}: {fc['sunrise']}  /  {fc['sunset']}")
 
 
 # ── Alerts block ──────────────────────────────────────────────────────────────
@@ -311,7 +318,7 @@ def display_hourly(hourly: dict, width: int, time_format: str = "12h",
     # Reserve room for gust (~11 chars) + rain (~7 chars) annotations
     max_bar = max(4, w - 48)
 
-    print("Hourly Forecast (Next 24 hours)")
+    print(t('hourly_forecast'))
     print(separator(w))
 
     max_t   = max(temps) if temps else 100
@@ -338,7 +345,7 @@ def display_hourly(hourly: dict, width: int, time_format: str = "12h",
         gc = (Fore.RED    if gust >= alert_mph        else
               Fore.YELLOW if gust >= alert_mph * 0.75 else "")
 
-        gust_str = f" {gc}Gust:{gust:>5.1f}{Style.RESET_ALL}" if gust > 5 else ""
+        gust_str = f" {gc}{t('gust')}:{gust:>5.1f}{Style.RESET_ALL}" if gust > 5 else ""
         rain_str = f" 🌧{rain:>3.0f}%" if rain >= 20 else ""
 
         print(f"{time_str} {tz} | {tc}{temp:>5.1f}°F{Style.RESET_ALL} | {bar} |{gust_str}{rain_str}")
@@ -357,25 +364,27 @@ def display_forecast(forecast: list, width: int):
         for day in forecast[:3]:
             tc_h = temp_color(day["high"])
             rc   = "🌧" if day["rain_prob"] > 40 else ""
-            desc = _trunc(day["desc_short"], 8)
-            print(f"{day['day_label'][:3]} {tc_h}{day['high']:.0f}{Style.RESET_ALL}/"
+            desc = _trunc(translate_weather_desc(day["desc_short"]), 8)
+            lbl  = translate_day_label(day['day_label'])
+            print(f"{lbl[:3]} {tc_h}{day['high']:.0f}{Style.RESET_ALL}/"
                   f"{day['low']:.0f}° {desc} {rc}{day['rain_prob']:.0f}%")
         return
 
     if mode == "compact":
         # ── Compact: 5 days, one line ──────────────────────────────────────────
-        print("5-Day Forecast")
+        print(t('seven_day_forecast'))
         print(separator(w))
         for day in forecast[:5]:
             tc_h = temp_color(day["high"])
             rc   = Fore.RED if day["rain_prob"] > 70 else Fore.YELLOW if day["rain_prob"] > 40 else ""
-            desc = _trunc(day["desc_short"], 12)
-            print(f"{day['day_label'][:3]}  {tc_h}{day['high']:.0f}/{day['low']:.0f}°F{Style.RESET_ALL}"
+            desc = _trunc(translate_weather_desc(day["desc_short"]), 12)
+            lbl  = translate_day_label(day['day_label'])
+            print(f"{lbl[:3]}  {tc_h}{day['high']:.0f}/{day['low']:.0f}°F{Style.RESET_ALL}"
                   f"  {rc}🌧{day['rain_prob']:.0f}%{Style.RESET_ALL}  {desc}")
         return
 
     # ── Standard / Full: 7 days, two lines ────────────────────────────────────
-    print("7-Day Forecast")
+    print(t('seven_day_forecast'))
     print(separator(w))
 
     for day in forecast:
@@ -384,13 +393,14 @@ def display_forecast(forecast: list, width: int):
         rain  = day["rain_prob"]
         rc    = Fore.RED if rain > 70 else Fore.YELLOW if rain > 40 else Fore.GREEN
 
-        desc = _trunc(day["desc_short"], w - 6)
-        print(f"{day['day_label']}  {desc}")
-        print(f"     High {tc_h}{day['high']:.0f}°F{Style.RESET_ALL}   "
-              f"Low {tc_l}{day['low']:.0f}°F{Style.RESET_ALL}   "
-              f"Rain {rc}{rain:.0f}%{Style.RESET_ALL}")
+        desc = _trunc(translate_weather_desc(day["desc_short"]), w - 6)
+        lbl  = translate_day_label(day['day_label'])
+        print(f"{lbl}  {desc}")
+        print(f"     {t('high')} {tc_h}{day['high']:.0f}°F{Style.RESET_ALL}   "
+              f"{t('low')} {tc_l}{day['low']:.0f}°F{Style.RESET_ALL}   "
+              f"{t('rain')} {rc}{rain:.0f}%{Style.RESET_ALL}")
         if day.get("gust_max", 0) > 35:
-            print(f"     {Fore.YELLOW}⚠ Gusts up to {day['gust_max']:.0f} mph{Style.RESET_ALL}")
+            print(f"     {Fore.YELLOW}⚠ {t('gust')} {day['gust_max']:.0f} mph{Style.RESET_ALL}")
         print()
 
 
@@ -422,7 +432,7 @@ def display_rain_timeline(hourly: dict, width: int, time_format: str = "12h"):
             print(f"{ts} {rc}🌧{rain:.0f}%{Style.RESET_ALL}")
         return
 
-    print("Rain Probability (Next 12 hours)")
+    print(t('rain_probability'))
     print(separator(w))
 
     bar_scale = max(1, (w - 22))   # scale bar to available width
@@ -456,12 +466,13 @@ def display_regional(cities: list, width: int):
             tc = temp_color(temp)
             print(f"{tc}{temp:>3.0f}°{Style.RESET_ALL} {_trunc(name, w - 6)}")
     else:
-        print("Regional Weather Overview")
+        print(t('regional_overview'))
         print(separator(w))
-        name_w = max(10, w - 26)
+        # City name column: cap at 30 so conditions always have room on any terminal width
+        name_w = min(30, max(10, w - 36))
         for name, temp, desc in cities:
             tc = temp_color(temp)
-            d  = _trunc(desc, max(8, w - name_w - 16))
+            d  = translate_weather_desc(desc)   # translated, no truncation
             print(f"  {_trunc(name, name_w):<{name_w}}  {tc}{temp:>5.1f}°F{Style.RESET_ALL}  {d}")
     print()
 

@@ -590,8 +590,9 @@ def display_stop(stop: dict, config: dict = None) -> None:
         state_str = f" {state}" if state else ""
         spaces_s  = f" — {spaces} spaces" if spaces is not None else ""
         rating_s  = f" ★{rating:.1f}" if rating is not None else ""
+        from core.i18n.strings import t as _t
         print(f"  {name}{state_str}{hw_str}{spaces_s}{rating_s}")
-        print(f"    {dist_str} away  [{chain}]  {icons}")
+        print(f"    {dist_str} {_t('away')}  [{chain}]  {icons}")
 
 
 def display_parking_status(lat: float, lon: float, config: dict) -> None:
@@ -625,6 +626,7 @@ def display_parking_status(lat: float, lon: float, config: dict) -> None:
             print("  🟢 Parking Runway")
         print(f"  {format_runway_str(runway)}")
     else:
+        from core.i18n.strings import t as _t
         if level == "critical":
             print("  ⛔ YOU MUST STOP SOON — HOS EXPIRING")
         elif level == "urgent":
@@ -632,8 +634,8 @@ def display_parking_status(lat: float, lon: float, config: dict) -> None:
         elif level == "warning":
             print("  🟡 Start Looking — Under 2 hours remaining")
         else:
-            print("  🟢 Parking Runway")
-        print(f"  Runway: {format_runway_str(runway)}")
+            print(f"  🟢 {_t('parking_runway')}")
+        print(f"  {_t('runway')}: {format_runway_str(runway)}")
 
     if lat is None or lon is None:
         if mode != "ultra_compact":
@@ -647,11 +649,12 @@ def display_parking_status(lat: float, lon: float, config: dict) -> None:
         if mode != "ultra_compact":
             print("  No truck stops found in your remaining runway.")
     else:
+        from core.i18n.strings import t as _t
         if mode == "ultra_compact":
             for stop in stops[:3]:
                 display_stop(stop, config)
         else:
-            print(f"  {len(stops)} stop{'s' if len(stops) != 1 else ''} in corridor:")
+            print(f"  {len(stops)} {_t('stops_in_corridor')}:")
             if mode != "compact":
                 print()
             for stop in stops[:5]:
@@ -660,6 +663,7 @@ def display_parking_status(lat: float, lon: float, config: dict) -> None:
                     print()
 
     if len(stops) > 5:
-        print(f"+{len(stops)-5}" if mode == "ultra_compact" else f"  … and {len(stops) - 5} more stops in range")
+        from core.i18n.strings import t as _t
+        print(f"+{len(stops)-5}" if mode == "ultra_compact" else f"  … and {len(stops) - 5} {_t('more_stops')}")
 
     print(sep)

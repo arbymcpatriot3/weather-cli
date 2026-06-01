@@ -516,30 +516,39 @@ def display_hos_status(config: dict) -> None:
         elif status["violation_risk"]:
             print("  ⚠ FIND PARKING NOW")
     else:
-        print(f"  {level_icon}  HOS STATUS  (Advisory Only — Not an ELD)")
+        from core.i18n.strings import t as _t
+        print(f"  {level_icon}  {_t('hos_status')}")
         print(f"  {'─' * min(44, w - 2)}")
-        print(f"  Drive remaining   : {_fmt(status['drive_remaining_min'])} of 11h")
-        print(f"  Duty window left  : {_fmt(status['duty_remaining_min'])} of 14h")
-        print(f"  Effective limit   : {_fmt(status['effective_remaining_min'])}")
+
+        # Dynamic label column for bilingual alignment
+        _lw = max(
+            len(_t('drive_remaining')), len(_t('duty_window_left')),
+            len(_t('effective_limit')), len(_t('next_break')),
+            len(_t('weekly')), len(_t('status'))
+        ) + 1
+
+        print(f"  {_t('drive_remaining'):<{_lw}}: {_fmt(status['drive_remaining_min'])} {_t('of_11h')}")
+        print(f"  {_t('duty_window_left'):<{_lw}}: {_fmt(status['duty_remaining_min'])} {_t('of_14h')}")
+        print(f"  {_t('effective_limit'):<{_lw}}: {_fmt(status['effective_remaining_min'])}")
 
         if status["needs_break"]:
             print(f"  ⚠  BREAK REQUIRED — {status['break_overdue_min']:.0f} min overdue")
         else:
             bfm = minutes_until_break_required(config)
-            print(f"  Next break req'd in: {_fmt(int(bfm))} of driving")
+            print(f"  {_t('next_break'):<{_lw}}: {_fmt(int(bfm))} {_t('of_driving')}")
 
         wr    = status["weekly_remaining_min"]
         cycle = config.get("hos_cycle", "70_8")
         wlbl  = "70h/8-day" if cycle == "70_8" else "60h/7-day"
-        print(f"  Weekly ({wlbl}): {_fmt(int(wr))} remaining")
+        print(f"  {_t('weekly'):<{_lw}}: {_fmt(int(wr))} {_t('remaining')}")
 
         if status["is_driving"]:
-            state_str = "Driving"
+            state_str = _t('driving')
         elif status["is_on_duty"]:
-            state_str = "On Duty (Not Driving)"
+            state_str = _t('on_duty_nd')
         else:
-            state_str = "Off Duty"
-        print(f"  Status            : {state_str}")
+            state_str = _t('off_duty')
+        print(f"  {_t('status'):<{_lw}}: {state_str}")
 
         if status["violation_imminent"]:
             print()
