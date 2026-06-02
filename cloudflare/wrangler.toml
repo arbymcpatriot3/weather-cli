@@ -6,6 +6,10 @@ compatibility_date = "2024-01-01"
 pattern = "api.cleanshothq.com"
 custom_domain = true
 
+[[routes]]
+pattern = "cleanshothq.com"
+custom_domain = true
+
 [[d1_databases]]
 binding       = "DB"
 database_name = "cleanshot-db"
@@ -15,7 +19,12 @@ database_id   = "f64707f2-c4dc-4403-ae53-384d4eca9ab3"
 binding     = "RELEASES"
 bucket_name = "cleanshot-releases"
 
+[triggers]
+crons = ["0 4 * * *"]
+
 # Secrets (set via CLI, never hardcode):
+#   wrangler secret put OTP_HMAC_SECRET
+#   wrangler secret put RESEND_API_KEY
 #   wrangler secret put ADMIN_KEY
 #   wrangler secret put R511_API_KEY
 #   wrangler secret put STRIPE_SECRET_KEY
